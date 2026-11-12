@@ -1,0 +1,19 @@
+user@mac hello-cursor % env -u XDG_CONFIG_HOME
+ cursor-agent
+
+
+  Cursor Agent
+  v2026.11.11-b912975
+  Tip: Type ? in the prompt bar to show in-app hints.
+
+
+
+
+  → /model Grok 4.7
+
+
+ Models matching "Grok 4.7"                Max mode: OFF
+
+ →  Grok 4.7                 256K Medium (Tab to modify)
+
+ Edit prompt to filter • Enter to select • Tab to edit

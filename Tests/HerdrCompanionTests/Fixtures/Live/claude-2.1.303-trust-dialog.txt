@@ -1,0 +1,37 @@
+dev@Demo-MacBook-Pro-2 z-shapes % codex -m gpt-6.1-sol -c model_reasoning_effort=low -a untrusted -s read-only
+error: invalid value 'untrusted' for '--ask-for-approval <APPROVAL_POLICY>'
+  [possible values: on-request, never]
+
+For more information, try '--help'.
+dev@Demo-MacBook-Pro-2 z-shapes % codex -m gpt-6.1-sol -c model_reasoning_effort=low -a on-request -s read-only
+Token usage: total=20,145 input=19,909 (+ 84,480 cached) output=236
+To continue this session, run:
+  codex resume 01a15370-bbae-7821-a3d8-19946e2e086e
+Or run codex resume and select Run shapes echo command.
+dev@Demo-MacBook-Pro-2 z-shapes %
+dev@Demo-MacBook-Pro-2 z-shapes % codex -m gpt-6.1-sol -c model_reasoning_effort=low -c approvals_reviewer=\"user\" -a on-request -
+s read-only
+Token usage: total=21,538 input=21,434 (+ 6,912 cached) output=104
+To continue this session, run:
+  codex resume 01a15372-b2e5-7203-a875-e5c3b56c134e
+Or run codex resume and select Request approval for probe.
+dev@Demo-MacBook-Pro-2 z-shapes %
+dev@Demo-MacBook-Pro-2 z-shapes % cl --model haiku --permission-mode default
+claude: signed in as demo (demo@example.com) · model = haiku (haiku)
+
+───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ Accessing workspace:
+
+ /private/tmp/z-shapes
+
+ Quick safety check: Is this a project you created or one you trust? (Like your own code, a well-known open source project, or
+ work from your team). If not, take a moment to review what's in this folder first.
+
+ Claude Code'll be able to read, edit, and execute files here.
+
+ Security guide
+
+ ❯ No, exit
+   Yes, I trust this folder
+
+ Enter to confirm · Esc to cancel

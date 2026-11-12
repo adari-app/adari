@@ -1,0 +1,48 @@
+{
+  "name": "adari-desktop",
+  "productName": "Adari",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Adari for macOS, Windows and Linux: Chat and Terminal for your AI coding agents, over SSH.",
+  "homepage": "https://adari.ai",
+  "desktopName": "adari.desktop",
+  "author": {
+    "name": "Elysium Technologies"
+  },
+  "license": "Apache-2.0",
+  "main": "dist/main/main.cjs",
+  "scripts": {
+    "ensure:electron": "node scripts/ensure-electron.mjs",
+    "build": "node scripts/build.mjs",
+    "start": "npm run build && electron .",
+    "demo": "npm run build && electron . --demo",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "oxlint --deny-warnings src test scripts",
+    "test": "vitest run",
+    "dist:mac": "node scripts/build.mjs --release && electron-builder --config electron-builder.config.cjs --mac --publish never",
+    "dist:win": "node scripts/build.mjs --release && electron-builder --config electron-builder.config.cjs --win --publish never",
+    "dist:linux": "node scripts/build.mjs --release && electron-builder --config electron-builder.config.cjs --linux --publish never"
+  },
+  "dependencies": {
+    "electron-updater": "6.8.9",
+    "ssh2": "1.17.0"
+  },
+  "devDependencies": {
+    "@types/node": "24.12.4",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "@types/ssh2": "1.15.6",
+    "@vitejs/plugin-react": "6.1.2",
+    "electron": "44.9.3",
+    "electron-builder": "26.16.1",
+    "esbuild": "0.28.2",
+    "ghostty-web": "0.4.0",
+    "oxlint": "1.89.0",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "typescript": "6.0.3",
+    "vite": "8.3.5",
+    "vitest": "5.0.5"
+  }
+}

@@ -1,0 +1,58 @@
+/* A tab's split panes as tiles: the focused tile has the
+   accent ring; each tile a slim header over Chat (with a compact box) or the
+   terminal; dividers sit on the lines between them. */
+
+.split-h .wsn { font-variant-numeric: tabular-nums; }
+.tiles { flex: 1; min-height: 0; position: relative; margin: 0 5px 5px; }
+.tile { position: absolute; padding: 3px; display: flex; }
+.tile-in { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; border: 1px solid var(--line-2); border-radius: 9px; overflow: hidden; background: var(--bg-main); }
+.tile.focused .tile-in { border-color: var(--accent-line); box-shadow: 0 0 0 1px var(--accent-line); }
+.tile-h { height: 30px; flex: none; display: flex; align-items: center; gap: 7px; padding: 0 5px 0 9px; border-bottom: 1px solid var(--line); background: var(--bg-side); font-size: 12.5px; white-space: nowrap; }
+.tile-h .tn { font-family: var(--mono); font-size: 10.5px; color: var(--ink-4); min-width: 8px; }
+.tile.focused .tile-h .tn { color: var(--accent-text); }
+.tile-h .nm { font-weight: 600; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.tile-h .kd { color: var(--ink-3); font-size: var(--fs-kind); }
+/* The Early badge beside an early kind in a tile's header (the header's gap spaces it). */
+.tile-h .early-b { margin-left: 0; }
+.tile-h .sp { flex: 1; }
+.seg.xs { margin: 0; width: 58px; height: 22px; flex: none; padding: 1px; border-radius: 6px; }
+.seg.xs > button { border-radius: 5px; gap: 0; }
+.tile .chat-col { width: calc(100% - 28px); padding: 14px 0 10px; }
+.tile .term-area { min-height: 0; }
+.tile-wait { flex: 1; display: flex; align-items: center; justify-content: center; color: var(--ink-3); font-size: 12.5px; }
+
+/* A tile's box: no strip or hint, tighter. */
+.cmp-wrap.compact { padding: 6px 8px 8px; }
+.cmp-wrap.compact .cmp { border-radius: 12px; padding: 7px 6px 5px 11px; box-shadow: none; }
+.cmp-wrap.compact .cmp-bar { margin-top: 2px; height: 24px; }
+.cmp-wrap.compact .send { width: 24px; height: 24px; }
+.cmp-wrap.compact.over { padding-top: 22px; }
+
+.divider { position: absolute; z-index: 3; }
+.divider.right { width: 8px; margin-left: -4px; cursor: col-resize; }
+.divider.down { height: 8px; margin-top: -4px; cursor: row-resize; }
+.divider:hover, body.resizing .divider { background: linear-gradient(var(--accent-line), var(--accent-line)) center / 2px 100% no-repeat; }
+.divider.down:hover, body.resizing .divider.down { background-size: 100% 2px; }
+/* While a divider moves, the terminals under the pointer do not take it. */
+body.resizing .tile { pointer-events: none; }
+body.resizing-right { cursor: col-resize; }
+body.resizing-down { cursor: row-resize; }
+.tile-h .ib.xs { width: 22px; height: 22px; border-radius: 5px; flex: none; }
+
+/* One pane shown for a tab past four panes, and a zoomed pane. */
+.split-note { flex: none; margin: 0 16px 8px; font-size: 12px; color: var(--ink-3); }
+.mh .zoomed-chip { font-size: 11px; color: var(--ink-2); border: 1px solid var(--line-2); border-radius: 5px; padding: 1px 6px; align-self: center; }
+.mh button.zoomed-chip:hover { background: var(--sel); color: var(--ink); }
+
+/* The sidebar marks every pane on screen, the focused one selected. */
+.row.shown { background: rgba(255, 255, 255, 0.035); box-shadow: inset 2px 0 0 var(--accent-line); }
+
+/* Close a working agent's pane: asked once. */
+.dlg.confirm { width: 400px; }
+.confirm-body { font-size: 13px; line-height: 19px; color: var(--ink-2); }
+
+/* New agent's Where: a new tab, or a split of the focused pane. */
+.na-where { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 6px; }
+.na-where > button { height: 30px; border-radius: 8px; border: 1px solid var(--line-2); background: var(--bg-sunk); color: var(--ink-2); font-size: 12.5px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+.na-where > button.on { border-color: var(--accent-line); color: var(--ink); background: var(--accent-soft); }
+.na-where > button:disabled { opacity: 0.45; }

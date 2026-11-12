@@ -1,0 +1,40 @@
+  Earlier output row 1: the onboarding notes from this morning.
+  Earlier output row 2: the onboarding notes from this morning.
+  Earlier output row 3: the onboarding notes from this morning.
+  Earlier output row 4: the onboarding notes from this morning.
+  Earlier output row 5: the onboarding notes from this morning.
+  Earlier output row 6: the onboarding notes from this morning.
+  Earlier output row 7: the onboarding notes from this morning.
+  Earlier output row 8: the onboarding notes from this morning.
+  Earlier output row 9: the onboarding notes from this morning.
+  Earlier output row 10: the onboarding notes from this morning.
+  Earlier output row 11: the onboarding notes from this morning.
+  Earlier output row 12: the onboarding notes from this morning.
+  Earlier output row 13: the onboarding notes from this morning.
+  Earlier output row 14: the onboarding notes from this morning.
+  Earlier output row 15: the onboarding notes from this morning.
+  Earlier output row 16: the onboarding notes from this morning.
+  Earlier output row 17: the onboarding notes from this morning.
+  Earlier output row 18: the onboarding notes from this morning.
+  Earlier output row 19: the onboarding notes from this morning.
+  Earlier output row 20: the onboarding notes from this morning.
+  Earlier output row 21: the onboarding notes from this morning.
+  Earlier output row 22: the onboarding notes from this morning.
+  Earlier output row 23: the onboarding notes from this morning.
+  Earlier output row 24: the onboarding notes from this morning.
+  Earlier output row 25: the onboarding notes from this morning.
+  Earlier output row 26: the onboarding notes from this morning.
+› Open the onboarding screen in Chrome and time its first paint.
+
+• I'll open Chrome with the computer-use tool and time the first paint.
+
+
+  Field 1/2 (2 required unanswered)
+  Allow this request?
+
+  Confirm
+  Approve the pending action.
+  › 1. True
+    2. False
+  enter to submit answer | ←/→ to navigate fields | esc to cancel
+

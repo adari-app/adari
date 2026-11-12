@@ -1,0 +1,40 @@
+
+  Get to finished work sooner with Opus
+  5.5. Switch anytime with /model.
+
+⏺ Remote Control is disabled by
+  your organization's policy.
+  Contact your organization
+  admin for access.
+
+❯ Use the Bash tool to run exactly:
+  echo narrow >
+  /private/tmp/z-narrow/n.txt
+
+  Writing "narrow" to n.txt in z-narrow
+  directory
+  ⎿  $ echo narrow >
+     /private/tmp/z-narrow/n.txt
+
+───────────────────────────────────────
+ Bash command
+ Tip: auto mode handles these prompts
+ for you — choose "switch to auto
+ mode" below
+ Write "narrow" to n.txt in z-narrow
+ directory
+╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌
+ echo narrow >
+ /private/tmp/z-narrow/n.txt
+╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌
+ Do you want to proceed?
+ ❯ 1. Yes
+   2. Yes, and always allow access to
+      /private/tmp/z-narrow from this
+      project
+   3. Yes, and switch to auto mode ·
+      auto mode handles these prompts
+      for you
+   4. No
+
+ Esc to cancel · Tab to amend

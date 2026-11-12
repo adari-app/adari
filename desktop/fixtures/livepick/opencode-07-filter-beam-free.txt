@@ -1,0 +1,17 @@
+                                          ▄
+         █▀▀█ █▀▀█ █▀▀█ █▀▀▄ █▀▀▀ █▀▀█ █▀▀█ █▀▀█
+         █  █ █  █ █▀▀▀ █  █ █    █  █ █  █ █▀▀▀
+         ▀▀▀▀ █▀▀▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀
+
+
+     Select model                                esc
+
+     Beam Free
+
+     Beam Free                              OpenCode
+
+     Connect provider ctrl+a  Favorite ctrl+f
+
+  ● Tip Create opencode.json for server settings, and
+  /private/tmp/live/work/hello-          1.18.21
+  opencode

@@ -1,0 +1,17 @@
+                                          ▄
+         █▀▀█ █▀▀█ █▀▀█ █▀▀▄ █▀▀▀ █▀▀█ █▀▀█ █▀▀█
+         █  █ █  █ █▀▀▀ █  █ █    █  █ █  █ █▀▀▀
+         ▀▀▀▀ █▀▀▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀
+
+
+     Select model                                esc
+
+     beam
+
+     Beam Free                              OpenCode
+     Beam 1.0 501B A23B                   OpenRouter
+
+     Connect provider ctrl+a  Favorite ctrl+f
+
+  /private/tmp/live/work/hello-          1.18.21
+  opencode

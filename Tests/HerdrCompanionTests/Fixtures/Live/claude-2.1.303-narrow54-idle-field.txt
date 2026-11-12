@@ -1,0 +1,40 @@
+ ▝▝   ▝▝   /private/tmp/z-narrow
+
+  Sonnet 5.5 is here, and it's faster and excels at
+  well-scoped tasks. Opus 5.5 is still your default.
+  Switch with /model.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                                  ◐ medium · /effort
+──────────────────────────────────────── z-narrow-54 ─
+❯ Try "edit <filepath> to..."
+──────────────────────────────────────────────────────
+  Haiku 5.5 | ctx:- | z-narrow | z-narrow-54 | v2.1…
+  ⏸ manual mode on · ← for agents

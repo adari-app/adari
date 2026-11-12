@@ -1,0 +1,16 @@
+cursor-agent
+user@mac hello-cursor % cursor-agent
+
+
+  Cursor Agent
+  v2026.11.11-b912975
+  Tip: Use /plan to iterate on an implementation plan before code changes.
+
+
+
+
+  → Plan, search, build anything
+
+
+  Composer 2.5 Fast
+  /private/tmp/live/work/hello-cursor

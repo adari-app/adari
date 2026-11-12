@@ -1,0 +1,11 @@
+# Dependencies and build output (desktop/ only)
+node_modules/
+dist/
+release/
+out/
+*.tsbuildinfo
+.vite/
+coverage/
+# The app icon (build/icon.icns, build/icon.png, drawn from the iPhone app's artwork) is source here,
+# though the repo root ignores build/ for the Swift archive lane.
+!build/

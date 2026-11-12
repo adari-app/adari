@@ -1,0 +1,79 @@
+/* The agent's markdown in the Chat view at T3 Code's bar
+   (apps/web/src/index.css chat-markdown, chat/MarkdownCodeBlock.tsx) in
+   mac-v1's fonts: Geist at --fs-chat on --lh-chat in the row's colour, the
+   reply's bold brighter, headings 20/18/16 at 600, inline code in Plex Mono
+   on a 10% fill, links in a soft blue, tables with row lines only, code blocks
+   on a borderless 3.5% fill with a header (language, Wrap, Copy) over a body
+   in syntax colours (highlight.ts) that scrolls sideways or wraps. Dark only. */
+
+.md { font-size: var(--fs-chat); line-height: var(--lh-chat); color: inherit; user-select: text; cursor: auto; overflow-wrap: anywhere; }
+.md-p { margin: 0 0 10px; }
+.md > :last-child, .md-quote > :last-child, .md-list li > :last-child { margin-bottom: 0; }
+.md strong { font-weight: 600; color: var(--ink); }
+.md em { font-style: italic; }
+.md del { color: var(--ink-3); }
+
+.md-h { font-weight: 600; letter-spacing: -0.01em; margin: 20px 0 8px; line-height: 1.3; color: var(--ink); }
+.md > .md-h:first-child { margin-top: 0; }
+.md-h1 { font-size: 20px; }
+.md-h2 { font-size: 18px; }
+.md-h3 { font-size: 16px; }
+.md-h4, .md-h5, .md-h6 { font-size: 14px; }
+.md-h5, .md-h6 { color: var(--ink-2); }
+
+.md-ic { font-family: var(--mono); font-size: 0.85em; background: rgba(255, 255, 255, 0.1); border-radius: 4px; padding: 0.1em 0.35em; overflow-wrap: anywhere; }
+.md-link { color: var(--link); text-decoration: none; cursor: pointer; }
+.md-link:hover { text-decoration: underline dotted; text-underline-offset: 3px; }
+/* A link reached by Tab shows where the keyboard is; a link that is not http or https is text. */
+.md-link:focus-visible { outline: 2px solid var(--accent-line); outline-offset: 1px; border-radius: 3px; }
+.md-link-off { color: inherit; }
+
+.md-list { margin: 0 0 10px; padding-left: 20px; }
+.md-list li { margin: 4px 0; padding-left: 2px; }
+.md-list li > .md-p { margin: 0; }
+.md-list li > .md-list { margin: 4px 0 0; }
+.md-list li::marker { color: var(--ink-3); }
+
+.md-quote { margin: 0 0 10px; padding: 0 0 0 12px; border-left: 2px solid var(--line-3); color: var(--ink-2); }
+
+.md-rule { border: 0; border-top: 1px solid var(--line-2); margin: 16px 0; }
+
+.md-code { margin: 10px 0 12px; background: var(--bg-code); border: 0; border-radius: 8px; overflow: hidden; }
+.md-code-h { height: 30px; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 6px 0 12px; color: var(--ink-3); user-select: none; }
+.md-code-lang { font-family: var(--mono); font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; opacity: 0.9; }
+.md-code-acts { display: flex; align-items: center; gap: 2px; flex: none; }
+.md-act { height: 24px; min-width: 24px; padding: 0 6px; border-radius: 6px; display: inline-flex; align-items: center; justify-content: center; gap: 5px; color: var(--ink-3); flex: none; }
+.md-act:hover { background: var(--sel); color: var(--ink-2); }
+.md-act[aria-pressed="true"] { background: rgba(255, 255, 255, 0.09); color: var(--ink-2); }
+.md-act.done { color: var(--add); }
+.md-act-t { font-size: 11px; }
+.md-code-b { margin: 0; padding: 8px 14px 12px; font-family: var(--mono); font-size: 12.5px; line-height: 1.5; color: #d6d6d3; white-space: pre; overflow-x: auto; overflow-y: hidden; overflow-wrap: normal; tab-size: 4; user-select: text; }
+.md-code-b.wrap { white-space: pre-wrap; overflow-wrap: anywhere; }
+.md-code-b code { font: inherit; }
+.md-code-b::-webkit-scrollbar { height: 6px; }
+.md-code-b::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.12); border-radius: 3px; }
+
+/* Syntax colours (highlight.ts kinds): quiet tones on the dark fill, none of them the needs-you vermilion. */
+.hl-keyword { color: #c5a3f5; }
+.hl-literal { color: #e5b67a; }
+.hl-string { color: #a5d6a0; }
+.hl-number { color: #e5b67a; }
+.hl-comment { color: #75756f; }
+.hl-type { color: #7fd0c5; }
+.hl-function { color: #8cb8f7; }
+.hl-property { color: #9cc3ec; }
+.hl-variable { color: #e8c58e; }
+.hl-punct { color: #9b9b97; }
+.hl-meta { color: #a3a39e; }
+.hl-tag { color: #e9a1b8; }
+.hl-attr { color: #9cc3ec; }
+.hl-add { color: var(--add); }
+.hl-del { color: var(--del); }
+
+.md-table-wrap { margin: 6px 0 12px; overflow-x: auto; max-width: 100%; }
+.md-table { border-collapse: collapse; font-size: 13px; line-height: 20px; min-width: 50%; }
+.md-table th, .md-table td { border: 0; border-bottom: 1px solid var(--line-2); padding: 6px 12px; text-align: left; vertical-align: top; overflow-wrap: normal; }
+.md-table th:first-child, .md-table td:first-child { padding-left: 0; }
+.md-table th { font-weight: 600; color: var(--ink); white-space: nowrap; }
+.md-table td { color: var(--ink-2); }
+.md-table tr:last-child td { border-bottom: 0; }

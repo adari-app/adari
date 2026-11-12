@@ -1,0 +1,39 @@
+/* The terminal drawer under an agent pane's view, T3 Code's terminal drawer at
+   this app's density (a thin top border, the shells as tabs on the left, New shell, Close shell and Hide on the
+   right, then the shell's terminal edge to edge); and the pane switch's middle tab naming the agent's own screen. */
+
+.tdr { position: relative; flex: none; display: flex; flex-direction: column; min-height: 120px; max-height: calc(100% - 160px); border-top: 1px solid var(--line-2); background: var(--bg-main); }
+/* In a split: under the tiles, the focused tile's, framed as a tile is. */
+.main.split .tdr { margin: 0 8px 8px; border: 1px solid var(--line-2); border-radius: 9px; }
+
+/* The top edge: dragged, it sets the height; a double-click goes back to the default. */
+.tdr-edge { position: absolute; left: 0; right: 0; top: -4px; height: 7px; z-index: 5; cursor: row-resize; }
+.tdr-edge:hover, body.resizing-down .tdr-edge { background: linear-gradient(var(--accent-line), var(--accent-line)) center / 100% 2px no-repeat; }
+body.resizing-down .tdr .term-host { pointer-events: none; }
+
+.tdr-h { height: 32px; flex: none; display: flex; align-items: center; gap: 2px; padding: 0 6px 0 8px; border-bottom: 1px solid var(--line); font-size: 12px; white-space: nowrap; }
+.tdr-own { font-family: var(--mono); font-size: 10.5px; color: var(--ink-4); margin-right: 6px; max-width: 180px; overflow: hidden; text-overflow: ellipsis; flex: none; }
+.tdr-tabs { display: flex; align-items: center; gap: 2px; min-width: 0; overflow: hidden; }
+.tdr-tab { display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 9px 0 8px; border-radius: 6px; color: var(--ink-3); font-size: 12px; font-weight: 500; flex: none; }
+.tdr-tab:hover { background: var(--sel); color: var(--ink-2); }
+.tdr-tab.on { background: var(--bg-raise-2); color: var(--ink); box-shadow: 0 1px 2px rgba(0,0,0,0.4), inset 0 0 0 0.5px rgba(255,255,255,0.08); }
+.tdr-tn { max-width: 160px; overflow: hidden; text-overflow: ellipsis; }
+/* A drawer shell that needs you (an agent started in it, blocked) is out of the sidebar, so its tab and the
+   drawer button carry the sidebar's needs-you dot, small, in the approval colour. */
+.tdr-tab .tdr-ny { width: 6px; height: 6px; border-radius: 50%; background: var(--approval); flex: none; }
+.tdr-btn { position: relative; }
+.tdr-btn .tdr-ny { position: absolute; top: 3px; right: 3px; width: 6px; height: 6px; border-radius: 50%; background: var(--approval); box-shadow: 0 0 0 1.5px var(--bg-main); pointer-events: none; }
+.tdr-opening { padding: 0 6px; font-size: 11.5px; color: var(--ink-4); }
+.tdr-h .sp { flex: 1; }
+.tdr-h .ib.xs { width: 24px; height: 24px; border-radius: 6px; flex: none; }
+
+.tdr-note { flex: none; display: flex; align-items: center; gap: 8px; padding: 3px 8px 3px 12px; border-bottom: 1px solid var(--line); font-size: 12px; color: var(--ink-3); }
+.tdr-note-t { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.tdr-body { flex: 1; min-height: 0; position: relative; display: flex; flex-direction: column; }
+.tdr-empty { flex: 1; display: flex; align-items: center; justify-content: center; gap: 10px; font-size: 12.5px; color: var(--ink-3); outline: none; }
+
+/* The switch: Chat · <the agent's own name> · Changes, each as wide as its words. */
+.seg.sm.agent-seg { width: auto; grid-auto-columns: auto; }
+.seg.sm.agent-seg > button { min-width: 74px; padding: 0 12px; }
+.seg.sm.agent-seg .seg-t { max-width: 132px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

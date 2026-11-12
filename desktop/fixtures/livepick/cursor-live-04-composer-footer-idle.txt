@@ -1,0 +1,17 @@
+user@mac hello-cursor % env -u XDG_CONFIG_HOME
+ cursor-agent
+
+
+  Cursor Agent
+  v2026.11.11-b912975
+  Tip: Use subagents to parallelize work and preserve
+  context.
+
+
+
+
+  → Plan, search, build anything
+
+
+  Composer 2.5 Fast
+  /private/tmp/live/work/hello-cursor

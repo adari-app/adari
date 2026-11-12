@@ -1,0 +1,40 @@
+
+
+› Use your shell tool to run exactly: echo narrow-
+  codex > /private/tmp/z-narrow2-out/n.txt
+
+
+• I’ll run the exact command you provided.
+
+• Running echo narrow-codex > /private/tmp/z-narro…
+    + Show details
+
+
+
+
+
+
+
+
+
+
+
+  Would you like to run the following command?
+
+  Environment: local
+
+  Reason: Allow writing the requested text to
+  /private/tmp/z-narrow2-out/n.txt?
+
+  $ echo narrow-codex >
+  /private/tmp/z-narrow2-out/n.txt
+
+
+› 1. Yes, proceed (y)
+  2. Yes, and don't ask again for commands that
+     start with `echo narrow-codex > /private/tmp/
+     z-narrow2-out/n.txt` (p)
+  3. No, and tell Codex what to do differently
+     (esc)
+
+  Press enter to confirm or esc to cancel

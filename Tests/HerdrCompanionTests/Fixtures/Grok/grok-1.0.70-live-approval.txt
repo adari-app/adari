@@ -1,0 +1,39 @@
+
+  /U/d/tmp/grok-rec                                                                          57K / 256K │ [Dashboard]
+
+     ❯ Run the shell command: touch approval-test.txt                                                      11:01 PM
+
+
+
+     ❯ Run exactly this shell command and nothing else: python3 -c 'print(1)'                              11:01 PM
+
+
+     ◆ Thought for 0.1s
+     ◆ Running print 1 with python3
+                                                                                                                      █
+                                                                                                                      █
+                                                                                                                      █
+                                                                                                                      █
+                                                                                                                      █
+                                                                                                                      █
+                                                                                                                      █
+                                                                                                                      █
+                                                                                                                      █
+                                                                                                                      █
+
+
+   ◆ Print 1 with python3… 2.7s                                                                 5.3s ⇣57.4k [↓][stop]
+
+  ┃
+  ┃  ›  Print 1 with python3
+  ┃  │ python3 -c 'print(1)'
+  ┃  ← → narrow scope  ·  e edit pattern
+  ┃
+  ┃  1 (○) Yes, and don't ask again for anything (always-approve mode)
+  ┃  2 (○) Always allow: python3 -c print(1)
+  ┃  3 (●) Yes, proceed
+  ┃  4 (○) No, reject (type to add feedback)
+  ┃  5 (○) Never allow: python3 -c
+  ┃
+
+  1/5:select  │  Tab:next option  │  ←/→:scope  │  e:edit pattern  │  Ctrl+o:always-approve  │  Ctrl+c:cancel  │  Esc

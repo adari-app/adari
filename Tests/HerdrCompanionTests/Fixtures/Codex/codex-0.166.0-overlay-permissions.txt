@@ -1,0 +1,40 @@
+  Earlier output row 1: the onboarding notes from this morning.
+  Earlier output row 2: the onboarding notes from this morning.
+  Earlier output row 3: the onboarding notes from this morning.
+  Earlier output row 4: the onboarding notes from this morning.
+  Earlier output row 5: the onboarding notes from this morning.
+  Earlier output row 6: the onboarding notes from this morning.
+  Earlier output row 7: the onboarding notes from this morning.
+  Earlier output row 8: the onboarding notes from this morning.
+  Earlier output row 9: the onboarding notes from this morning.
+  Earlier output row 10: the onboarding notes from this morning.
+  Earlier output row 11: the onboarding notes from this morning.
+  Earlier output row 12: the onboarding notes from this morning.
+  Earlier output row 13: the onboarding notes from this morning.
+  Earlier output row 14: the onboarding notes from this morning.
+  Earlier output row 15: the onboarding notes from this morning.
+  Earlier output row 16: the onboarding notes from this morning.
+  Earlier output row 17: the onboarding notes from this morning.
+  Earlier output row 18: the onboarding notes from this morning.
+  Earlier output row 19: the onboarding notes from this morning.
+  Earlier output row 20: the onboarding notes from this morning.
+  Earlier output row 21: the onboarding notes from this morning.
+  Earlier output row 22: the onboarding notes from this morning.
+› Check the deploy script against staging.
+
+• I'll run the checks and ask before anything that writes.
+
+
+  Would you like to grant these permissions?
+
+  Reason: need workspace access
+
+  Permission rule: network; read `/tmp/readme.txt`; write `/tmp/out.txt`
+
+
+› 1. Yes, grant these permissions for this turn (y)
+  2. Yes, grant for this turn with strict auto review (r)
+  3. Yes, grant these permissions for this session (a)
+  4. No, continue without permissions (d)
+
+  Press enter to confirm or esc to cancel

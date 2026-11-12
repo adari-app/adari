@@ -1,0 +1,40 @@
+ ▝▝   ▝▝   /private/tmp/z-narrow
+
+  Get to finished work sooner with Opus
+  5.5. Switch anytime with /model.
+
+⏺ Remote Control is disabled by
+  your organization's policy.
+  Contact your organization
+  admin for access.
+
+❯ Use the Bash tool to run exactly:
+  echo narrow >
+  /private/tmp/z-narrow/n.txt
+
+  Ran 1 shell command
+  ⎿  Interrupt· What should Claude do
+
+✻ Sautéed for 3s · done 5:10 PM
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+───────────────────────── z-narrow-39 ─
+❯
+───────────────────────────────────────
+  Haiku 5.5 | 4% ctx | z-narrow | z-…
+  ⏸ manual mode on

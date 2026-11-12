@@ -1,0 +1,55 @@
+/* The needs-you card at the end of Chat (in mac-v1's palette): accent at 5% on a hairline in the
+   accent, the header's dot and words in the accent, the target in mono, the
+   diff on the sunk ground, the options as rows with their key, the one Return
+   picks filled vermilion. */
+
+.ncard { margin: 18px 0 6px; padding: 16px; border-radius: 14px; background: color-mix(in srgb, var(--ny) 5%, transparent); border: 1px solid var(--ny-line); display: flex; flex-direction: column; gap: 12px; outline: none; user-select: text; }
+.nc-h { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+.nc-h .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--ny); flex: none; align-self: center; }
+.nc-t { color: var(--ny-text); font-size: var(--fs-chat); font-weight: 600; flex: none; }
+.nc-target { font-family: var(--mono); font-size: 12.5px; color: var(--ink); background: var(--bg-code); border-radius: 6px; padding: 1px 7px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nc-diff { background: var(--bg-sunk); border-radius: 10px; padding: 8px 0; font-family: var(--mono); font-size: 12px; line-height: 19px; overflow-x: auto; }
+.nc-diff .dl { display: flex; gap: 10px; padding: 0 12px; white-space: pre; }
+.nc-diff .dl .n { width: 3ch; text-align: right; color: var(--ink-4); flex: none; }
+.nc-diff .dl .s { width: 1ch; flex: none; }
+.nc-diff .dl.added { background: rgba(140, 199, 154, 0.08); }
+.nc-diff .dl.added .s, .nc-diff .dl.added .t { color: var(--add); }
+.nc-diff .dl.removed { background: rgba(224, 147, 140, 0.08); }
+.nc-diff .dl.removed .s, .nc-diff .dl.removed .t { color: var(--del); }
+.nc-diff .dl.context .t { color: var(--ink-2); }
+.nc-diff .dl.more { color: var(--ink-3); font-family: var(--ui); font-size: 12px; padding-left: calc(12px + 3ch + 10px + 1ch + 10px); }
+.nc-q { color: var(--ink); font-size: var(--fs-chat); line-height: var(--lh-chat); }
+.nc-opts { display: flex; flex-direction: column; gap: 6px; }
+.nc-opts.row { flex-direction: row; flex-wrap: wrap; }
+.nc-opt { display: flex; align-items: center; gap: 10px; min-height: 34px; padding: 6px 12px 6px 8px; border-radius: 9px; border: 1px solid var(--line-2); background: var(--bg-raise); color: var(--ink); font-size: 13px; text-align: left; cursor: pointer; }
+.nc-opts.row .nc-opt { flex: 1 1 0; }
+.nc-opt:hover:not(:disabled) { border-color: var(--line-3); }
+.nc-opt .k { width: 20px; height: 20px; border-radius: 6px; display: inline-flex; align-items: center; justify-content: center; font-family: var(--mono); font-size: 11.5px; color: var(--ink-3); background: var(--bg-sunk); flex: none; }
+.nc-opt .l { min-width: 0; }
+/* An option's description (Codex's tool-call question), under its label, whole. */
+.nc-opt:has(.d) { display: grid; grid-template-columns: 20px minmax(0, 1fr); column-gap: 10px; row-gap: 2px; align-items: start; padding-top: 8px; padding-bottom: 8px; }
+.nc-opt:has(.d) .k { grid-row: 1 / span 2; margin-top: 1px; }
+.nc-opt .d { grid-column: 2; min-width: 0; color: var(--ink-3); font-size: 12px; line-height: 17px; overflow-wrap: anywhere; }
+.nc-opt.on .d { color: rgba(255, 255, 255, 0.82); }
+.nc-opt.on { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.nc-opt.on .k { background: rgba(0, 0, 0, 0.18); color: #fff; }
+.nc-opt:disabled { opacity: 0.6; cursor: default; }
+.nc-hint { color: var(--ink-4); font-size: 12px; }
+.nc-note { color: var(--ny-text); font-size: 12.5px; }
+.nc-sent { color: var(--ink-2); font-size: 13px; display: flex; align-items: center; gap: 8px; }
+.nc-sent::before { content: "✓"; color: var(--add); }
+.nc-reading { display: flex; align-items: center; gap: 8px; color: var(--ink-3); font-size: 13px; }
+.nc-lines { margin: 0; padding: 12px; border-radius: 10px; background: var(--bg-sunk); color: var(--ink-2); font-family: var(--mono); font-size: 12px; line-height: 19px; white-space: pre-wrap; overflow-wrap: anywhere; }
+/* Grok's command, whole (wrapped, never cut). */
+.nc-cmd { margin: 0; padding: 10px 12px; border-radius: 10px; background: var(--bg-code); color: var(--ink); font-family: var(--mono); font-size: 12.5px; line-height: 19px; white-space: pre-wrap; overflow-wrap: anywhere; }
+/* Claude's description over its command, and the command's first rows with "N more" under them. */
+.nc-desc { color: var(--ink-2); font-size: 13px; line-height: 19px; }
+.nc-run { display: flex; flex-direction: column; gap: 4px; }
+.nc-more { color: var(--ink-3); font-size: 12px; padding-left: 12px; }
+/* Chat's running call over a frame read without its header, set apart under its label. */
+.nc-subj { display: flex; flex-direction: column; gap: 6px; padding-left: 10px; border-left: 2px solid var(--line-2); }
+.nc-from { color: var(--ink-3); font-size: 12px; }
+.nc-file { font-family: var(--mono); font-size: 12.5px; color: var(--ink); background: var(--bg-code); border-radius: 6px; padding: 1px 7px; }
+/* Codex's parameter rows, whole, as drawn. */
+.nc-params { margin: 0; padding: 10px 12px; border-radius: 10px; background: var(--bg-code); color: var(--ink-2); font-family: var(--mono); font-size: 12px; line-height: 18px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.nc-foot { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }

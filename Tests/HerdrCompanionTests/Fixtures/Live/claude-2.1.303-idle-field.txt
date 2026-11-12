@@ -1,0 +1,40 @@
+  Updated to latest. Got 8 features, 37 bugfixes, and 6 other changes.
+  code.claude.com/docs/en/changelog for details
+
+  Get to finished work sooner with Opus 5.5. Switch anytime with /model.
+
+⏺ Remote Control is disabled by your organization's policy. Contact your organization admin for access.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                                                                                                               ◐ medium · /effort
+───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+❯ Try "fix lint errors"
+───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+  Haiku 5.5 | ctx:- | z-shapes | v2.1.303
+  ⏸ manual mode on · ← for agents

@@ -1,0 +1,121 @@
+{
+ "comment": "A Cursor agent chat's store.db (root order, exact blob text) in the shapes Cursor writes, with invented text. Both apps' tests build a SQLite store from it (blob id = sha256 of its bytes; the root lists them, then field 5 = context use).",
+ "chatID": "3f2a9c1e-7b4d-4e8a-9c21-5d6e7f8a9b0c",
+ "cwd": "/Users/fixture/code/herdr-companion",
+ "meta": {
+  "agentId": "3f2a9c1e-7b4d-4e8a-9c21-5d6e7f8a9b0c",
+  "name": "Fixture chat",
+  "mode": "default",
+  "isRunEverything": true,
+  "approvalMode": "unrestricted",
+  "createdAt": 1793780580000,
+  "lastUsedModel": "fixture-model-high",
+  "blobEncryptionKey": "FIXTURE-ENCRYPTION-KEY-NEVER-LEAVES-THE-MAC"
+ },
+ "metaJSON": {
+  "schemaVersion": 1,
+  "createdAtMs": 1793780580000,
+  "hasConversation": true,
+  "title": "Upload retry",
+  "updatedAtMs": 1793782200000,
+  "cwd": "/Users/fixture/code/herdr-companion"
+ },
+ "context": {
+  "used": 61234,
+  "window": 200000
+ },
+ "root": [
+  {
+   "json": "{\"role\":\"system\",\"content\":\"You are an invented coding agent for a fixture. <communication>Be brief.</communication> <user_query> is where his words go.\",\"providerOptions\":{\"cursor\":{\"systemPromptFingerprint\":{\"content\":\"fixture\",\"mode\":\"a\",\"model\":\"fixture1\",\"agentType\":\"cli\",\"toolNames\":\"fixture\",\"mcp\":\"fixtur\",\"rules\":\"fixture\",\"featureFlags\":\"fixtur\",\"promptOptions\":\"fixture-opt\"}}}}"
+  },
+  {
+   "json": "{\"role\":\"user\",\"content\":\"<user_info>\\nOS: darwin 27.2. Shell: zsh. Workspace: /Users/fixture/code/herdr-companion\\n</user_info>\\n\\n<git_status>\\n## main\\n M Sources/HerdrKit/UploadSweep.swift\\n</git_status>\\n\\n<agent_transcripts>\\nEarlier chats live under <uuid>00000000-0000-4000-8000-000000000000</uuid>.\\n</agent_transcripts>\\n\\n<rules>\\n<always_applied_workspace_rules>\\n<always_applied_workspace_rule name=\\\"fixture\\\">Keep commits small.</always_applied_workspace_rule>\\n</always_applied_workspace_rules>\\n</rules>\",\"providerOptions\":{\"cursor\":{\"requestContextCompleteness\":{\"rules\":true,\"env\":true,\"repositoryInfo\":true,\"customSubagents\":true,\"agentSkills\":true,\"gitRepos\":true,\"gitStatus\":true,\"mcp\":true,\"mcpFileSystem\":true},\"userInfoSummarizationEpoch\":1,\"omitCloudWorkerProcedure\":true,\"useProjectCoordinatorPrompting\":false}}}"
+  },
+  {
+   "json": "{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"<timestamp>Tuesday, Nov 4, 2026, 8:43 AM (UTC+1)</timestamp>\\n<user_query>\\nAdd a retry to the upload sweep and run its tests.\\n</user_query>\"}]}"
+  },
+  {
+   "json": "{\"role\":\"assistant\",\"content\":[{\"type\":\"reasoning\",\"text\":\"\",\"signature\":\"sigAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\",\"providerOptions\":{\"cursor\":{\"modelName\":\"fixture-model-high\"}}},{\"type\":\"text\",\"text\":\"I'll read the sweep first.\"},{\"type\":\"tool-call\",\"toolCallId\":\"toolu_cursor_01_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"toolName\":\"Read\",\"args\":{\"path\":\"/Users/fixture/code/herdr-companion/Sources/HerdrKit/UploadSweep.swift\"}}],\"id\":\"msg_fixture_0000000000000000000000000000\",\"providerOptions\":{\"cursor\":{\"modelProviderMessageId\":\"msg_fixture_0000000000000000000000000000\"}}}"
+  },
+  {
+   "json": "{\"role\":\"tool\",\"content\":[{\"type\":\"tool-result\",\"toolCallId\":\"toolu_cursor_01_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"toolName\":\"Read\",\"result\":\"     1|import Foundation\\n     2|\\n     3|struct UploadSweep {\\n     4|    func run() async throws {}\\n     5|}\\n\",\"experimental_content\":[{\"type\":\"text\",\"text\":\"     1|import Foundation\\n     2|\\n     3|struct UploadSweep {\\n     4|    func run() async throws {}\\n     5|}\\n\"}]}],\"id\":\"toolu_cursor_01_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"providerOptions\":{\"cursor\":{\"highLevelToolCallResult\":{\"output\":{\"success\":{}},\"isError\":false}}}}"
+  },
+  {
+   "json": "{\"role\":\"assistant\",\"content\":[{\"type\":\"reasoning\",\"text\":\"\",\"signature\":\"sigAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\",\"providerOptions\":{\"cursor\":{\"modelName\":\"fixture-model-high\"}}},{\"type\":\"tool-call\",\"toolCallId\":\"toolu_cursor_02_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"toolName\":\"Grep\",\"args\":{\"pattern\":\"func run\\\\(\",\"path\":\"/Users/fixture/code/herdr-companion/Sources\",\"glob\":\"*.swift\"}},{\"type\":\"tool-call\",\"toolCallId\":\"toolu_cursor_03_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"toolName\":\"Glob\",\"args\":{\"glob_pattern\":\"**/UploadSweep*Tests.swift\",\"target_directory\":\"/Users/fixture/code/herdr-companion\"}}],\"id\":\"msg_fixture_0000000000000000000000000000\",\"providerOptions\":{\"cursor\":{\"modelProviderMessageId\":\"msg_fixture_0000000000000000000000000000\"}}}"
+  },
+  {
+   "json": "{\"role\":\"tool\",\"content\":[{\"type\":\"tool-result\",\"toolCallId\":\"toolu_cursor_02_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"toolName\":\"Grep\",\"result\":\"Sources/HerdrKit/UploadSweep.swift\\nSources/HerdrKit/GramUploadChannel.swift\\n\",\"experimental_content\":[{\"type\":\"text\",\"text\":\"Sources/HerdrKit/UploadSweep.swift\\nSources/HerdrKit/GramUploadChannel.swift\\n\"}]}],\"id\":\"toolu_cursor_02_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"providerOptions\":{\"cursor\":{\"highLevelToolCallResult\":{\"output\":{\"success\":{}},\"isError\":false}}}}"
+  },
+  {
+   "json": "{\"role\":\"tool\",\"content\":[{\"type\":\"tool-result\",\"toolCallId\":\"toolu_cursor_03_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"toolName\":\"Glob\",\"result\":\"Tests/HerdrKitTests/UploadSweepTests.swift\\n\",\"experimental_content\":[{\"type\":\"text\",\"text\":\"Tests/HerdrKitTests/UploadSweepTests.swift\\n\"}]}],\"id\":\"toolu_cursor_03_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"providerOptions\":{\"cursor\":{\"highLevelToolCallResult\":{\"output\":{\"success\":{}},\"isError\":false}}}}"
+  },
+  {
+   "json": "{\"role\":\"assistant\",\"content\":[{\"type\":\"reasoning\",\"text\":\"\",\"signature\":\"sigAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\",\"providerOptions\":{\"cursor\":{\"modelName\":\"fixture-model-high\"}}},{\"type\":\"text\",\"text\":\"Adding the retry.\"},{\"type\":\"tool-call\",\"toolCallId\":\"toolu_cursor_04_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"toolName\":\"StrReplace\",\"args\":{\"path\":\"/Users/fixture/code/herdr-companion/Sources/HerdrKit/UploadSweep.swift\",\"old_string\":\"    func run() async throws {}\",\"new_string\":\"    func run() async throws {\\n        try await retrying(times: 2) { try await sweepOnce() }\\n    }\"}}],\"id\":\"msg_fixture_0000000000000000000000000000\",\"providerOptions\":{\"cursor\":{\"modelProviderMessageId\":\"msg_fixture_0000000000000000000000000000\"}}}"
+  },
+  {
+   "json": "{\"role\":\"tool\",\"content\":[{\"type\":\"tool-result\",\"toolCallId\":\"toolu_cursor_04_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"toolName\":\"StrReplace\",\"result\":\"The file Sources/HerdrKit/UploadSweep.swift has been updated.\",\"experimental_content\":[{\"type\":\"text\",\"text\":\"The file Sources/HerdrKit/UploadSweep.swift has been updated.\"}]}],\"id\":\"toolu_cursor_04_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"providerOptions\":{\"cursor\":{\"highLevelToolCallResult\":{\"output\":{\"success\":{}},\"isError\":false}}}}"
+  },
+  {
+   "json": "{\"role\":\"assistant\",\"content\":[{\"type\":\"reasoning\",\"text\":\"\",\"signature\":\"sigAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\",\"providerOptions\":{\"cursor\":{\"modelName\":\"fixture-model-high\"}}},{\"type\":\"tool-call\",\"toolCallId\":\"toolu_cursor_05_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"toolName\":\"Shell\",\"args\":{\"command\":\"swift test --filter UploadSweepTests\",\"description\":\"Run the sweep's tests\",\"working_directory\":\"/Users/fixture/code/herdr-companion\"}}],\"id\":\"msg_fixture_0000000000000000000000000000\",\"providerOptions\":{\"cursor\":{\"modelProviderMessageId\":\"msg_fixture_0000000000000000000000000000\"}}}"
+  },
+  {
+   "json": "{\"role\":\"tool\",\"content\":[{\"type\":\"tool-result\",\"toolCallId\":\"toolu_cursor_05_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"toolName\":\"Shell\",\"result\":\"error: no member 'retrying' in UploadSweep\\nerror: fatalError\\nexit code 1\",\"experimental_content\":[{\"type\":\"text\",\"text\":\"error: no member 'retrying' in UploadSweep\\nerror: fatalError\\nexit code 1\"}]}],\"id\":\"toolu_cursor_05_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"providerOptions\":{\"cursor\":{\"highLevelToolCallResult\":{\"output\":{\"error\":{\"message\":\"error: no member 'retrying' in UploadSweep\\nerror: fatalError\\nexit code 1\"}},\"isError\":true}}}}"
+  },
+  {
+   "missing": "a ref the store does not hold"
+  },
+  {
+   "json": "{\"role\":\"assistant\",\"content\":[{\"type\":\"reasoning\",\"text\":\"\",\"signature\":\"sigAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\",\"providerOptions\":{\"cursor\":{\"modelName\":\"fixture-model-high\"}}},{\"type\":\"tool-call\",\"toolCallId\":\"toolu_cursor_06_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"toolName\":\"Write\",\"args\":{\"path\":\"/Users/fixture/code/herdr-companion/Sources/HerdrKit/Retrying.swift\",\"contents\":\"func retrying<T>(times: Int, _ work: () async throws -> T) async throws -> T {\\n    try await work()\\n}\\n\"}}],\"id\":\"msg_fixture_0000000000000000000000000000\",\"providerOptions\":{\"cursor\":{\"modelProviderMessageId\":\"msg_fixture_0000000000000000000000000000\"}}}"
+  },
+  {
+   "json": "{\"role\":\"tool\",\"content\":[{\"type\":\"tool-result\",\"toolCallId\":\"toolu_cursor_06_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"toolName\":\"Write\",\"result\":\"Wrote Sources/HerdrKit/Retrying.swift\",\"experimental_content\":[{\"type\":\"text\",\"text\":\"Wrote Sources/HerdrKit/Retrying.swift\"}]}],\"id\":\"toolu_cursor_06_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"providerOptions\":{\"cursor\":{\"highLevelToolCallResult\":{\"output\":{\"success\":{}},\"isError\":false}}}}"
+  },
+  {
+   "proto": "0a0f66697874757265206e6f7465203132100118022a03616263"
+  },
+  {
+   "json": "{\"colors\":[{\"color\":{\"color-space\":\"srgb\",\"components\":{\"alpha\":\"1.000\",\"blue\":\"0.20\",\"green\":\"0.40\",\"red\":\"0.60\"}},\"idiom\":\"universal\"}],\"info\":{\"author\":\"xcode\",\"version\":1}}"
+  },
+  {
+   "json": "{\"role\":\"assistant\",\"content\":[{\"type\":\"reasoning\",\"text\":\"Checking which dynamic tools the workspace offers before running the suite again.\",\"signature\":\"sigAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\",\"providerOptions\":{\"cursor\":{\"modelName\":\"fixture-model-high\"}}},{\"type\":\"tool-call\",\"toolCallId\":\"toolu_cursor_07_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"toolName\":\"GetDynamicTools\",\"args\":{\"namespace\":\"fixture-mcp\",\"toolName\":\"list_checks\"}},{\"type\":\"tool-call\",\"toolCallId\":\"toolu_cursor_08_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"toolName\":\"CallDynamicTool\",\"args\":{\"namespace\":\"fixture-mcp\",\"toolName\":\"run_check\",\"arguments\":{\"name\":\"sweep\"}}}],\"id\":\"msg_fixture_0000000000000000000000000000\",\"providerOptions\":{\"cursor\":{\"modelProviderMessageId\":\"msg_fixture_0000000000000000000000000000\"}}}"
+  },
+  {
+   "json": "{\"role\":\"tool\",\"content\":[{\"type\":\"tool-result\",\"toolCallId\":\"toolu_cursor_07_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"toolName\":\"GetDynamicTools\",\"result\":\"run_check: runs one named check\",\"experimental_content\":[{\"type\":\"text\",\"text\":\"run_check: runs one named check\"}]}],\"id\":\"toolu_cursor_07_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"providerOptions\":{\"cursor\":{\"highLevelToolCallResult\":{\"output\":{\"success\":{}},\"isError\":false}}}}"
+  },
+  {
+   "json": "{\"role\":\"tool\",\"content\":[{\"type\":\"tool-result\",\"toolCallId\":\"toolu_cursor_08_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"toolName\":\"CallDynamicTool\",\"result\":\"check sweep: passed\",\"experimental_content\":[{\"type\":\"text\",\"text\":\"check sweep: passed\"}]}],\"id\":\"toolu_cursor_08_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"providerOptions\":{\"cursor\":{\"highLevelToolCallResult\":{\"output\":{\"success\":{}},\"isError\":false}}}}"
+  },
+  {
+   "raw": "{\n  \"role\": \"assistant\",\n  \"content\": [\n    {\"type\": \"text\", \"text\": \"Done: the sweep retries twice, and UploadSweepTests passes.\"}\n  ],\n  \"id\": \"1\"\n}"
+  },
+  {
+   "json": "{\"role\":\"user\",\"content\":\"<system_reminder>\\nThe user's todo list is empty. Do not mention this reminder.\\n</system_reminder>\"}"
+  },
+  {
+   "json": "{\"role\":\"user\",\"content\":\"<timestamp>Tuesday, Nov 4, 2026, 9:02 AM (UTC+1)</timestamp>\\n<system_notification>\\nA background task finished.\\n<task>sweep-check exited 0</task>\\n</system_notification>\"}"
+  },
+  {
+   "json": "{\"role\":\"user\",\"content\":\"<timestamp>Tuesday, Nov 4, 2026, 9:05 AM (UTC+5:30)</timestamp>\\n<system_notification>\\nA background task finished.\\n<task>sweep-check exited 0</task>\\n</system_notification>\\n<user_query>\\nAlso bump the version in the changelog.\\n</user_query>\"}"
+  },
+  {
+   "raw": "{\"role\":\"assistant\",\"content\":[{\"type\":\"text\",\"text\":\"broken"
+  },
+  {
+   "json": "{\"role\":\"assistant\",\"content\":[{\"type\":\"reasoning\",\"text\":\"\",\"signature\":\"sigAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\",\"providerOptions\":{\"cursor\":{\"modelName\":\"fixture-model-high\"}}},{\"type\":\"text\",\"text\":\"Bumping it.\"},{\"type\":\"tool-call\",\"toolCallId\":\"toolu_cursor_09_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"toolName\":\"TodoWrite\",\"args\":{\"description\":\"bump the changelog version\"}}],\"id\":\"msg_fixture_0000000000000000000000000000\",\"providerOptions\":{\"cursor\":{\"modelProviderMessageId\":\"msg_fixture_0000000000000000000000000000\"}}}"
+  },
+  {
+   "json": "{\"role\":\"tool\",\"content\":[{\"type\":\"tool-result\",\"toolCallId\":\"toolu_cursor_09_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"toolName\":\"TodoWrite\",\"result\":\"ok\",\"experimental_content\":[{\"type\":\"text\",\"text\":\"ok\"}]}],\"id\":\"toolu_cursor_09_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"providerOptions\":{\"cursor\":{\"highLevelToolCallResult\":{\"output\":{\"success\":{}},\"isError\":false}}}}"
+  },
+  {
+   "json": "{\"role\":\"user\",\"content\":\"<conversation_summary>\\nThe chat so far, summarised.\\n<summary>\\nHe asked for a retry in the upload sweep; it is in, with a helper, and its tests pass. He then asked to bump the changelog version.\\n</summary>\\n\\n<todo_update>\\n- [x] retry\\n- [ ] changelog\\n</todo_update>\\n\\n<transcript_location>\\n/Users/fixture/.cursor/projects/fixture/agent-transcripts/x.txt\\n</transcript_location>\\n</conversation_summary>\\nContinue from here.\"}"
+  },
+  {
+   "json": "{\"role\":\"assistant\",\"content\":[{\"type\":\"reasoning\",\"text\":\"\",\"signature\":\"sigAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\",\"providerOptions\":{\"cursor\":{\"modelName\":\"fixture-model-high\"}}},{\"type\":\"text\",\"text\":\"Picking up: bumping the changelog now.\"},{\"type\":\"tool-call\",\"toolCallId\":\"toolu_cursor_10_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"toolName\":\"Shell\",\"args\":{\"command\":\"git diff --stat\",\"description\":\"See what changed\"}}],\"id\":\"msg_fixture_0000000000000000000000000000\",\"providerOptions\":{\"cursor\":{\"modelProviderMessageId\":\"msg_fixture_0000000000000000000000000000\"}}}"
+  }
+ ],
+ "extra": [
+  {
+   "json": "{\"role\":\"assistant\",\"content\":[{\"type\":\"text\",\"text\":\"An older message no root lists.\"}]}"
+  }
+ ]
+}

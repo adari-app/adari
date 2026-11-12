@@ -1,0 +1,40 @@
+    3. Always allow            Run the tool and
+                               remember this choice for
+                               future tool calls
+    4. Cancel                  Cancel this tool call
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  enter to submit | esc to cancel

@@ -1,0 +1,12 @@
+{"id":"mock","result":{"type":"agent_list","agents":[
+  {"pane_id":"w1:p1","name":"beacon","agent":"claude","agent_status":"blocked","cwd":"/root/phone-app","terminal_title_stripped":"asking to run tests"},
+  {"pane_id":"w1:p2","name":"bookshop","agent":"codex","agent_status":"blocked","cwd":"/root/bookshop","terminal_title_stripped":"overwrite config.ts?"},
+  {"pane_id":"w2:p1","name":"trendline","agent":"codex","agent_status":"idle","cwd":"/root/trendline","terminal_title_stripped":"exited, code 1"},
+  {"pane_id":"w2:p2","name":"herdr-tools","agent":"claude","agent_status":"working","cwd":"/root/herdr","terminal_title_stripped":"editing src/acp.rs","account":"claude-alt","account_config_dir":"/root/.claude-9"},
+  {"pane_id":"w3:p1","name":"crm-sync","agent":"claude","agent_status":"idle","cwd":"/root/crm-sync","terminal_title_stripped":"intake-form scaffold","account":"retired-account","account_unresolved":true},
+  {"pane_id":"w3:p2","name":"stock-screener","agent":"codex","agent_status":"idle","cwd":"/root/stock-screener","terminal_title_stripped":"price-harvest"},
+  {"pane_id":"w4:p1","name":"discovery","agent":"gemini","agent_status":"idle","cwd":"/root/discovery-notes","terminal_title_stripped":"summary-pass v3"},
+  {"pane_id":"w4:p2","name":"bank-check","agent":"claude","agent_status":"done","cwd":"/root/bank-check","terminal_title_stripped":"statement-import rag"},
+  {"pane_id":"air-box/w1:p9","name":"air-box/air-box","agent":"omp","agent_status":"unknown","last_known_status":"blocked","machine_id":"air-box","reachability":"degraded","cwd":"/Users/lena/omp-workspace","terminal_title_stripped":"clone repo and run setup"},
+  {"pane_id":"w5:p1","name":"flatfinder","agent":"claude","agent_status":"idle","cwd":"/root/flatfinder","terminal_title_stripped":"listings scrape","archived":{"at":"2026-08-26T18:00:00Z","by":"lena","reason":"parked for the weekend"}}
+]}}

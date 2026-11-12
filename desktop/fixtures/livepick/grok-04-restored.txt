@@ -1,0 +1,37 @@
+
+  /p/t/z/work/hello-grok      1.3K / 256K │ [Dashboard]
+
+     Switched to Grok 4.6 (low effort)
+
+     Switched to Grok 4.7 Fast (low effort)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                       ✓ Default model: Grok 4.7 Fast
+
+  ╭───────────────────────────────────────────────────╮
+  │ ❯                                                 │
+  ╰──────────── Grok 4.7 Fast (low) · always-approve ─╯
+
+  Shift+Tab:mode  │  Ctrl+.:shortcuts

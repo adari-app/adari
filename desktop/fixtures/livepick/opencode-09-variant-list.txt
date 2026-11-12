@@ -1,0 +1,17 @@
+                                          ▄
+         █▀▀█ █▀▀█ █▀▀█ █▀▀▄ █▀▀▀ █▀▀█ █▀▀█ █▀▀█
+         █  █ █  █ █▀▀▀ █  █ █    █  █ █  █ █▀▀▀
+         ▀▀▀▀ █▀▀▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀
+
+
+     Select variant                              esc
+
+     Search
+
+     Default
+     low
+     medium
+
+
+  /private/tmp/live/work/hello-          1.18.21
+  opencode

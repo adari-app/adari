@@ -1,0 +1,32 @@
+cursor-agent
+user@mac hello-cursor % cursor-agent
+
+
+  Cursor Agent
+  v2026.11.11-b912975
+  Tip: Use /plan to iterate on an implementation plan before code changes.
+
+
+
+
+  → Plan, search, build anything
+
+
+ Available models                                                                                        Max mode: OFF
+
+ Filter:
+
+ →  Auto
+    Grok 4.7                 256K High Fast
+    Grok 4.6                 High Fast
+    Composer 2.5             Fast
+    Claude Opus 5.5          300K Medium
+    Claude Opus 5            300K High
+    Claude Opus 4.8          300K High
+    Gemini 4 Carbon          Medium
+    Gemini 4 Argon           Medium
+    Muse Wonder              300K High
+
+ 1-10 of 46
+
+ Type to filter • Enter to select • Tab to edit

@@ -1,0 +1,40 @@
+  Earlier output row 1: the probe's notes on page sizes.
+  Earlier output row 2: the probe's notes on page sizes.
+  Earlier output row 3: the probe's notes on page sizes.
+  Earlier output row 4: the probe's notes on page sizes.
+  Earlier output row 5: the probe's notes on page sizes.
+  Earlier output row 6: the probe's notes on page sizes.
+  Earlier output row 7: the probe's notes on page sizes.
+  Earlier output row 8: the probe's notes on page sizes.
+  Earlier output row 9: the probe's notes on page sizes.
+  Earlier output row 10: the probe's notes on page sizes.
+  Earlier output row 11: the probe's notes on page sizes.
+  Earlier output row 12: the probe's notes on page sizes.
+  Earlier output row 13: the probe's notes on page sizes.
+  Earlier output row 14: the probe's notes on page sizes.
+  Earlier output row 15: the probe's notes on page sizes.
+  Earlier output row 16: the probe's notes on page sizes.
+  The scrape writes one JSON file per page of results; the probe asks for one page and prints its size.
+
+  ⎿ Read scrape_us.py (212 lines)
+  ⎿ Search "graphql" in /Users/demo/probe/filler (3 matches)
+
+  I'll run the probe now to check the endpoint still answers before the full scrape.
+
+◆ Probe Tidbit Ad Library GraphQL scrape…  17m12s                                                 21m54s ↓160k [↓][stop]
+
+  ⎿ Run /Users/filler/.cache/venv/bin/python /Users/demo/probe/filler/scrape_us.py probe
+     page 1: 48 results, 112 KB
+◆ Run the full scrape…  17m15s                                                                    21m57s ↓160k [↓][stop]
+
+┃ ›  Run the full scrape
+┃ │ /Users/filler/.cache/venv/bin/python /Users/demo/probe/filler/scrape_us.py run --pages 40
+┃ ← → narrow scope  ·  e edit pattern
+┃
+┃ 1 (○) Yes, and don't ask again for anything (always-approve mode)
+┃ 2 (○) Always allow: /Users/filler/.cache/venv/bin/python /Users/demo/probe/filler/scrape_us.py run --pages 40
+┃ 3 (●) Yes, proceed
+┃ 4 (○) No, reject (type to add feedback)
+┃ 5 (○) Never allow: /Users/filler/.cache/venv/bin/python /Users/demo/probe/filler/scrape_us.py
+
+1/5:select │ Tab:next option │ ←/→:scope │ e:edit pattern │ Ctrl+o:always-approve │ Ctrl+c:cancel │ Esc:scrollback

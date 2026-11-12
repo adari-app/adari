@@ -1,0 +1,11 @@
+/* mac-v1 type (design/mac-v1/mac.css): Geist for the UI, IBM Plex Mono for the
+   small mono bits, JetBrains Mono for the terminal. The files are the repo's own
+   App/Fonts (SIL OFL 1.1, licences beside them); Vite copies them into the build. */
+@font-face { font-family: "Geist"; src: url("../../../../App/Fonts/Geist-Regular.ttf") format("truetype"); font-weight: 400; }
+@font-face { font-family: "Geist"; src: url("../../../../App/Fonts/Geist-Medium.ttf") format("truetype"); font-weight: 500; }
+@font-face { font-family: "Geist"; src: url("../../../../App/Fonts/Geist-SemiBold.ttf") format("truetype"); font-weight: 600; }
+@font-face { font-family: "Geist"; src: url("../../../../App/Fonts/Geist-Bold.ttf") format("truetype"); font-weight: 700; }
+@font-face { font-family: "Plex Mono"; src: url("../../../../App/Fonts/IBMPlexMono-Regular.ttf") format("truetype"); font-weight: 400; }
+@font-face { font-family: "Plex Mono"; src: url("../../../../App/Fonts/IBMPlexMono-Medium.ttf") format("truetype"); font-weight: 500; }
+@font-face { font-family: "JetBrains Mono"; src: url("../../../../App/Fonts/JetBrainsMono-Regular.ttf") format("truetype"); font-weight: 400; }
+@font-face { font-family: "JetBrains Mono"; src: url("../../../../App/Fonts/JetBrainsMono-Bold.ttf") format("truetype"); font-weight: 700; }

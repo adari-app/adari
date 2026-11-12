@@ -1,0 +1,40 @@
+  Updated to latest. Got 8 features, 37 bugfixes, and 6 other changes.
+  code.claude.com/docs/en/changelog for details
+
+  Get to finished work sooner with Opus 5.5. Switch anytime with /model.
+
+⏺ Remote Control is disabled by your organization's policy. Contact your organization admin for access.
+
+❯ Use the Bash tool to run exactly: echo shapes-c > /private/tmp/z-shapes/c.txt
+
+  Ran 1 shell command
+  ⎿  Interrupted · What should Claude do instead?
+
+✻ Worked for 1s · done 1:18 PM
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+❯ typed text here
+───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+  Haiku 5.5 | 4% ctx | z-shapes | Shapes-c.txt write command | v2.1.303
+  ⏸ manual mode on

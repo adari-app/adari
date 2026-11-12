@@ -1,0 +1,40 @@
+  Earlier output row 1: the onboarding notes from this morning.
+  Earlier output row 2: the onboarding notes from this morning.
+  Earlier output row 3: the onboarding notes from this morning.
+  Earlier output row 4: the onboarding notes from this morning.
+  Earlier output row 5: the onboarding notes from this morning.
+  Earlier output row 6: the onboarding notes from this morning.
+  Earlier output row 7: the onboarding notes from this morning.
+  Earlier output row 8: the onboarding notes from this morning.
+  Earlier output row 9: the onboarding notes from this morning.
+  Earlier output row 10: the onboarding notes from this morning.
+  Earlier output row 11: the onboarding notes from this morning.
+  Earlier output row 12: the onboarding notes from this morning.
+  Earlier output row 13: the onboarding notes from this morning.
+  Earlier output row 14: the onboarding notes from this morning.
+  Earlier output row 15: the onboarding notes from this morning.
+  Earlier output row 16: the onboarding notes from this morning.
+  Earlier output row 17: the onboarding notes from this morning.
+  Earlier output row 18: the onboarding notes from this morning.
+  Earlier output row 19: the onboarding notes from this morning.
+  Earlier output row 20: the onboarding notes from this morning.
+  Earlier output row 21: the onboarding notes from this morning.
+  Earlier output row 22: the onboarding notes from this morning.
+  Earlier output row 23: the onboarding notes from this morning.
+  Earlier output row 24: the onboarding notes from this morning.
+  Earlier output row 25: the onboarding notes from this morning.
+  Earlier output row 26: the onboarding notes from this morning.
+  Earlier output row 27: the onboarding notes from this morning.
+  Earlier output row 28: the onboarding notes from this morning.
+  Earlier output row 29: the onboarding notes from this morning.
+  Earlier output row 30: the onboarding notes from this morning.
+  Earlier output row 31: the onboarding notes from this morning.
+› Check the deploy script against staging.
+
+• I'll run the checks and ask before anything that writes.
+
+Reason:
+https://github.com/openai/codex/
+pull/12345?diff=split
+
+$ echo hi

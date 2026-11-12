@@ -1,0 +1,33 @@
+/* Send to… (handoff): the picker popover, its toast, and a code block's
+   Send to… beside Copy. mac-v1 dark, in real Mac pixels (400 wide, a 330 list,
+   30 rows). */
+.md-send { margin-left: auto; }
+
+.hp { position: fixed; z-index: 60; width: 400px; display: flex; flex-direction: column; border-radius: 10px; background: var(--bg-raise); border: 1px solid var(--line-2); box-shadow: 0 18px 48px rgba(0,0,0,0.6); color: var(--ink); overflow: hidden; }
+.hp-h { padding: 12px 12px 10px; display: flex; flex-direction: column; gap: 6px; border-bottom: 1px solid var(--line); }
+.hp-t { display: flex; align-items: center; gap: 7px; font-size: 13.5px; font-weight: 600; color: var(--ink); }
+.hp-t svg { color: var(--accent-text); }
+.hp-what { font-size: var(--fs-s); color: var(--ink-3); }
+.hp-pv { font-family: var(--mono); font-size: 11.5px; color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 5px 8px; border-radius: 6px; background: var(--bg-sunk); border: 1px solid var(--line); }
+.hp-f { height: 30px; border-radius: 7px; background: var(--bg-sunk); border: 1px solid var(--line-2); padding: 0 9px; outline: none; font-size: 12.5px; user-select: text; }
+.hp-f:focus { border-color: var(--accent-line); }
+.hp-list { max-height: 330px; overflow-y: auto; padding: 4px 6px 6px; }
+.hp-g { padding: 9px 8px 4px; font-size: var(--fs-c); font-weight: 600; letter-spacing: 0.02em; color: var(--ink-4); text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hp-off { color: var(--ink-4); text-transform: none; font-weight: 500; }
+.hp-row { width: 100%; height: var(--row); display: flex; align-items: center; gap: 8px; padding: 0 8px; border-radius: 7px; text-align: left; font-size: var(--fs-row); }
+.hp-row.hl { background: rgba(255,255,255,0.10); }
+.hp-row.off { opacity: 0.45; }
+.hp-row .nm { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.hp-row .kd { font-family: var(--mono); font-size: var(--fs-kind); color: var(--ink-3); flex: none; }
+.hp-row .sp { flex: 1; }
+.hp-row .st { font-size: var(--fs-c); color: var(--ink-3); flex: none; }
+.hp-empty { padding: 18px 8px; text-align: center; color: var(--ink-3); font-size: var(--fs-s); }
+.hp-foot { display: flex; gap: 12px; padding: 8px 12px; border-top: 1px solid var(--line); font-size: var(--fs-c); color: var(--ink-3); white-space: nowrap; }
+.hp-foot kbd { font-family: var(--ui); font-size: 10.5px; padding: 0 4px; margin-right: 2px; border-radius: 4px; background: rgba(255,255,255,0.07); border: 1px solid var(--line); color: var(--ink-2); }
+.hp-long { padding: 16px 12px; display: flex; flex-direction: column; align-items: flex-start; gap: 10px; font-size: var(--fs-row); color: var(--ink-2); }
+
+.hp-toast { position: fixed; z-index: 45; left: 50%; top: 58px; transform: translateX(-50%); max-width: 520px; display: flex; align-items: center; gap: 10px; padding: 6px 6px 6px 14px; border-radius: 10px; background: var(--bg-raise-2); border: 1px solid var(--line-2); box-shadow: 0 12px 32px rgba(0,0,0,0.55); font-size: 13px; font-weight: 500; }
+.hp-toast svg { color: var(--accent-text); flex: none; }
+.hp-toast .tx { line-height: 18px; }
+.hp-toast .op { height: 28px; padding: 0 6px; font-weight: 600; color: var(--accent-text); flex: none; }
+.hp-toast .x { width: 28px; height: 28px; color: var(--ink-3); font-size: 16px; flex: none; }

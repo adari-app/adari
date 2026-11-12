@@ -1,0 +1,101 @@
+/* mac-v1 tokens in real Mac pixels (App/CompanionMacV1Theme.swift `Metrics.mac`,
+   design/mac-v1/mac.css `.d-mac`), dark only. */
+:root {
+  color-scheme: dark;
+  --ui: "Geist", -apple-system, system-ui, "Segoe UI", sans-serif;
+  --mono: "Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --term: "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
+
+  /* Adari's colours, Halo: neutral black, one azure accent for what you act on, a
+     yellow halo on whoever needs you, a rose red for errors. App/AdariBrand.swift carries the same values. Dark only;
+     the terminal keeps the user's theme. */
+  --bg-main: #000000;
+  --bg-side: #121315;
+  --bg-raise: #1a1b1e;
+  --bg-raise-2: #232428;
+  /* The rename tip. */
+  --bg-raise-3: #2a2b30;
+  --bg-sunk: #0b0c0e;
+  --sel: rgba(255, 255, 255, 0.075);
+  /* The selected sidebar row's card (T3 Code: a raised fill, a hairline, a soft shadow). */
+  --sel-card: rgba(255, 255, 255, 0.08);
+  --line: rgba(255, 255, 255, 0.07);
+  --line-2: rgba(255, 255, 255, 0.11);
+  --line-3: rgba(255, 255, 255, 0.2);
+  --ink: #ededeb;
+  --ink-2: #c2c2be;
+  --ink-3: #a4a4a0;
+  --ink-4: #8e8e89;
+  /* The accent: only what you act on (Send, the focus frame, a chosen option, an update, a link in the UI). */
+  --accent: #2d6ceb;
+  --accent-text: #84b4ff;
+  /* The arrow and the words on an accent fill. */
+  --accent-ink: #ffffff;
+  --accent-soft: rgba(45, 108, 235, 0.16);
+  --accent-line: rgba(45, 108, 235, 0.6);
+  /* Needs you: the Priority badge, the Needs you header, the pane's status word, the Needs card. */
+  --ny: #f5cb45;
+  --ny-text: #f5cb45;
+  --ny-soft: rgba(245, 203, 69, 0.16);
+  --ny-line: rgba(245, 203, 69, 0.45);
+  /* An agent that needs you (T3 Code's status pill; src/shared/needs-pill.ts): the row's dot and Pending
+     Approval in the approval colour, Awaiting Input in the input colour. Light first (T3's Tailwind amber and indigo,
+     kept for a later light mode), dark second (Halo's; the window is dark). */
+  --approval: light-dark(oklch(76.9% 0.188 70.08), #f5cb45);
+  --approval-text: light-dark(oklch(66.6% 0.179 58.318), #f5cb45);
+  --approval-soft: light-dark(oklch(76.9% 0.188 70.08 / 0.16), rgba(245, 203, 69, 0.16));
+  --input: light-dark(oklch(58.5% 0.233 277.117), #bba7ff);
+  --input-text: light-dark(oklch(51.1% 0.262 276.966), #bba7ff);
+  /* The working arc and the done dot. */
+  --working: #8796ae;
+  --done: #ededeb;
+  /* Errors and warnings: an offline machine, a failed tool, an error note, the danger button. */
+  --danger: #f2546b;
+  --danger-text: #ff8a99;
+  --danger-soft: rgba(242, 84, 107, 0.12);
+  --danger-line: rgba(242, 84, 107, 0.45);
+  /* The context ring from 80% and from 90%. */
+  --ring-warn: #f5cb45;
+  --ring-danger: #f2546b;
+  --add: #7ccf9a;
+  --del: #f08a9c;
+  /* T3 Code's reading tones: the reply at 90% ink, their bubble, code on a 3.5% fill, links in a soft blue. */
+  --ink-reply: rgba(237, 237, 235, 0.9);
+  /* A project heading its agents in the sidebar. */
+  --ink-head: rgba(237, 237, 235, 0.9);
+  --bg-bubble: #1c1d21;
+  --bg-code: rgba(255, 255, 255, 0.035);
+  --link: #84b4ff;
+
+  /* Metrics.mac */
+  --sb-w: 288px;
+  --row: 30px;
+  --hdr: 30px;
+  --fs-row: 13px;
+  --fs-s: 12px;
+  --fs-c: 11px;
+  --fs-kind: 11px;
+  --fs-chat: 14px;
+  --lh-chat: 22.75px;
+  /* T3 Code's lane (46rem less its padding): the chat, the box and the header's breadcrumb share it. */
+  --col: 720px;
+  --mh: 46px;
+  --ib: 28px;
+  --send: 30px;
+  --thumb: 56px;
+  --fs-term: 13px;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body, #root { height: 100%; overflow: hidden; background: var(--bg-main); }
+body {
+  font-family: var(--ui);
+  color: var(--ink);
+  font-size: var(--fs-row);
+  -webkit-font-smoothing: antialiased;
+  user-select: none;
+  cursor: default;
+}
+button { font: inherit; color: inherit; background: none; border: 0; cursor: default; }
+input, textarea { font: inherit; color: inherit; }
+.mono { font-family: var(--mono); }

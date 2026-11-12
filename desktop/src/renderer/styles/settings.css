@@ -1,0 +1,126 @@
+/* Settings (src/renderer/settings/SettingsPage.tsx) and the sidebar footer's Settings button.
+   Its own file so it merges apart from the pane header, tab bar and View menu. Halo tokens and the sidebar's type
+   scale (13 / 12 / 11 px); the page covers the main area only (the sidebar stays), down to the 840 x 620 window. */
+
+/* The sidebar footer's button: the word and its gear, as the footer showed them, now pressable. */
+.sb { anchor-name: --adari-sidebar; }
+.sb-set { display: inline-flex; align-items: center; gap: 9px; height: 28px; margin-left: -8px; padding: 0 8px; border-radius: 7px; color: var(--ink-3); font-size: var(--fs-s); }
+.sb-set:hover { background: var(--sel); color: var(--ink-2); }
+.sb-set.on { background: var(--sel); color: var(--ink); }
+.sb-set:focus-visible { outline: 2px solid var(--accent-line); outline-offset: 1px; }
+
+/* The page sits over the main area (right of the sidebar, whatever its width); the pane under it keeps its size, so
+   going back shows it as it was. */
+.settings-page { position: absolute; top: 0; bottom: 0; right: 0; left: anchor(--adari-sidebar right, var(--sb-w)); z-index: 12; display: flex; flex-direction: column; min-width: 0; background: var(--bg-main); }
+.app.settings-open > .main { visibility: hidden; }
+.set-mh { border-bottom: 1px solid var(--line); }
+
+.set-body { flex: 1; min-height: 0; display: flex; }
+.set-nav { flex: none; width: 168px; display: flex; flex-direction: column; gap: 1px; padding: 12px 8px; border-right: 1px solid var(--line); overflow-y: auto; }
+.set-nav-i { height: var(--row); display: flex; align-items: center; padding: 0 10px; border-radius: 7px; font-size: var(--fs-row); color: var(--ink-2); text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.set-nav-i:hover { background: var(--sel); color: var(--ink); }
+.set-nav-i.on { background: var(--sel-card); color: var(--ink); box-shadow: inset 0 0 0 1px var(--line); }
+.set-nav-i:focus-visible { outline: 2px solid var(--accent-line); outline-offset: -2px; }
+
+/* T3 Code's layout (apps/web/src/components/settings/settingsLayout.tsx, SettingsGroup.tsx,
+   WorkspacePageContainer.tsx). The page is a readable column centred in the main area (max-w-4xl, 896 px; px-6 pt-6
+   pb-12; gap-8 between sections); a section is its title and short line, then one group (rounded-xl, a border, rows
+   divided by a rule); a row is its title and help on the left and its value or actions in one right-hand column
+   (grid-cols-[minmax(0,1fr)_auto], gap-8, items-center), stacked when the row is narrower than 32rem. */
+.set-scroll { flex: 1; min-width: 0; overflow-y: auto; scrollbar-gutter: stable both-edges; }
+.set-col { box-sizing: border-box; width: 100%; max-width: 944px; margin: 0 auto; padding: 24px 24px 48px; display: flex; flex-direction: column; gap: 32px; }
+.set-sec { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.set-h { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; padding: 0 16px; }
+.set-ht { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.set-h h2 { margin: 0; min-height: 22px; display: flex; align-items: center; font-size: 15px; font-weight: 600; color: var(--ink); }
+.set-ha { flex: none; display: flex; align-items: center; gap: 8px; min-height: 28px; }
+.set-lead { margin: 0; max-width: 672px; font-size: var(--fs-s); line-height: 18px; color: var(--ink-3); }
+.set-lead .mono, .set-foot .mono, .set-rs .mono { font-family: var(--mono); font-size: 11px; color: var(--ink-2); }
+.set-groups { display: flex; flex-direction: column; gap: 12px; }
+.set-group { display: flex; flex-direction: column; border: 1px solid var(--line-2); border-radius: 12px; background: var(--bg-side); overflow: hidden; }
+.set-group > * + * { border-top: 1px solid var(--line); }
+.set-empty { padding: 14px 16px; font-size: var(--fs-s); color: var(--ink-4); }
+.set-foot { margin: 0; padding: 0 16px; font-size: var(--fs-c); line-height: 16px; color: var(--ink-4); }
+
+/* A row (SettingsRow): every page's rows the same height and padding; the right-hand column holds the actions. */
+.set-row { container: set-row / inline-size; box-sizing: border-box; min-height: 56px; padding: 12px 16px; display: flex; flex-direction: column; justify-content: center; }
+.set-ri { display: flex; flex-direction: column; gap: 10px; }
+@container set-row (min-width: 32rem) {
+  .set-ri { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; column-gap: 32px; }
+  .set-rc { justify-content: flex-end; }
+}
+.set-rt { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.set-rh { min-height: 20px; display: flex; align-items: center; gap: 8px; min-width: 0; }
+.set-k { font-size: var(--fs-row); font-weight: 500; color: var(--ink); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.set-rd { max-width: 672px; font-size: var(--fs-s); line-height: 17px; color: var(--ink-3); overflow-wrap: anywhere; }
+.set-rs { display: flex; flex-direction: column; gap: 2px; padding-top: 1px; font-size: var(--fs-c); line-height: 16px; color: var(--ink-4); overflow-wrap: anywhere; }
+.set-rc { min-width: 0; display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.set-v { font-size: var(--fs-s); color: var(--ink-2); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.set-v.faint { color: var(--ink-4); }
+.set-v.mono { font-family: var(--mono); font-size: 11.5px; }
+.set-bad { color: var(--danger-text); }
+.set-good { color: var(--add); }
+/* A group's first row naming what follows (a machine's start commands, a CLI's agents). */
+.set-row-head { background: rgba(255, 255, 255, 0.02); }
+/* A status beside a row's title (Connected, Offline, Update ready). */
+.set-chip { flex: none; display: inline-flex; align-items: center; gap: 5px; height: 18px; padding: 0 7px; border-radius: 9px; border: 1px solid var(--line-2); font-size: var(--fs-c); color: var(--ink-3); white-space: nowrap; }
+.set-chip.on::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--add); }
+.set-chip.off { color: var(--danger-text); border-color: var(--danger-line); }
+.set-built { display: inline-flex; align-items: center; height: 26px; padding: 0 11px; border-radius: 7px; border: 1px dashed var(--line-3); font-size: var(--fs-s); color: var(--ink-3); white-space: nowrap; }
+/* Updates' actions beside the state (Download or Restart…, and Check for Updates…). */
+.set-acts { display: inline-flex; flex-wrap: wrap; gap: 8px; }
+
+/* Chat › Start commands: T3 Code's field width (ProviderSettingsForm's DraftInput, w-56). */
+.set-in { width: 224px; height: 30px; font-size: 12px; }
+.set-in.bad, .set-in.bad:focus { border-color: var(--danger-line); }
+.set-in:disabled { opacity: 0.5; }
+.set-in::placeholder { color: var(--ink-4); }
+.set-switch { flex: none; position: relative; width: 34px; height: 20px; border-radius: 10px; background: var(--line-3); transition: background 0.15s; }
+.set-switch i { position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: var(--ink); transition: transform 0.15s; }
+.set-switch.on { background: var(--accent); }
+.set-switch.on i { transform: translateX(14px); }
+.set-switch:focus-visible { outline: 2px solid var(--accent-line); outline-offset: 2px; }
+
+/* Uploaded images: what is counted (set-up-c) and the last Delete now (set-up-o) are a row's help and status. */
+.set-up-c { color: var(--ink-2); }
+.set-up-o { color: var(--ink-3); }
+
+/* Appearance. */
+.set-step { display: inline-flex; align-items: center; border: 1px solid var(--line-2); border-radius: 7px; overflow: hidden; }
+.set-step button { width: 30px; height: 26px; font-size: var(--fs-s); color: var(--ink-2); }
+.set-step button:hover:not(:disabled) { background: var(--sel); color: var(--ink); }
+.set-step button:disabled { opacity: 0.4; }
+.set-step-v { min-width: 48px; height: 26px; display: flex; align-items: center; justify-content: center; border-left: 1px solid var(--line-2); border-right: 1px solid var(--line-2); font-size: var(--fs-s); color: var(--ink); font-variant-numeric: tabular-nums; }
+.set-preview { padding: 12px 16px; font-family: var(--term); color: var(--ink-2); background: var(--bg-sunk); line-height: 1.4; white-space: pre; overflow: hidden; text-overflow: ellipsis; }
+
+/* Updates › Agent CLIs: an agent with an update, a row that opens it. */
+.set-upd { box-sizing: border-box; display: grid; grid-template-columns: auto minmax(0, max-content) minmax(0, 1fr) auto; align-items: center; column-gap: 10px; width: 100%; min-height: 44px; padding: 8px 16px; text-align: left; }
+.set-upd:hover { background: var(--sel); }
+.set-upd .upd { display: flex; align-items: center; color: var(--accent-text); }
+.set-upd:focus-visible { outline: 2px solid var(--accent-line); outline-offset: -2px; }
+.set-mn { font-size: var(--fs-row); font-weight: 500; color: var(--ink); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.set-open { font-size: var(--fs-s); color: var(--ink-3); }
+.set-upd:hover .set-open { color: var(--ink); }
+
+/* About. */
+.set-privacy { color: var(--ink-2); }
+
+/* The confirmation over the page (Delete now, Remove). */
+.dlg.set-confirm { width: 420px; max-width: calc(100vw - 48px); }
+
+/* The narrowest main area (an 840 px window less a wide sidebar): the section list narrows; a row narrower than
+   32rem stacks its actions under its words (the container query above), so nothing is cut off sideways. */
+@media (max-width: 1000px) {
+  .set-nav { width: 140px; }
+  .set-col { padding: 16px 16px 32px; gap: 24px; }
+  .set-in { width: 100%; max-width: 320px; }
+}
+/* A machine's Herdr agent integrations, one line under it; Install or Update as a quiet link. */
+.set-int { display: flex; flex-direction: column; gap: 2px; }
+.set-int-line { display: flex; flex-wrap: wrap; column-gap: 14px; row-gap: 2px; color: var(--ink-3); }
+.set-int-i { white-space: nowrap; }
+.set-int-b { padding: 0; border: 0; background: none; font: inherit; color: var(--link); cursor: pointer; }
+.set-int-b:hover:not(:disabled) { text-decoration: underline; }
+.set-int-b:disabled { color: var(--ink-4); cursor: default; }
+.set-int-out { color: var(--ink-3); }
+.set-int-out > div + div { color: var(--ink-4); }

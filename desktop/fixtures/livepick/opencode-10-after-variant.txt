@@ -1,0 +1,17 @@
+                                          ▄
+         █▀▀█ █▀▀█ █▀▀█ █▀▀▄ █▀▀▀ █▀▀█ █▀▀█ █▀▀█
+         █  █ █  █ █▀▀▀ █  █ █    █  █ █  █ █▀▀▀
+         ▀▀▀▀ █▀▀▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀
+
+  ┃
+  ┃  Ask anything... "Fix a TODO in the codebase"
+  ┃
+  ┃  Build · Beam Free OpenCode
+  ╹▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀
+  tab agents  ctrl+p commands
+
+
+
+  ● Tip Create opencode.json for server settings, and
+  /private/tmp/live/work/hello-          1.18.21
+  opencode

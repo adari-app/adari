@@ -1,0 +1,40 @@
+
+⏺ All final runs done. Deleting my two simulators by udid.
+
+  Ran 1 shell command
+
+⏺ Simulators deleted. Now the notes; reading their latest state.
+
+  Read 1 file, listed 1 directory, ran 1 shell command
+
+⏺ Writing the notes: progress, open issues, then the remaining sections.
+
+  Ran 1 shell command
+
+⏺ The hook matched the phrase inside my log text; rewording it.
+
+  Ran 1 shell command
+
+⏺ Now the summary, changes, tests, totals, screenshots, simulators and docs sections.
+
+  Ran 1 shell command
+
+⏺ Notes written. Trashing the temp directories (no xcresults among them).
+
+  Ran 1 shell command
+
+⏺ Writing the summary for the PR body.
+
+  Read 1 file, ran 1 shell command
+
+⏺ Agent aurora-web-settings-review exited 0: all six items are committed on z/aurora-web-settings-review (head 3c07e7d), and every
+  final run passed (unit 519 = 518 + 1 skipped, +48 new; all UI, iPad, HerdrKit, APNs and Release checks green); report in
+  aurora-web-settings-review.md, 7 open notes listed in the summary.
+
+✻ Cogitated for 1h 51m 57s · done 3:20 PM
+
+─────────────────────────────────────────────────────────────────────────────────────────────────────── aurora-web-settings-review ─
+❯
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+  Opus 5.5 (1M context) | 34% ctx | aurora-web-settings-review | aurora-web-settings-review | v2.1.303
+  ⏵⏵ auto mode on (shift+tab to cycle)
