@@ -152,12 +152,14 @@ export class FixtureTransport implements HerdrTransport {
   /**
    * Captures 155-157: the pane's folder (`cwd`, on its pane and its agent) and the session Herdr
    * names for it (`agent_session`; null: none), each only when given; returns what puts both back as they were.
+   * Captures 260-261 also give the agent's kind (`agent`, on its pane and its agent).
    */
-  setPaneSession(paneId: string, change: { readonly cwd?: string; readonly session?: Json | null }): () => void {
+  setPaneSession(paneId: string, change: { readonly cwd?: string; readonly session?: Json | null; readonly agent?: string }): () => void {
     const pane = this.paneJson(paneId);
     const agent = list(this.snapshot["agents"]).find((entry) => entry["pane_id"] === paneId);
     const kept = [pane, agent].filter((entry): entry is Json => entry !== undefined).map((entry) => ({ entry, had: { ...entry } }));
     for (const { entry } of kept) {
+      if (change.agent !== undefined) entry["agent"] = change.agent;
       if (change.cwd !== undefined) {
         entry["cwd"] = change.cwd;
         if ("foreground_cwd" in entry) entry["foreground_cwd"] = change.cwd;
@@ -1103,7 +1105,7 @@ export class DemoBackend implements HerdrHostBackend {
   }
 
   /** For the captures: the pane's folder and named session changed (demo only); returns what puts them back. */
-  setPaneSession(paneId: string, change: { readonly cwd?: string; readonly session?: Json | null }): () => void {
+  setPaneSession(paneId: string, change: { readonly cwd?: string; readonly session?: Json | null; readonly agent?: string }): () => void {
     return this.transport.setPaneSession(paneId, change);
   }
 

@@ -5,6 +5,7 @@
 import { ipcMain, type IpcMainEvent, type IpcMainInvokeEvent, type WebContents } from "electron";
 
 import { isSafeExternalUrl } from "../shared/external-url";
+import { isFeedbackKind, type FeedbackKind } from "../shared/feedback";
 import { isSafeAbsolutePath, isUploadFileName, isUploadFolderName, maxUploadBytes, safeUploadExtension } from "../shared/attachments";
 import {
   IPC,
@@ -151,6 +152,8 @@ export interface IpcDependencies {
   openLicenses?(): Promise<string | null>;
   /** An http or https address, checked here first, opened in the default browser (absent in older tests: ignored). */
   openLink?(url: string): void;
+  /** About's Report a problem or Send feedback: main builds the new issue's address and opens it (absent: ignored). */
+  openFeedback?(kind: FeedbackKind): void;
   /** The app's own updates (absent in older tests: refused). */
   readonly updates?: UpdateIpc;
 }
@@ -1308,6 +1311,11 @@ export function registerIpc(deps: IpcDependencies): void {
   // A link in Chat or the Terminal: http and https only (the window's own guard's rule), never the window.
   on(IPC.openLink, (_event, url) => {
     if (typeof url === "string" && isSafeExternalUrl(url)) deps.openLink?.(url);
+  });
+  // About's Report a problem and Send feedback: only the kind is taken (an address, or anything else, is ignored);
+  // main builds the new issue's address and opens only that (feedback.ts).
+  on(IPC.openFeedback, (_event, kind, ...rest) => {
+    if (rest.length === 0 && isFeedbackKind(kind)) deps.openFeedback?.(kind);
   });
   on(IPC.appCommandDone, (_event, id) => {
     if (isId(id)) deps.commandDone(id);

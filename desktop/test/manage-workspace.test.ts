@@ -78,12 +78,17 @@ describe("Rename workspace… in the header's menu", () => {
     expect(p.menu()!.map((item) => [item.label, item.disabledReason ?? null])).toEqual([
       ["New agent here", null],
       ["Rename workspace…", null],
+      // Move up and Move down: this Mac's own order, never greyed for the machine (nothing goes to Herdr).
+      ["Move up", "Already at the top"],
+      ["Move down", null],
     ]);
     const q = await open({ hosts: [machine(undefined, { state: "offline" })] });
     q.workspaceMenu("w1");
     expect(q.menu()!.map((item) => [item.label, item.disabledReason ?? null])).toEqual([
       ["New agent here", "Mac mini is not answering"],
       ["Rename workspace…", "Mac mini is not answering"],
+      ["Move up", "Already at the top"],
+      ["Move down", null],
     ]);
     q.menu()![1]!.onSelect();
     expect(q.sidebar()["renaming"]).toBeNull();

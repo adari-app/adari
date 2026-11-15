@@ -22,7 +22,7 @@ Adari is an independent project. It is not made or endorsed by Herdr, Inc.
 ## What you need
 
 - A Mac running Herdr. Check it in Terminal with `herdr --version` and `herdr status server`.
-  Adari 0.1.0 is for Herdr only. herdr-core comes after: its code is in 0.1.0, but it has not
+  Adari 0.1.1 is for Herdr only. herdr-core comes after: its code is in 0.1.1, but it has not
   been tested against a live herdr-core.
 - To reach another Mac, turn on Remote Login on it in System Settings → General → Sharing. Your
   Mac must be able to reach its address, for example on the same network or over a VPN such as

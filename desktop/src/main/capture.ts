@@ -45,6 +45,13 @@ export interface CaptureStep {
    * true or the points run out; it stays where it stopped for the picture.
    */
   readonly pointer?: { readonly points: string; readonly modifiers?: readonly ("meta" | "control" | "shift" | "alt")[]; readonly until?: string };
+  /**
+   * The real mouse pressed at the point `from` (a page script) gives and moved, held down, to `to` in 12 steps;
+   * it stays pressed there for the picture (a workspace header mid-drag). Sent after the commands and page scripts.
+   */
+  readonly hold?: { readonly from: string; readonly to: string };
+  /** The held mouse let go where it is (before the commands). */
+  readonly release?: true;
   /** Only this element (a CSS selector) and `pad` points around it, not the whole window. */
   readonly crop?: { readonly selector: string; readonly pad: number };
 }
@@ -1777,6 +1784,48 @@ export function settingsCaptureSteps(
 }
 
 /**
+ * Report a problem and Send feedback in Settings › About (270), then both
+ * buttons clicked (271): a capture run opens no link, it prints
+ * "open-link (capture run, not opened): <address>" for each, so the log shows the
+ * new issue's address as main built it. Last, after 261.
+ */
+export function feedbackCaptureSteps(): CaptureStep[] {
+  const about: CommandBody[] = [{ type: "settings", open: true, section: "about" }];
+  const measure = `(() => {
+    const page = document.querySelector(".settings-page");
+    const text = (node) => (node === null || node === undefined ? null : node.innerText.trim());
+    return {
+      settings: ${settingsMeasure},
+      rows: [...(page?.querySelectorAll("[data-feedback]") ?? [])].map((row) => ({
+        kind: row.getAttribute("data-feedback"),
+        title: text(row.querySelector(".set-k")),
+        button: text(row.querySelector("button")),
+        label: row.querySelector("button")?.getAttribute("aria-label") ?? null,
+        disabled: row.querySelector("button")?.disabled === true,
+      })),
+      foot: text(page?.querySelector("[data-feedback-foot]")),
+    };
+  })()`;
+  return [
+    {
+      name: "270-feedback-about",
+      what: "Settings › About: Version, Privacy, Open-source licenses, then Report a problem and Send feedback (each New issue), and the line under them: Opens a new issue on GitHub in your browser. Adari sends nothing itself.",
+      commands: about,
+      settleMs: 1_200,
+      measure,
+    },
+    {
+      name: "271-feedback-about-clicked",
+      what: "The same page after both New issue buttons were clicked: nothing opens in a capture run; the log has the two addresses main built",
+      commands: about,
+      page: [`(() => { for (const button of document.querySelectorAll("[data-feedback] button")) button.click(); return true; })()`],
+      settleMs: 1_200,
+      measure,
+    },
+  ];
+}
+
+/**
  * The terminal drawer and the pane switch's
  * words, on demo machines only. The sundial Claude pane on Chat with its
  * drawer closed (115); its header's Terminal drawer button: one shell made by
@@ -2015,6 +2064,37 @@ export interface CaptureResult {
   readonly measured?: unknown;
 }
 
+/** Where the mouse is held down (a step's `hold`), until a step lets it go. */
+let held: { x: number; y: number } | null = null;
+
+/** The mouse pressed at `from` and moved, held, to `to` (both page scripts answering a point). */
+async function holdDrag(window: BrowserWindow, hold: NonNullable<CaptureStep["hold"]>): Promise<void> {
+  const contents = window.webContents;
+  const from = (await contents.executeJavaScript(hold.from, true)) as { x: number; y: number } | null;
+  const to = (await contents.executeJavaScript(hold.to, true)) as { x: number; y: number } | null;
+  if (from === null || to === null) return;
+  const x = Math.round(from.x);
+  const y = Math.round(from.y);
+  contents.sendInputEvent({ type: "mouseMove", x, y });
+  await wait(60);
+  contents.sendInputEvent({ type: "mouseDown", x, y, button: "left", clickCount: 1 });
+  const steps = 12;
+  let point = { x, y };
+  for (let step = 1; step <= steps; step += 1) {
+    await wait(30);
+    point = { x: Math.round(x + ((to.x - x) * step) / steps), y: Math.round(y + ((to.y - y) * step) / steps) };
+    contents.sendInputEvent({ type: "mouseMove", ...point, button: "left", modifiers: ["leftbuttondown"] });
+  }
+  held = point;
+}
+
+async function releaseHeld(window: BrowserWindow): Promise<void> {
+  if (held === null) return;
+  window.webContents.sendInputEvent({ type: "mouseUp", ...held, button: "left", clickCount: 1 });
+  held = null;
+  await wait(60);
+}
+
 /** Runs each step and writes the window's own pixels (webContents.capturePage) as PNG files. */
 /** The mouse over each point a page script gives, keys held, until a page script says it is there. */
 async function movePointer(window: BrowserWindow, pointer: NonNullable<CaptureStep["pointer"]>): Promise<void> {
@@ -2041,6 +2121,7 @@ export async function runCaptures(
   const results: CaptureResult[] = [];
   for (const step of steps) {
     if (step.before !== undefined) await step.before();
+    if (step.release === true) await releaseHeld(window);
     for (const command of step.commands) await commands.send(window.webContents, command);
     if (step.after !== undefined) {
       await wait(step.after.afterMs);
@@ -2049,6 +2130,7 @@ export async function runCaptures(
     if (step.edge !== undefined) await onSidebarEdge(window, step.edge);
     for (const script of step.page ?? []) await window.webContents.executeJavaScript(script, true);
     if (step.pointer !== undefined) await movePointer(window, step.pointer);
+    if (step.hold !== undefined) await holdDrag(window, step.hold);
     await wait(step.settleMs);
     const image = await window.webContents.capturePage(step.crop === undefined ? undefined : await cropRect(window, step.crop));
     const file = path.join(directory, `${step.name}.png`);

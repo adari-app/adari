@@ -24,7 +24,7 @@ import { ChangesIcon, ChatIcon, CloseIcon, ExternalIcon, FileIcon, FolderIcon, I
 import { ChangesView } from "../changes/ChangesView";
 import { ChatView } from "../chat/ChatView";
 import { RunningStrip } from "../chat/RunningStrip";
-import { chatSends, pendingMessages, sendWithPending, subscribePending } from "../chat/chat-state";
+import { chatSends, chatUpdates, pendingMessages, sendWithPending, subscribePending } from "../chat/chat-state";
 import type { PendingMessage } from "../../shared/chat/pending";
 import { sendCommandRow } from "../chat/command-rows";
 import { isSlashCommand, takesCommands } from "../../shared/slash-command";
@@ -335,10 +335,17 @@ export function Composer({
       (h, p, t) =>
         command(t)
           ? sendCommandRow((hh, pp, tt) => bridge.sendToPane(hh, pp, tt, commandBinding), h, p, t)
-          : sendWithPending((hh, pp, tt) => bridge.sendToPane(hh, pp, tt, binding), h, p, t, row.isAgent, {
-              terminalID: binding.terminalID,
-              session: binding.session,
-            }),
+          : sendWithPending(
+              (hh, pp, tt) => bridge.sendToPane(hh, pp, tt, binding),
+              h,
+              p,
+              t,
+              row.isAgent,
+              { terminalID: binding.terminalID, session: binding.session },
+              Date.now,
+              // This pane's own Chat says its transcript is not found as the message goes (not written yet).
+              chatUpdates.transcriptNotFound(h, p),
+            ),
       host.id,
       row.paneID,
       // The chips uploaded as they were attached (the bridge, composer-drafts.ts bridgeTransport).

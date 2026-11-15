@@ -7,7 +7,10 @@
 //   machine's tree too;
 // - Priority merged across machines with the same ordering;
 // - rows keyed `<hostId>/<paneID>`, since pane ids repeat across machines;
-// - folds keyed per machine (the Swift model's `mac`);
+// - folds keyed per machine (the Swift model's `mac`), and so is the
+//   workspace order this Mac keeps (moved by a header's drag or its menu's
+//   Move up / Move down; made by sidebar-model.ts orderWorkspaces, nothing
+//   sent to Herdr);
 // - the terminal drawers' shells left out (they
 //   live in the drawer only): no row, nor in Priority, Needs you, the badge,
 //   the counts, search or the ⇧⌘J cycle.
@@ -16,10 +19,13 @@ import {
   buildSidebarModel,
   emptyFoldState,
   fold as foldOps,
+  orderWorkspaces,
   priorityOrder,
   prioritySectionKinds,
+  savedWorkspaceOrder,
   sidebarInputFromTopology,
   sidebarRow,
+  workspaceMoves,
   type SidebarFoldState,
   type SidebarInput,
   type SidebarModel,
@@ -219,4 +225,50 @@ export function findRow(
   if (pane === undefined) return null;
   const label = input.workspaces.find((workspace) => workspace.id === pane.workspaceID)?.label ?? pane.workspaceID;
   return sidebarRow(pane, label, input.tabs.find((tab) => tab.id === pane.tabID), input);
+}
+
+/**
+ * A machine's workspaces in the sidebar's order for `state` (Projects, whatever is folded or searched): the
+ * same orderWorkspaces the model lists them by. Empty without a snapshot.
+ */
+export function machineWorkspaceOrder(host: SidebarHost | undefined, state: SidebarFoldState): string[] {
+  if (host === undefined || host.topology === null) return [];
+  const ordered = orderWorkspaces(
+    host.topology.workspaces.map((workspace) => ({ id: workspace.workspaceID, number: workspace.number })),
+    savedWorkspaceOrder(state, host.id),
+  );
+  return [...new Set(ordered.map((workspace) => workspace.id))];
+}
+
+/** Why a workspace header's Move up or Move down is greyed. */
+export const workspaceMoveTexts = {
+  searching: "Not while searching",
+  top: "Already at the top",
+  bottom: "Already at the bottom",
+} as const;
+
+/** Move up's and Move down's greyed reasons for a workspace header's menu (null: it moves that way). */
+export function workspaceMoveReasons(
+  host: SidebarHost | undefined,
+  state: SidebarFoldState,
+  searching: boolean,
+  workspaceId: string,
+): { readonly up: string | null; readonly down: string | null } {
+  if (searching) return { up: workspaceMoveTexts.searching, down: workspaceMoveTexts.searching };
+  const moves = workspaceMoves(machineWorkspaceOrder(host, state), workspaceId);
+  return { up: moves.up ? null : workspaceMoveTexts.top, down: moves.down ? null : workspaceMoveTexts.bottom };
+}
+
+/** The state after a header's drop: the workspace before `before` (the same machine's), or last when null. */
+export function dropWorkspace(state: SidebarFoldState, host: SidebarHost | undefined, workspaceId: string, before: string | null, now: number): SidebarFoldState {
+  if (host === undefined) return state;
+  const shown = machineWorkspaceOrder(host, state);
+  const slot = before === null ? shown.length : shown.indexOf(before);
+  return slot < 0 ? state : foldOps.moveWorkspace(state, host.id, shown, workspaceId, slot, now);
+}
+
+/** The state after Move up (-1) or Move down (1) from a workspace header's menu. */
+export function stepWorkspace(state: SidebarFoldState, host: SidebarHost | undefined, workspaceId: string, step: -1 | 1, now: number): SidebarFoldState {
+  if (host === undefined) return state;
+  return foldOps.stepWorkspace(state, host.id, machineWorkspaceOrder(host, state), workspaceId, step, now);
 }

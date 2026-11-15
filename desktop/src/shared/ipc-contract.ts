@@ -33,10 +33,12 @@ import type { CursorFooter, CursorPick, GrokFiles, GrokPick, PaneSettings, Setti
 import type { ModeAgent } from "./approval-modes";
 import type { CompactOutcome, DraftInput, DraftsChangedEvent, DraftsState, KeptDraft, KeptDraftAction } from "./drafts";
 import type { UpdateView } from "./updates";
+import type { FeedbackKind } from "./feedback";
 import type { AnswerRequest, AnswerResult, PanePrompt } from "./prompt/view";
 import type { SettingsSection, UploadsDeleteResult, UploadsInventory } from "./settings";
 import type { HostIntegrations, IntegrationBinding, IntegrationInstallReply } from "./integrations";
 import type { HostStartScreens } from "./prompt/start-screen";
+import type { NeedsYouReport, NotifySettings } from "./needs-notify";
 
 export const IPC = {
   appInfo: "herdr:app-info",
@@ -154,6 +156,11 @@ export const IPC = {
   /** A link in Chat or the Terminal, opened in the default browser (http and https only, checked in main). */
   openLink: "herdr:open-link",
   /**
+   * About's Report a problem and Send feedback (which one only: "problem" or "feedback"; no address crosses):
+   * main builds the new GitHub issue's address and opens it in the default browser.
+   */
+  openFeedback: "herdr:open-feedback",
+  /**
    * Settings' Check for Updates… (no arguments): asked now, its
    * outcome in words for the page (the menu's own check says it in a dialog).
    */
@@ -171,6 +178,13 @@ export const IPC = {
   integrationInstall: "herdr:integration-install",
   /** Settings opened: the integrations read again (no arguments). */
   integrationsRefresh: "herdr:integrations-refresh",
+  /** The sidebar's Needs you rows on each change (src/shared/needs-notify.ts NeedsYouReport, checked in main). */
+  needsYouReport: "herdr:needs-you-report",
+  /** Settings › Notifications' three switches (no arguments), and a change of them (one object of booleans). */
+  notifySettings: "herdr:notify-settings",
+  notifySettingsSet: "herdr:notify-settings-set",
+  /** Settings' Send a test notification (no arguments): what to say. */
+  notifyTest: "herdr:notify-test",
 } as const;
 
 /** "local": This Mac, built in and reached with no SSH. */
@@ -1001,6 +1015,11 @@ export interface HerdrDesktopBridge {
    * opens only http and https (isSafeExternalUrl) and ignores anything else (absent in older tests).
    */
   openLink?(url: string): void;
+  /**
+   * About's Report a problem and Send feedback: a new issue of Adari's GitHub repository, filled in by main, in the
+   * default browser (src/main/feedback.ts). Only the kind crosses (absent in older tests).
+   */
+  openFeedback?(kind: FeedbackKind): void;
   /** The app's own update state, and each change of it (absent in older tests). */
   updateState?(): Promise<UpdateView>;
   onUpdateState?(listener: (view: UpdateView) => void): () => void;
@@ -1014,6 +1033,13 @@ export interface HerdrDesktopBridge {
   installIntegration?(hostId: string, target: string, binding: IntegrationBinding): Promise<IntegrationInstallReply>;
   /** Settings opened: each machine that answered is read again (absent in older fakes). */
   refreshIntegrations?(): Promise<void>;
+  /** The sidebar's Needs you rows, for the notifications, the Dock badge and the menu bar item (absent in older fakes). */
+  reportNeedsYou?(report: NeedsYouReport): void;
+  /** Settings › Notifications' switches, and a change of them: the switches after (absent in older fakes). */
+  notifySettings?(): Promise<NotifySettings>;
+  setNotifySettings?(change: Partial<NotifySettings>): Promise<NotifySettings>;
+  /** Send a test notification: what to say (absent in older fakes). */
+  testNotification?(): Promise<string>;
 }
 
 declare global {

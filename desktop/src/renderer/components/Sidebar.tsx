@@ -2,7 +2,7 @@
 // agents that need you lifted into a group at the top, as the phone does.
 // Projects shows each machine's tree; Priority merges every machine by status.
 
-import { Fragment, useEffect, useRef, type ReactNode } from "react";
+import { Fragment, useEffect, useRef, useState, type ReactNode } from "react";
 
 import { foldedMachineRows, rowKey as desktopRowKey, type DesktopRow, type DesktopSidebar } from "../../shared/desktop-sidebar";
 import { prioritySectionTitle, type SidebarGlyph, type SidebarMode, type SidebarPrioritySectionKind, type SidebarRow } from "../../shared/sidebar-model";
@@ -24,6 +24,7 @@ import { paneRenameKey, workspaceRenameKey } from "../../shared/pane-manage";
 import { isCoreID } from "../../shared/core-ids";
 import { needsPill, type NeedsPill as NeedsPillValue, type NeedsPillKind } from "../../shared/needs-pill";
 import { useSidebarWidth } from "./sidebar-width";
+import { createWorkspaceDrag, liveWorkspaceDragPage, type WorkspaceDragShown } from "./workspace-drag";
 
 const glyphClass: Record<SidebarGlyph, string> = {
   needsYou: "g ny",
@@ -186,6 +187,11 @@ export interface SidebarProps {
   onNewAgent(place: { hostId: string; workspaceId: string } | null): void;
   /** A workspace header's right-click (its menu: New agent here). */
   onWorkspaceMenu(hostId: string, workspaceId: string, x: number, y: number): void;
+  /**
+   * A workspace header dragged and let go (workspace-drag.ts): it goes before `before` (a workspace of the same
+   * machine), or last when null. Absent: headers do not drag. Never while searching.
+   */
+  onMoveWorkspace?(hostId: string, workspaceId: string, before: string | null): void;
   /** How ⌘N reads here ("⌘N", "Ctrl+N"). */
   readonly newAgentKey?: string;
   /** New workspace: its row under New agent, and how ⇧⌘N reads here. */
@@ -233,6 +239,22 @@ function renameField(props: SidebarProps, key: string, what: "pane" | "workspace
   );
 }
 
+/**
+ * A workspace section's class while a header drags: the dragged one dimmed, the line above the section at the
+ * drop's slot (or below the last one for the end).
+ */
+function workspaceClass(shown: WorkspaceDragShown | null, hostId: string, workspaceId: string, index: number, count: number): string {
+  if (shown === null || shown.hostId !== hostId) return "ws";
+  return [
+    "ws",
+    shown.workspaceId === workspaceId ? "dragging" : "",
+    shown.slot === index ? "drop-before" : "",
+    shown.slot === count && index === count - 1 ? "drop-after" : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
+}
+
 /** A machine header's whole text, for its tooltip: name, platform, status and (folded) its panes. */
 function hostTitle(host: DesktopSidebar["hosts"][number]["host"], status: { text: string } | null, panes: string | null): string {
   return [host.name, host.platform, status?.text ?? null, panes].filter((part): part is string => part !== null && part !== "").join(" · ");
@@ -258,6 +280,32 @@ export function Sidebar(props: SidebarProps) {
   useEffect(() => {
     list.current?.scrollTo({ top: 0 });
   }, [mode]);
+  // A workspace header's drag (workspace-drag.ts): its line while it drags; it lives across renders.
+  const [dragShown, setDragShown] = useState<WorkspaceDragShown | null>(null);
+  const moveWorkspace = useRef(props.onMoveWorkspace);
+  moveWorkspace.current = props.onMoveWorkspace;
+  const [workspaceDrag] = useState(() =>
+    createWorkspaceDrag(liveWorkspaceDragPage(), {
+      show: setDragShown,
+      drop: (hostId, workspaceId, before) => moveWorkspace.current?.(hostId, workspaceId, before),
+    }),
+  );
+  useEffect(() => () => workspaceDrag.cancel(), [workspaceDrag]);
+  // The list is filtered while searching: nothing drags then (a drag on when the search opens is abandoned).
+  const canDrag = props.onMoveWorkspace !== undefined && !sidebar.isSearching && mode === "projects";
+  useEffect(() => {
+    if (!canDrag) workspaceDrag.cancel();
+  }, [canDrag, workspaceDrag]);
+  // A drag whose workspace is no longer shown (it went, its machine went, was folded or lost its snapshot) ends at once.
+  const foldedHosts = props.foldedHosts;
+  useEffect(() => {
+    workspaceDrag.keepIf((hostId, workspaceId) => {
+      const section = sidebar.hosts.find((candidate) => candidate.host.id === hostId);
+      if (section === undefined || section.model === null) return false;
+      if (foldedHosts.has(hostId) && !sidebar.isSearching) return false;
+      return section.model.projects.some((project) => project.header.workspaceID === workspaceId);
+    });
+  }, [sidebar, foldedHosts, workspaceDrag]);
   // A new selection scrolls into view: its first row, so a pane that needs you shows in the group on top.
   useEffect(() => {
     if (selectedKey === null) return;
@@ -428,8 +476,12 @@ export function Sidebar(props: SidebarProps) {
                       })}
                     </div>
                   )}
-                  {folded ? null : model?.projects.map((section) => (
-                    <div className="ws" key={section.header.workspaceID}>
+                  {folded ? null : model?.projects.map((section, index, sections) => (
+                    <div
+                      className={workspaceClass(dragShown, host.id, section.header.workspaceID, index, sections.length)}
+                      key={section.header.workspaceID}
+                      data-ws-section={section.header.workspaceID}
+                    >
                       <div
                         className="ws-hw"
                         data-ws={section.header.workspaceID}
@@ -443,7 +495,12 @@ export function Sidebar(props: SidebarProps) {
                             <button
                               className={section.header.isEmpty ? "ws-h dim" : "ws-h"}
                               title={section.header.label}
-                              onClick={() => props.onToggleWorkspace(host.id, section.header.workspaceID)}
+                              onPointerDown={(event) => workspaceDrag.press(event, host.id, section.header.workspaceID, canDrag)}
+                              onClick={() => {
+                                // The click a drag's release sends moves; it never folds.
+                                if (workspaceDrag.takeClick()) return;
+                                props.onToggleWorkspace(host.id, section.header.workspaceID);
+                              }}
                             >
                               <span className="fi">{section.header.isFolded || section.header.isEmpty ? <FolderIcon /> : <FolderOpenIcon />}</span>
                               <span className="n">{section.header.label}</span>

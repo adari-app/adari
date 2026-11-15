@@ -67,6 +67,17 @@ class ChatUpdates {
     return this.follows.has(draftKey(hostId, paneId));
   }
 
+  /**
+   * Whether the pane's own Chat on screen says its session's transcript was not found (ChatView's notFound line): a
+   * session named whose file is not written yet (Pi, Claude Code before their first message). False for a Chat not
+   * on screen, loading, live, or unavailable for another reason.
+   */
+  transcriptNotFound(hostId: string, paneId: string): boolean {
+    if (!this.followed(hostId, paneId)) return false;
+    const state = this.forPane(hostId, paneId)?.state;
+    return state?.status === "unavailable" && state.reason === "notFound";
+  }
+
   /** A live event is for a Chat followed now (and from that follow, when it says), as an update is. */
   accepts(event: Pick<ChatUpdateEvent, "hostId" | "paneId" | "follow">): boolean {
     return this.takes(event);
@@ -144,8 +155,10 @@ export function sendWithPending(
   isAgent: boolean,
   scope: PaneScope | null = null,
   now: () => number = Date.now,
+  /** The pane's own Chat said its transcript was not found as it went (chatUpdates.transcriptNotFound). */
+  noTranscript = false,
 ): Promise<void> {
-  const id = isAgent ? pendingMessages.add(draftKey(hostId, paneId), text, now(), scope) : null;
+  const id = isAgent ? pendingMessages.add(draftKey(hostId, paneId), text, now(), scope, noTranscript) : null;
   return send(hostId, paneId, text).then(
     () => {
       if (id !== null) pendingMessages.delivered(id);

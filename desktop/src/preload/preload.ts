@@ -27,6 +27,7 @@ import type { SearchViewState } from "../shared/search/view";
 import type { PanePrompt } from "../shared/prompt/view";
 import type { DraftsChangedEvent } from "../shared/drafts";
 import type { UpdateView } from "../shared/updates";
+import type { NeedsYouReport, NotifySettings } from "../shared/needs-notify";
 
 function subscribe<T>(channel: string, listener: (value: T) => void): () => void {
   const handler = (_event: IpcRendererEvent, value: T) => listener(value);
@@ -137,12 +138,19 @@ const bridge: HerdrDesktopBridge = {
   openLicenses: () => ipcRenderer.invoke(IPC.openLicenses),
   // A link in Chat or the Terminal, to the default browser (main checks it is http or https).
   openLink: (url) => ipcRenderer.send(IPC.openLink, url),
+  // About's Report a problem and Send feedback: which one only; main builds and checks the address.
+  openFeedback: (kind) => ipcRenderer.send(IPC.openFeedback, kind),
   // The app's own updates.
   updateState: () => ipcRenderer.invoke(IPC.updateState),
   onUpdateState: (listener) => subscribe<UpdateView>(IPC.updateChanged, listener),
   downloadUpdate: () => ipcRenderer.invoke(IPC.updateDownload),
   installUpdate: () => ipcRenderer.invoke(IPC.updateInstall),
   setAutomaticUpdates: (on) => ipcRenderer.invoke(IPC.updateAutomatic, on === true),
+  // The notifications, the Dock badge and the menu bar item (main checks the report).
+  reportNeedsYou: (report: NeedsYouReport) => ipcRenderer.send(IPC.needsYouReport, report),
+  notifySettings: () => ipcRenderer.invoke(IPC.notifySettings),
+  setNotifySettings: (change: Partial<NotifySettings>) => ipcRenderer.invoke(IPC.notifySettingsSet, change),
+  testNotification: () => ipcRenderer.invoke(IPC.notifyTest),
 };
 
 contextBridge.exposeInMainWorld("herdrDesktop", bridge);

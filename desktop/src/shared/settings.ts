@@ -9,7 +9,7 @@
 import type { ShortcutKey } from "./app-keys";
 import type { UpdateView } from "./updates";
 
-export type SettingsSection = "machines" | "chat" | "uploads" | "appearance" | "updates" | "about";
+export type SettingsSection = "machines" | "chat" | "uploads" | "appearance" | "notifications" | "updates" | "about";
 
 /** The page's sections, in the list's order (the first opens by default). */
 export const settingsSections: readonly { readonly id: SettingsSection; readonly title: string }[] = [
@@ -17,6 +17,7 @@ export const settingsSections: readonly { readonly id: SettingsSection; readonly
   { id: "chat", title: "Chat" },
   { id: "uploads", title: "Uploaded images" },
   { id: "appearance", title: "Appearance" },
+  { id: "notifications", title: "Notifications" },
   { id: "updates", title: "Updates" },
   { id: "about", title: "About" },
 ];

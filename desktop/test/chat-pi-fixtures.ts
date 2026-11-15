@@ -107,6 +107,20 @@ export function piSession(): string {
   );
 }
 
+/**
+ * What a new Pi session holds before its first message: the header, the model and the thinking level, no message.
+ * Pi keeps these in memory and writes the file with the first message (pi-locator.ts), so before it Chat finds no
+ * file (notFound); a file that holds only these lines reads as a live chat with no turns.
+ */
+export function piStartLines(model = "local-model"): string[] {
+  return [header(), entry("model_change", 0, { provider: "lmstudio", modelId: model }), entry("thinking_level_change", 0, { thinkingLevel: "off" })];
+}
+
+/** Pi's file once its first exchange is written: the start lines, your message at `askAt`, its answer at `answerAt` (seconds after `at(0)`). */
+export function piFirstExchange(ask: string, askAt: number, answer: string, answerAt: number): string {
+  return [...piStartLines(), user(ask, askAt), assistant([text(answer)], "stop", answerAt)].join("\n") + "\n";
+}
+
 /** omp's fixed-width title line (session-entries.ts:28-35, 256 bytes with its newline). */
 export function titleLine(title: string): string {
   const bare = JSON.stringify({ type: "title", v: 1, title, source: "auto", updatedAt: iso(0), pad: "" });

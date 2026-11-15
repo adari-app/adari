@@ -146,6 +146,8 @@ export interface PageOptions {
   readonly ghostty?: GhosttyAvailability;
   /** More bridge calls for the window (the update state and its actions). */
   readonly bridge?: Record<string, unknown>;
+  /** The page's storage (a relaunch over the same one reads back what the last launch kept); absent: a new one. */
+  readonly storage?: MemoryStorage;
 }
 
 export interface MenuEntry {
@@ -157,7 +159,7 @@ export interface MenuEntry {
 /** The window (App) over a fake bridge. */
 export async function page(options: PageOptions = {}) {
   const { App } = await import("../../src/renderer/App");
-  const storage = new MemoryStorage();
+  const storage = options.storage ?? new MemoryStorage();
   const actions: [string, PaneAction][] = [];
   /** Every other bridge call the page made that a test reads (renameWorkspace, …), by name. */
   const calls: [string, ...unknown[]][] = [];

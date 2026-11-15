@@ -25,17 +25,24 @@
 //   (what is known within 2 s, then the rest), and Delete now after a
 //   confirmation (the main process decides what goes).
 // - Appearance: the terminal's text size, the View menu's same setting.
+// - Notifications: Notify when an agent needs you, Play a sound, Show Adari in
+//   the menu bar (the Mac only), all on by default and kept by the main process
+//   (src/main/needs-notifier.ts), and Send a test notification.
 // - Updates: the version and build commit; Adari's own update state with the
 //   pill's actions (Download, Restart…) and Check for Updates…, the last
 //   check, and Check for updates automatically
 //   (src/main/updates.ts); and Agent CLIs: the agents whose CLI says it has an
 //   update (Claude Code, Codex), grouped by CLI, each with its instruction.
 // - About: the version, the privacy line, and Open-source licenses, which
-//   opens the notices file the app ships (THIRD_PARTY_NOTICES.md).
+//   opens the notices file the app ships (THIRD_PARTY_NOTICES.md); then Report
+//   a problem and Send feedback, the Help menu's same two (a new GitHub issue
+//   in the browser, filled in by main: src/main/feedback.ts), and the line
+//   under them saying Adari sends nothing itself.
 
 import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 
 import { restartKinds } from "../../shared/agent-restart";
+import { feedbackFoot, feedbackKinds, feedbackMenuLabels, feedbackRowButton, feedbackRowTitles } from "../../shared/feedback";
 import type { AppInfo, HerdrDesktopBridge, HostView } from "../../shared/ipc-contract";
 import {
   canDeleteUploads,
@@ -74,6 +81,7 @@ import { handoffStore } from "../handoff/handoff-state";
 import { ChatEarlyBadge } from "../components/agent-kind";
 import { IntegrationsLine, settingsIntegrationItems } from "../components/integrations";
 import { uploadsStore } from "./uploads-store";
+import { defaultNotifySettings, notifyTexts, type NotifySettings } from "../../shared/needs-notify";
 
 /** An agent pane whose CLI has an update (HostView.updateReady), as the sidebar names it. */
 export interface UpdateReadyPane {
@@ -258,6 +266,70 @@ function Switch({ on, label, onChange, data }: { on: boolean; label: string; onC
     <button className={on ? "set-switch on" : "set-switch"} role="switch" aria-checked={on} aria-label={label} onClick={() => onChange(!on)} {...data}>
       <i />
     </button>
+  );
+}
+
+/**
+ * Settings › Notifications: the three switches as the main process keeps them (read as the section opens; a
+ * switch shows its new place at once and the main process's answer after), Send a test notification and its outcome,
+ * and the line that macOS decides. The menu bar switch is the Mac's only (there is no menu bar item elsewhere).
+ */
+export function NotificationsSection({ bridge, mac }: { readonly bridge: HerdrDesktopBridge; readonly mac: boolean }) {
+  const [kept, setKept] = useState<NotifySettings | null>(null);
+  const [tested, setTested] = useState<string | null>(null);
+  const [testing, setTesting] = useState(false);
+  useEffect(() => {
+    let live = true;
+    void bridge.notifySettings?.().then(
+      (value) => {
+        if (live) setKept(value);
+      },
+      () => undefined,
+    );
+    return () => {
+      live = false;
+    };
+  }, [bridge]);
+  const now = kept ?? defaultNotifySettings;
+  const change =
+    (key: keyof NotifySettings) =>
+    (on: boolean): void => {
+      setKept({ ...now, [key]: on });
+      void bridge.setNotifySettings?.({ [key]: on }).then(setKept, () => undefined);
+    };
+  const toggle = (key: keyof NotifySettings, title: string, help: string) =>
+    row(key, { title, help, control: <Switch on={now[key]} label={title} data={{ "data-notify-switch": key }} onChange={change(key)} /> });
+  return section(
+    "notifications",
+    notifyTexts.title,
+    notifyTexts.lead,
+    <div className="set-group">
+      {toggle("notify", notifyTexts.notify, notifyTexts.notifyHelp)}
+      {toggle("sound", notifyTexts.sound, notifyTexts.soundHelp)}
+      {mac ? toggle("menuBar", notifyTexts.menuBar, notifyTexts.menuBarHelp) : null}
+      {row("test", {
+        title: notifyTexts.testTitle,
+        help: notifyTexts.testHelp,
+        status: tested,
+        data: { "data-notify-test": "" },
+        control: (
+          <button
+            className="btn sm"
+            disabled={testing || typeof bridge.testNotification !== "function"}
+            onClick={() => {
+              setTesting(true);
+              void bridge
+                .testNotification?.()
+                .then(setTested, () => setTested(notifyTexts.testFailed))
+                .finally(() => setTesting(false));
+            }}
+          >
+            {notifyTexts.test}
+          </button>
+        ),
+      })}
+    </div>,
+    { foot: mac ? notifyTexts.macLine : notifyTexts.otherLine },
   );
 }
 
@@ -864,10 +936,38 @@ export function SettingsPage(props: SettingsPageProps) {
           </button>
         ),
       })}
+      {feedbackKinds.map((kind) =>
+        row(`feedback-${kind}`, {
+          title: feedbackRowTitles[kind],
+          data: { "data-feedback": kind },
+          control: (
+            <button
+              className="btn sm"
+              aria-label={feedbackMenuLabels[kind]}
+              title={feedbackMenuLabels[kind]}
+              disabled={typeof bridge.openFeedback !== "function"}
+              onClick={() => bridge.openFeedback?.(kind)}
+            >
+              {feedbackRowButton}
+              <ExternalIcon size={12} />
+            </button>
+          ),
+        }),
+      )}
     </div>,
+    { foot: <span data-feedback-foot="">{feedbackFoot}</span> },
   );
 
-  const shown: Record<SettingsSection, ReactNode> = { machines: machinesPage, chat: chatPage, uploads: uploadsPage, appearance: appearancePage, updates: updatesPage, about: aboutPage };
+  const notificationsPage = <NotificationsSection bridge={bridge} mac={mac} />;
+  const shown: Record<SettingsSection, ReactNode> = {
+    machines: machinesPage,
+    chat: chatPage,
+    uploads: uploadsPage,
+    appearance: appearancePage,
+    notifications: notificationsPage,
+    updates: updatesPage,
+    about: aboutPage,
+  };
   return (
     <div className="settings-page" role="region" aria-label="Settings" data-section={shownSection}>
       <div className="mh set-mh">

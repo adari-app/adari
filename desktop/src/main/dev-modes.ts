@@ -22,6 +22,7 @@ export {
   manageCaptureSteps,
   modesCaptureSteps,
   needsCardCaptureSteps,
+  feedbackCaptureSteps,
   ringCaptureSteps,
   runCaptures,
   runningCaptureSteps,
@@ -65,6 +66,13 @@ export { livepickCaptureSteps } from "./livepick-captures";
 export { livefixCaptureSteps } from "./livefix-captures";
 // Grok Build's Chat tab with Early, New agent's list, a Claude Code pane, Settings' start commands (230-233).
 export { twotierCaptureSteps } from "./twotier-captures";
+// Settings › Notifications, and the Needs you list reaching main with the window put away (240-241).
+export { notifyAwayPane, notifyCaptureSteps } from "./notify-captures";
+// The sidebar's workspaces moved: before, mid-drag with its line, after the drop, the header's Move up / Move down (250-253).
+export { reorderCaptureSteps } from "./reorder-captures";
+// The first message in a new Pi chat: before it, then one message and no Not sent copy (260-261).
+export { firstSendCaptureSteps } from "./firstsend-captures";
+// Settings › About's Report a problem and Send feedback, then both clicked (270-271; feedbackCaptureSteps above).
 export { DemoClaudeQueue } from "./demo/demo-claude-queue";
 // An early kind's pane with its Early badge and line, New agent's list, Settings, a split tile (190-196).
 export { chatSupportCaptureSteps, chatSupportCaptureTargets } from "./chat-support-captures";

@@ -130,8 +130,10 @@ describe("captures 91-96", () => {
       "...ringCaptureSteps(demoHostIds)",
       // Cursor's Model chip read only 200 last (the steps between take callbacks).
       "...cursorPickCaptureSteps(demoHostIds)",
-      // The three Early kinds' badge, a Claude Code pane without it 230-233 (last).
+      // The three Early kinds' badge, a Claude Code pane without it 230-233.
       "...twotierCaptureSteps(demoHostIds)",
+      // The sidebar's workspaces moved 250-253 (last).
+      "...reorderCaptureSteps(demoHostIds)",
     ]);
   });
 });

@@ -63,6 +63,13 @@ button.host-h:hover { background: rgba(255,255,255,0.035); }
 /* A project heads its agents (T3 Code's project folders): medium weight at 90% ink, 8 px between projects, its rows a step in. */
 .ws { margin-top: 2px; }
 .ws + .ws { margin-top: 8px; }
+/* A workspace header dragged (workspace-drag.ts): it dims, and a line shows where it lands, in the gap above
+   the section at the drop's slot, or under the last one for the end. */
+.ws { position: relative; }
+.ws.dragging { opacity: 0.45; }
+.ws.drop-before::before, .ws.drop-after::after { content: ""; position: absolute; left: 6px; right: 6px; height: 2px; border-radius: 1px; background: var(--accent); pointer-events: none; z-index: 2; }
+.ws.drop-before::before { top: -5px; }
+.ws.drop-after::after { bottom: -5px; }
 .ws-h { width: 100%; height: var(--hdr); display: flex; align-items: center; gap: 8px; padding: 0 8px; border-radius: 8px; color: var(--ink-head); font-size: var(--fs-row); font-weight: 500; text-align: left; }
 .ws-h:hover { background: rgba(255,255,255,0.035); }
 .ws-h .fi { color: var(--ink-3); width: 15px; display: flex; justify-content: center; flex: none; }

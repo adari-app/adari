@@ -3,11 +3,11 @@
 // apps/desktop (main process, preload, renderer served from its own scheme);
 // the code is ours.
 
-import { mkdtempSync } from "node:fs";
+import { mkdtempSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-import { app, BrowserWindow, clipboard, dialog, powerMonitor, safeStorage, session, shell, webContents, type WebContents } from "electron";
+import { app, autoUpdater, BrowserWindow, clipboard, dialog, powerMonitor, safeStorage, session, shell, webContents, type WebContents } from "electron";
 
 import { IPC, type AddHostRequest, type AppInfo, type EditHostRequest, type HostView } from "../shared/ipc-contract";
 import { developmentIcon } from "./app-icon";
@@ -37,6 +37,8 @@ import { FileCatalogStore, LocalCatalogRunner, ModelCatalogs, RemoteCatalogRunne
 import { readInteractiveEnvironment } from "./herdr/local";
 import { LayoutService } from "./layouts";
 import { openShippedLicenses } from "./licenses";
+import { feedbackDetails, openFeedbackIssue } from "./feedback";
+import type { FeedbackKind } from "../shared/feedback";
 import { hasInstrumentFlag, parseLaunchOptions } from "./launch-options";
 import { installApplicationMenu } from "./menu";
 import { registerAppProtocol, registerSchemePrivileges } from "./protocol";
@@ -57,6 +59,10 @@ import { IntegrationService } from "./integrations";
 import { StartScreenService } from "./start-screens";
 import { PromptService } from "./prompt/prompts";
 import { pickFolderOnThisMac } from "./folder-pick";
+import { fileNotifySettings, memoryNotifySettings, NeedsNotifier, RecordedNotifyPort } from "./needs-notifier";
+import { electronNotifyPort } from "./needs-notify-electron";
+import { registerNotifyIpc } from "./needs-notify-ipc";
+import { bringForward, StayOpen, staysOpenWhenClosed } from "./stay-open";
 import { addThisMac, isBuiltInHost, thisMacAvailable, thisMacDescriptor, thisMacId, ThisMacBackend } from "./this-mac";
 // The This Mac fixture (captures 99-100): its code comes through dev() like the demo; only its type here.
 import type { ThisMacFixture } from "./this-mac-fixture";
@@ -101,10 +107,9 @@ let mainWindow: BrowserWindow | null = null;
 if (!app.requestSingleInstanceLock()) {
   app.quit();
 } else {
+  // A second launch brings this one's window forward (shown again if it was closed, un-minimized).
   app.on("second-instance", () => {
-    if (mainWindow === null) return;
-    if (mainWindow.isMinimized()) mainWindow.restore();
-    mainWindow.focus();
+    bringForward(mainWindow);
   });
 }
 
@@ -332,6 +337,30 @@ void app.whenReady().then(() => {
     notify: notifyDrafts,
     hostLabel: (hostId) => registry.name(hostId),
   });
+  // Closing the window puts it away on the Mac (stay-open.ts): Adari keeps running, so the notifications, the Dock
+  // badge and the menu bar item keep working. ⌘Q, Quit Adari and the update's Restart still quit (the flag is set
+  // before the window's close comes); a demo, capture or probe run, and Windows and Linux, quit as before.
+  const stayOpen = new StayOpen(staysOpenWhenClosed(process.platform, process.argv), {
+    onBeforeQuit: (listener) => app.on("before-quit", listener),
+    ...(updateRun.enabled && process.platform === "darwin" ? { onBeforeQuitForUpdate: (listener: () => void) => autoUpdater.on("before-quit-for-update", listener) } : {}),
+  });
+  // A notification when an agent starts needing you, the Dock badge and the menu bar item (needs-notifier.ts), from
+  // the page's Needs you rows. A demo, capture or probe run only records them (nothing shown, the Dock untouched) and
+  // keeps its switches in memory.
+  const notifyLog = (line: string): void => console.log(`notify: ${line}`);
+  const notifyPort =
+    options.demo || hasInstrumentFlag(process.argv)
+      ? new RecordedNotifyPort(notifyLog)
+      : electronNotifyPort({
+          platform: process.platform,
+          window: () => mainWindow,
+          select: (target, hostId, paneId) => void commands.send(target.webContents, { type: "select-pane", hostId, paneId }).catch(() => undefined),
+          openSettings: (target) => void commands.send(target.webContents, { type: "settings", open: true }).catch(() => undefined),
+        });
+  const notifier = new NeedsNotifier(notifyPort, options.demo ? memoryNotifySettings() : fileNotifySettings(path.join(userData, "notify-settings.json"), notifyLog));
+  registerNotifyIpc(notifier, notifyLog);
+  notifier.start();
+  app.on("before-quit", () => notifier.stop());
 
   // Each machine's sign-in latch: a new one with each backend, reset by Try again.
   const latches = new Map<string, AuthLatch>();
@@ -434,6 +463,27 @@ void app.whenReady().then(() => {
     },
   });
 
+  // An outside link (Chat, the Terminal, Report a Problem… and Send Feedback…) in the default browser; a capture
+  // run never opens one (it only says which).
+  const openOutsideLink = (url: string): void => {
+    if (options.captureDir === null && options.showcaseCaptureDir === null) void shell.openExternal(url);
+    else console.log(`open-link (capture run, not opened): ${url}`);
+  };
+  // Report a Problem… and Send Feedback… (the Help menu, Settings › About): a new GitHub issue of the update feed's
+  // repository with this build's four details, through the same opener; nothing sent, nothing kept.
+  const openFeedback = (kind: FeedbackKind): void => {
+    const details = feedbackDetails({
+      version: app.getVersion(),
+      packaged: app.isPackaged,
+      signed: signedBuild,
+      platform: process.platform,
+      systemVersion: process.getSystemVersion(),
+      arch: process.arch,
+      translated: app.runningUnderARM64Translation === true,
+    });
+    openFeedbackIssue(kind, details, openOutsideLink);
+  };
+
   registerIpc({
     info,
     prompts,
@@ -534,10 +584,9 @@ void app.whenReady().then(() => {
     openLicenses: () => openShippedLicenses({ appPath: app.getAppPath(), userData: app.getPath("userData"), open: (file) => shell.openPath(file) }),
     // A link in Chat or the Terminal (ipc.ts checked it is http or https), in the default browser; a
     // capture run never opens one (it only says which).
-    openLink: (url) => {
-      if (options.captureDir === null && options.showcaseCaptureDir === null) void shell.openExternal(url);
-      else console.log(`open-link (capture run, not opened): ${url}`);
-    },
+    openLink: openOutsideLink,
+    // About's Report a problem and Send feedback (the Help menu's same two, below).
+    openFeedback,
     updates: {
       view: () => updates.view(),
       download: () => updates.download(),
@@ -548,6 +597,8 @@ void app.whenReady().then(() => {
 
   installApplicationMenu({
     updatesEnabled: updateRun.enabled,
+    // Help › Report a Problem… and Send Feedback…: the browser comes forward, Adari's window is not touched.
+    openFeedback,
     checkForUpdates: () => void checkFromMenu(updates),
     viewCommand: (command) => {
       const target = BrowserWindow.getFocusedWindow() ?? mainWindow;
@@ -573,6 +624,18 @@ void app.whenReady().then(() => {
     ...(icon.window === null ? {} : { icon: icon.window }),
   });
   mainWindow = window;
+  stayOpen.attach(window);
+  // The window in front: the notifications shown close (the sidebar has them).
+  window.on("focus", () => notifier.focused());
+  // The Dock icon (macOS) brings the window back as it was when it was closed; not before it first showed, and
+  // never in a run whose closing quits (a capture's window never takes focus).
+  let windowShown = false;
+  window.once("show", () => {
+    windowShown = true;
+  });
+  app.on("activate", () => {
+    if (stayOpen.enabled && windowShown) bringForward(mainWindow);
+  });
   // A capture run's window never has focus: its visit starts with the captures.
   if (options.captureDir === null && showcaseCapture === null) followFocus(window, awayService);
   const contents = window.webContents;
@@ -726,6 +789,8 @@ void app.whenReady().then(() => {
   /** Puts the Grok pane's question and status back after 222. */
   let livefixRestore: (() => void) | null = null;
   const livefixGrokPane = "wD:pK";
+  /** The status 241's pane had before it (put back after 241). */
+  let notifyAwayStatus: string | null = null;
   // Capture 194 (Chat support): what puts the demo's integrations back.
   const chatSupportRestore: (() => void)[] = [];
   // The model lists: what captures 202-203 changed in the demo, put back after each.
@@ -791,6 +856,11 @@ void app.whenReady().then(() => {
       livepickCaptureSteps,
       livefixCaptureSteps,
       twotierCaptureSteps,
+      notifyAwayPane,
+      notifyCaptureSteps,
+      reorderCaptureSteps,
+      firstSendCaptureSteps,
+      feedbackCaptureSteps,
     } = dev();
     void (async () => {
       await registry.refreshAll();
@@ -802,7 +872,7 @@ void app.whenReady().then(() => {
         // Settings 106-114, the terminal drawer 115-120, the agents 121-125, the context ring 126-130, the tall approvals 131-133,
         // the app's own updates 134-140, folder-pick 141-148, start-fix 149-154, codex-session 155-157, integrations 158-162,
         // links-chips 163-168, Compact held and compacted 173-174, a queued message taken back 175-176, the model pickers 181-187,
-        // chat-support 190-196, twotier 230-233 (last).
+        // chat-support 190-196, twotier 230-233, notifications 240-241, the sidebar's workspaces moved 250-253, firstsend 260-261 (last).
         const results = await runCaptures(window, commands, path.resolve(captureDir), chosenCaptures([
           ...demoCaptureSteps(demoHostIds),
           ...sendCaptureSteps(demoHostIds),
@@ -1135,6 +1205,60 @@ void app.whenReady().then(() => {
           // Grok Build's Chat tab with Early 230, New agent's list 231, a Claude Code pane
           // 232, Settings › Chat's start commands 233 (nothing changed in the demo; last).
           ...twotierCaptureSteps(demoHostIds),
+          // Settings › Notifications 240; the window put away while a pane starts needing you, and the notifier
+          // getting the new list then 241 (its proof written beside the pictures; the pane put back after).
+          ...notifyCaptureSteps(demoHostIds, {
+            away: async () => {
+              const backend = registry.backend(demoHostIds.macMini);
+              if (!(backend instanceof DemoBackend)) throw new Error("241 needs the demo's Mac mini");
+              const key = `${demoHostIds.macMini}/${notifyAwayPane}`;
+              const pause = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
+              window.hide();
+              await pause(1_000);
+              const before = notifier.seen();
+              notifyAwayStatus = backend.setPaneStatus(notifyAwayPane, "blocked");
+              await registry.refresh(demoHostIds.macMini);
+              let after = notifier.seen();
+              for (let waited = 0; waited < 10_000 && !after.report.rows.some((row) => `${row.hostId}/${row.paneId}` === key); waited += 250) {
+                await pause(250);
+                after = notifier.seen();
+              }
+              const proof = {
+                pane: key,
+                windowVisibleWhileAway: window.isVisible(),
+                reportsBefore: before.reports,
+                reportsAfter: after.reports,
+                inReportBefore: before.report.rows.some((row) => `${row.hostId}/${row.paneId}` === key),
+                inReportAfter: after.report.rows.some((row) => `${row.hostId}/${row.paneId}` === key),
+                totalBefore: before.report.total,
+                totalAfter: after.report.total,
+                notificationRecorded: after.shown.includes(key),
+              };
+              console.log(`241 window away: ${JSON.stringify(proof)}`);
+              writeFileSync(path.join(path.resolve(captureDir), "241-window-away-proof.json"), `${JSON.stringify(proof, null, 2)}\n`);
+              window.showInactive();
+              await pause(800);
+            },
+            restore: async () => {
+              const backend = registry.backend(demoHostIds.macMini);
+              if (backend instanceof DemoBackend && notifyAwayStatus !== null) backend.setPaneStatus(notifyAwayPane, notifyAwayStatus);
+              notifyAwayStatus = null;
+              await registry.refresh(demoHostIds.macMini);
+            },
+          }),
+          // build-box's workspaces before 250, mid-drag 251, dropped 252, the header's menu 253.
+          ...reorderCaptureSteps(demoHostIds),
+          // A new Pi pane before its first message 260, then that message sent: one message, no Not sent copy 261.
+          ...firstSendCaptureSteps(
+            demoHostIds,
+            (hostId) => {
+              const backend = registry.backend(hostId);
+              return backend instanceof DemoBackend ? backend : null;
+            },
+            (hostId) => registry.refresh(hostId),
+          ),
+          // Settings › About's Report a problem and Send feedback 270, both clicked (nothing opens; the log has the addresses) 271.
+          ...feedbackCaptureSteps(),
         ]));
         for (const result of results) console.log(`captured ${result.file} (${result.width}x${result.height})`);
       } else {

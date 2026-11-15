@@ -14,6 +14,16 @@
 //   item); otherwise the first live timeline delivered after the send, which is
 //   never taken as the match. Only a message placed after the baseline counts;
 //   the clock slack applies on top of that.
+// - A send made while the pane's own Chat said its session's transcript was
+//   not found (`noTranscript`, told by the sender; Pi and Claude Code name a
+//   session before they write its file with the first message): that file did
+//   not exist then, so the pane's first live transcript after it holds no
+//   history from before it. There the send settles into the first message of
+//   its text and attachments not taken by another bubble, in its terminal and
+//   session, timed no more than the clock slack before it or with no time (one
+//   bubble, at the message's place, no note). Nothing there: that timeline is
+//   its baseline as usual. Until a live transcript of the pane comes, the
+//   backstop does not call it Not sent (at most `notSentWhileWorkingMs`).
 // - Both sides are normalised by the same visible-text rules
 //   (pasted_content unwrapped, uploads and image markers out, whitespace).
 // - Bubbles belong to the pane's terminal and agent session; each
@@ -88,6 +98,11 @@ export interface PendingMessage {
    * (loading, switched away, a session named before its next effect): once Herdr takes it, it is `terminalOnly`.
    */
   readonly noSession?: true;
+  /**
+   * Sent while the pane's own Chat said its session's transcript was not found (the sender tells it, never derived
+   * from which pane Chat follows): the first live transcript after it may already hold it (adoptedMatch).
+   */
+  readonly noTranscript?: true;
 }
 
 /** What the chat held at (or first after) the send: only messages after it may be the match. */
@@ -397,8 +412,12 @@ export class PendingMessages {
     return this.dropped.get(key) ?? 0;
   }
 
-  /** A Send began: the bubble shows now. Returns its id. */
-  add(key: string, text: string, nowMs: number, scope: PaneScope | null = null): string {
+  /**
+   * A Send began: the bubble shows now. Returns its id. `noTranscript`: the pane's own Chat said its session's
+   * transcript was not found as it went (ignored for a send Chat follows the pane's live transcript for, or with no
+   * session named).
+   */
+  add(key: string, text: string, nowMs: number, scope: PaneScope | null = null, noTranscript = false): string {
     this.serial += 1;
     const id = `pending-${this.serial}`;
     const followed = this.following?.key === key;
@@ -408,7 +427,19 @@ export class PendingMessages {
     this.back.get(key)?.delete(matchText(text));
     // No session Herdr names and no live transcript Chat follows: nothing can confirm it.
     const noSession = scope !== null && scope.session === null && !followed;
-    const message: PendingMessage = { id, key, text, match: matchText(text), attachments: sentAttachments(text), sentAtMs: nowMs, state: "sending", scope, ...(noSession ? { noSession: true as const } : {}) };
+    const unwritten = noTranscript && !followed && !noSession;
+    const message: PendingMessage = {
+      id,
+      key,
+      text,
+      match: matchText(text),
+      attachments: sentAttachments(text),
+      sentAtMs: nowMs,
+      state: "sending",
+      scope,
+      ...(noSession ? { noSession: true as const } : {}),
+      ...(unwritten ? { noTranscript: true as const } : {}),
+    };
     this.items = [...this.items, message];
     this.changed();
     return id;
@@ -462,7 +493,7 @@ export class PendingMessages {
     for (const item of waiting) {
       const baseline = this.baselines.get(item.id);
       if (baseline === undefined) {
-        // A send made with no session, and the session's first transcript
+        // A send made with no session, or into a transcript not written yet, and the first live transcript
         // already holds it: it settles into that message (one bubble, no note) instead of taking it as its baseline.
         const adopted = this.adoptedMatch(item, timeline, (id) => (claimed?.has(id) ?? false) || [...landed.values()].includes(id));
         if (adopted !== null) {
@@ -567,21 +598,37 @@ export class PendingMessages {
    *
    * A message timed exactly at the send's stored time is no proof either (history on the same second looks the
    * same), so it keeps the acknowledgement too.
+   *
+   * A send made into a transcript not written yet (noTranscript) settles the same way, in its terminal and session,
+   * into a message timed no more than the clock slack before it or with no time: the file did not exist at the send,
+   * so this first live transcript holds no history from before it. One older than the slack is never taken.
    */
   private adoptedMatch(item: PendingMessage, timeline: ChatTimeline, taken: (id: string) => boolean): string | null {
-    if (item.noSession !== true && item.state !== "terminalOnly") return null;
+    const unwritten = item.noTranscript === true;
+    if (item.noSession !== true && item.state !== "terminalOnly" && !unwritten) return null;
     const now = this.following?.key === item.key ? this.following.scope : null;
     if (item.scope !== null && now !== null && scopeChanged(item.scope, now)) return null;
     const sentAt = item.sentAtMs / 1_000;
+    // Sent into a transcript not written yet: its first live transcript has no history from before the send, so
+    // the clock slack applies (the other machine's clock may be behind), and a message with no time counts.
+    const timely = (time: number | null): boolean => (unwritten ? time === null || time >= sentAt - clockSlackSeconds : time !== null && time > sentAt);
     const found = userMessages(timeline).find(
-      (message) =>
-        !taken(message.id) &&
-        message.time !== null &&
-        message.time > sentAt &&
-        matchText(message.text) === item.match &&
-        attachmentsMatch(item.attachments, shownAttachments(message)),
+      (message) => !taken(message.id) && timely(message.time) && matchText(message.text) === item.match && attachmentsMatch(item.attachments, shownAttachments(message)),
     );
     return found?.id ?? null;
+  }
+
+  /**
+   * A bubble the backstop leaves alone at `nowMs`: sent into a transcript not written yet, no live transcript of the
+   * pane seen since (no baseline), and not yet `notSentWhileWorkingMs` old.
+   */
+  private awaitingTranscript(item: PendingMessage, nowMs: number): boolean {
+    return item.noTranscript === true && !this.baselines.has(item.id) && nowMs - item.sentAtMs < notSentWhileWorkingMs;
+  }
+
+  /** Whether the pane has a bubble Herdr took that the backstop leaves alone for now (awaitingTranscript). */
+  awaitsTranscript(key: string, nowMs: number = Date.now()): boolean {
+    return this.items.some((item) => item.key === key && item.state === "sent" && this.awaitingTranscript(item, nowMs));
   }
 
   /**
@@ -628,12 +675,16 @@ export class PendingMessages {
     return this.takenBack.get(key) ?? emptyIDs;
   }
 
-  /** The backstop: the pane's bubbles Herdr took and the transcript never showed turn "Not sent". */
-  markNotSent(key: string, sentByMs: number | null = null): boolean {
+  /**
+   * The backstop: the pane's bubbles Herdr took and the transcript never showed turn "Not sent"; one still awaiting
+   * the pane's first live transcript (awaitingTranscript at `nowMs`) waits.
+   */
+  markNotSent(key: string, sentByMs: number | null = null, nowMs: number = Date.now()): boolean {
     let changed = false;
     this.items = this.items.map((item) => {
       if (item.key !== key || item.state !== "sent") return item;
       if (sentByMs !== null && item.sentAtMs > sentByMs) return item;
+      if (this.awaitingTranscript(item, nowMs)) return item;
       changed = true;
       return { ...item, state: "notSent" };
     });
@@ -817,7 +868,7 @@ export class PendingBackstop {
       if (this.timers.get(key) !== timer) return;
       this.timers.delete(key);
       this.idle.delete(key);
-      this.store.markNotSent(key, this.now() - notSentWhileWorkingMs);
+      this.store.markNotSent(key, this.now() - notSentWhileWorkingMs, this.now());
     }, Math.max(0, due - this.now()));
     this.timers.set(key, timer);
   }
@@ -847,6 +898,8 @@ export class PendingBackstop {
       this.arm(key, queued);
       return;
     }
-    this.store.markNotSent(key);
+    this.store.markNotSent(key, null, this.now());
+    // A bubble sent into a transcript not written yet waits for it: looked at again after the same wait.
+    if (this.store.awaitsTranscript(key, this.now())) this.arm(key, queued);
   }
 }

@@ -905,6 +905,11 @@ export class DemoTranscriptReader implements TranscriptFileReader<TranscriptSess
     this.files.set(path, new TextEncoder().encode(text));
   }
 
+  /** Captures 260-261: a file the demo machine no longer has (a Pi session's, put back as not written yet). */
+  forget(path: string): void {
+    this.files.delete(path);
+  }
+
   /** A live transcript writes the steps due since it was first read. */
   private grow(path: string): void {
     const live = this.byPath.get(path)?.live;

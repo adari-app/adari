@@ -111,8 +111,16 @@ describe("the sidebar's captures", () => {
       "...livepickCaptureSteps(",
       // The not-sent line and Grok's kept pick 220-222 (Grok's pane put back after 222).
       "...livefixCaptureSteps(",
-      // The three Early kinds' badge, a Claude Code pane without it 230-233 (last).
+      // The three Early kinds' badge, a Claude Code pane without it 230-233.
       "...twotierCaptureSteps(",
+      // Settings › Notifications, the Needs you list reaching main with the window away 240-241.
+      "...notifyCaptureSteps(",
+      // The sidebar's workspaces moved 250-253.
+      "...reorderCaptureSteps(",
+      // A new Pi pane's first message 260-261.
+      "...firstSendCaptureSteps(",
+      // Settings › About's Report a problem and Send feedback, then both clicked 270-271 (last).
+      "...feedbackCaptureSteps(",
     ]);
   });
 });

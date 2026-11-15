@@ -3,7 +3,10 @@
 // and marks panes exactly as the Mac and phone apps do:
 //
 // - Projects: one section per workspace in Herdr's order (number, then list
-//   order); rows in tab order (number, then list order), then pane order;
+//   order), or in the order this Mac keeps for the machine where one is saved
+//   (orderWorkspaces: the placed ones first, then the rest in Herdr's order;
+//   desktop only for now, never sent to Herdr); rows in tab order (number,
+//   then list order), then pane order;
 //   more than five rows show five and "Show N more"; folds per machine.
 // - A row's name: the pane label, else the tab label, else the agent kind,
 //   else the shell; its glyph from the status (blocked = needs you).
@@ -84,12 +87,29 @@ export function prioritySectionTitle(kind: SidebarPrioritySectionKind): string {
   }
 }
 
+/**
+ * A workspace's place in a machine's saved order: its id and when it was last seen in Herdr's list
+ * at a move (Unix ms), so the cap drops the one unseen longest first.
+ */
+export interface PlacedWorkspace {
+  readonly id: string;
+  readonly seen: number;
+}
+
+/** The most workspaces a machine's saved order keeps (a longer saved value reads as no order). */
+export const workspaceOrderCap = 500;
+
 /** Folds, keyed per machine (SidebarFoldState). Plain JSON, so it can be saved as is. */
 export interface SidebarFoldState {
   readonly mode: SidebarMode;
   readonly foldedWorkspaces: Readonly<Record<string, readonly string[]>>;
   readonly expandedWorkspaces: Readonly<Record<string, readonly string[]>>;
   readonly foldedPrioritySections: readonly SidebarPrioritySectionKind[];
+  /**
+   * The Projects order this Mac keeps, per machine (never sent to Herdr): its workspaces placed by a
+   * drag or Move up / Move down, gone ones included so they come back to their place. Absent: Herdr's order.
+   */
+  readonly workspaceOrder?: Readonly<Record<string, readonly PlacedWorkspace[]>>;
 }
 
 export const emptyFoldState: SidebarFoldState = {
@@ -99,7 +119,99 @@ export const emptyFoldState: SidebarFoldState = {
   foldedPrioritySections: [],
 };
 
-function toggleIn(map: Readonly<Record<string, readonly string[]>>, mac: string, id: string): Record<string, readonly string[]> {
+/** A machine's saved order as ids (first place of an id listed twice), or undefined: none saved. */
+export function savedWorkspaceOrder(state: SidebarFoldState | undefined, mac: string): readonly string[] | undefined {
+  const placed = state?.workspaceOrder?.[mac];
+  if (placed === undefined || placed.length === 0) return undefined;
+  return [...new Set(placed.map((entry) => entry.id))];
+}
+
+/**
+ * THE order of a machine's workspaces in the sidebar: Herdr's (number, then list order), then the
+ * saved order on top of it: the placed ones in their saved order, then the ones never placed, in
+ * Herdr's order. No saved order (undefined or empty): Herdr's order exactly.
+ */
+export function orderWorkspaces<T extends { readonly id: string; readonly number: WideInt }>(
+  workspaces: readonly T[],
+  saved?: readonly string[],
+): T[] {
+  const herdr = workspaces
+    .map((workspace, offset) => ({ workspace, offset }))
+    .sort((a, b) => compareWide(a.workspace.number, b.workspace.number) || a.offset - b.offset)
+    .map((entry) => entry.workspace);
+  if (saved === undefined || saved.length === 0) return herdr;
+  const place = new Map<string, number>();
+  saved.forEach((id, index) => {
+    if (!place.has(id)) place.set(id, index);
+  });
+  const unplaced = saved.length;
+  return herdr
+    .map((workspace, offset) => ({ workspace, offset, at: place.get(workspace.id) ?? unplaced }))
+    .sort((a, b) => a.at - b.at || a.offset - b.offset)
+    .map((entry) => entry.workspace);
+}
+
+/** Where a workspace can go from where it is in `shown` (a machine's workspaces as the sidebar lists them). */
+export function workspaceMoves(shown: readonly string[], id: string): { readonly up: boolean; readonly down: boolean } {
+  const at = shown.indexOf(id);
+  return { up: at > 0, down: at >= 0 && at < shown.length - 1 };
+}
+
+/**
+ * The saved order after `id` is put at `slot` of `shown` (the machine's workspaces as the sidebar lists
+ * them now): before `shown[slot]`, or last when `slot` is `shown.length`. The ones Herdr no longer lists
+ * keep their place among the others; every listed one is stamped seen `now`; past the cap, the one
+ * unseen longest goes first. A slot that leaves it where it is changes nothing (the same state back).
+ */
+function moveWorkspace(state: SidebarFoldState, mac: string, shown: readonly string[], id: string, slot: number, now: number): SidebarFoldState {
+  const listed = [...new Set(shown)];
+  const from = listed.indexOf(id);
+  if (from < 0 || listed.length < 2 || !Number.isFinite(slot)) return state;
+  const to = Math.max(0, Math.min(Math.trunc(slot), listed.length));
+  if (to === from || to === from + 1) return state;
+  const present = new Set(listed);
+  const seen = new Map<string, number>();
+  for (const entry of state.workspaceOrder?.[mac] ?? []) if (!seen.has(entry.id)) seen.set(entry.id, entry.seen);
+  // Every workspace this Mac knows of, in the order the sidebar would list it were all of them back.
+  const whole = [...seen.keys(), ...listed.filter((other) => !seen.has(other))].filter((other) => other !== id);
+  const before = listed[to];
+  let at: number;
+  if (before !== undefined) {
+    at = whole.indexOf(before);
+  } else {
+    // Last: right after the last listed one, so a gone one after it keeps its place.
+    let last = -1;
+    whole.forEach((other, index) => {
+      if (present.has(other)) last = index;
+    });
+    at = last + 1;
+  }
+  whole.splice(at, 0, id);
+  let placed: PlacedWorkspace[] = whole.map((other) => ({ id: other, seen: present.has(other) ? now : (seen.get(other) ?? now) }));
+  while (placed.length > workspaceOrderCap) {
+    let drop = -1;
+    placed.forEach((entry, index) => {
+      if (!present.has(entry.id) && (drop < 0 || entry.seen < placed[drop]!.seen)) drop = index;
+    });
+    placed = drop < 0 ? placed.slice(0, workspaceOrderCap) : placed.filter((_, index) => index !== drop);
+  }
+  return { ...state, workspaceOrder: { ...state.workspaceOrder, [mac]: placed } };
+}
+
+/** A machine's saved order as it was saved, or undefined: malformed or past the cap reads as no order. */
+function decodePlaced(raw: unknown): PlacedWorkspace[] | undefined {
+  if (!Array.isArray(raw) || raw.length === 0 || raw.length > workspaceOrderCap) return undefined;
+  const out: PlacedWorkspace[] = [];
+  for (const entry of raw as unknown[]) {
+    if (typeof entry !== "object" || entry === null || Array.isArray(entry)) return undefined;
+    const { id, seen } = entry as Record<string, unknown>;
+    if (typeof id !== "string" || id === "" || typeof seen !== "number" || !Number.isFinite(seen)) return undefined;
+    out.push({ id, seen });
+  }
+  return out;
+}
+
+function toggleIn(map:Readonly<Record<string, readonly string[]>>, mac: string, id: string): Record<string, readonly string[]> {
   const ids = new Set(map[mac] ?? []);
   if (!ids.delete(id)) ids.add(id);
   const next: Record<string, readonly string[]> = { ...map };
@@ -129,6 +241,13 @@ export const fold = {
       ? state.foldedPrioritySections.filter((s) => s !== section)
       : [...state.foldedPrioritySections, section],
   }),
+  /** Puts a workspace at `slot` of its machine's list as the sidebar shows it (moveWorkspace above). */
+  moveWorkspace,
+  /** One place up or down in `shown`, or the same state where it cannot go further. */
+  stepWorkspace: (state: SidebarFoldState, mac: string, shown: readonly string[], id: string, step: -1 | 1, now: number): SidebarFoldState => {
+    const at = shown.indexOf(id);
+    return at < 0 ? state : moveWorkspace(state, mac, shown, id, step < 0 ? at - 1 : at + 2, now);
+  },
   /** Lenient decoding (SidebarFoldState.init(from:)): unknown or wrong-typed values fall back. */
   decode: (value: unknown): SidebarFoldState => {
     const o = typeof value === "object" && value !== null && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
@@ -141,11 +260,21 @@ export const fold = {
       return out;
     };
     const sections = Array.isArray(o["foldedPrioritySections"]) ? (o["foldedPrioritySections"] as unknown[]) : [];
+    // Each machine's order on its own: one malformed or too long reads as no order for that machine only.
+    const order: Record<string, readonly PlacedWorkspace[]> = {};
+    const rawOrder = o["workspaceOrder"];
+    if (typeof rawOrder === "object" && rawOrder !== null && !Array.isArray(rawOrder)) {
+      for (const [mac, placed] of Object.entries(rawOrder as Record<string, unknown>)) {
+        const decoded = decodePlaced(placed);
+        if (decoded !== undefined) order[mac] = decoded;
+      }
+    }
     return {
       mode: o["mode"] === "priority" ? "priority" : "projects",
       foldedWorkspaces: map(o["foldedWorkspaces"]),
       expandedWorkspaces: map(o["expandedWorkspaces"]),
       foldedPrioritySections: prioritySectionKinds.filter((kind) => sections.includes(kind)),
+      ...(Object.keys(order).length === 0 ? {} : { workspaceOrder: order }),
     };
   },
 };
@@ -412,10 +541,8 @@ export function buildSidebarModel(input: SidebarInput): SidebarModel {
   const searching = query !== "";
   const folded = searchFold(query);
 
-  const workspaceOrder = input.workspaces
-    .map((workspace, offset) => ({ workspace, offset }))
-    .sort((a, b) => compareWide(a.workspace.number, b.workspace.number) || a.offset - b.offset)
-    .map((entry) => entry.workspace);
+  // The one place the order is made: Herdr's, with this Mac's saved order for the machine on top.
+  const workspaceOrder = orderWorkspaces(input.workspaces, savedWorkspaceOrder(state, input.macID));
   const workspaceLabels = new Map<string, string>();
   for (const workspace of input.workspaces) {
     if (!workspaceLabels.has(workspace.id)) workspaceLabels.set(workspace.id, workspace.label);

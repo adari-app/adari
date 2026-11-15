@@ -4,8 +4,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 
 import { buildDesktopSidebar, findRow, nextNeedsYou, rowKey } from "../shared/desktop-sidebar";
+import { dropWorkspace, stepWorkspace, workspaceMoveReasons } from "../shared/desktop-sidebar";
 import { needsCards } from "./chat/needs-card-store";
 import { needsPillKinds } from "../shared/needs-pill";
+import { useNeedsYouReport } from "./needs-report";
 import { applyCleared } from "../shared/prompt/quiet";
 import { applyStartScreens } from "../shared/prompt/start-screen";
 import { attachSources } from "./components/attachments";
@@ -447,6 +449,13 @@ export function App() {
   // reads them; the row shows it only while Herdr says the pane needs you.
   const needsVersion = useSyncExternalStore(needsCards.subscribe, needsCards.version, needsCards.version);
   const needsPills = useMemo(() => needsPillKinds(needsCards.all()), [needsVersion]);
+  // The Needs you rows for the notifications, the Dock badge and the menu bar item (needs-report.ts): the
+  // sidebar's own list, without the search (a search in the window hides nothing from them).
+  const needsYouAll = useMemo(
+    () => ((search ?? "").trim() === "" ? sidebar.needsYou : buildDesktopSidebar(hosts ?? [], { fold: foldState, nowUnixMs: now, seenDone, drawerShells }).needsYou),
+    [sidebar, search, hosts, foldState, now, seenDone, drawerShells],
+  );
+  useNeedsYouReport(bridge, hosts, needsYouAll, needsPills);
 
   const selectedHost = selection === null ? null : (hosts?.find((host) => host.id === selection.hostId) ?? null);
   const selectedRow =
@@ -1353,6 +1362,11 @@ export function App() {
     (hostId: string, workspaceId: string, x: number, y: number) => {
       const host = hostsRef.current?.find((candidate) => candidate.id === hostId);
       const kept = workspaceContextOf(hostId, workspaceId);
+      // This Mac's own order (nothing sent to Herdr): greyed at either end and while searching.
+      const view = sidebarViewRef.current;
+      const moves = workspaceMoveReasons(host, view.fold, (view.search ?? "").trim() !== "", workspaceId);
+      const step = (by: -1 | 1) => (): void =>
+        setFoldState((state) => stepWorkspace(state, hostsRef.current.find((candidate) => candidate.id === hostId), workspaceId, by, Date.now()));
       setRowMenu({
         x,
         y,
@@ -1368,6 +1382,8 @@ export function App() {
             disabledReason: host?.state === "connected" ? null : notAnswering(host?.name ?? "The machine"),
             onSelect: () => beginWorkspaceRename(hostId, kept),
           },
+          { label: "Move up", disabledReason: moves.up, onSelect: step(-1) },
+          { label: "Move down", disabledReason: moves.down, onSelect: step(1) },
         ],
       });
     },
@@ -1733,6 +1749,9 @@ export function App() {
         updatePill={shownPill === null ? null : <UpdatePill pill={shownPill} onAction={updateAction} />}
         onNewAgent={openNewAgent}
         onWorkspaceMenu={openWorkspaceMenu}
+        onMoveWorkspace={(hostId, workspaceId, before) =>
+          setFoldState((state) => dropWorkspace(state, hostsRef.current.find((candidate) => candidate.id === hostId), workspaceId, before, Date.now()))
+        }
         newAgentKey={info.platform === "darwin" ? "⌘N" : "Ctrl+N"}
         onNewWorkspace={() => openNewWorkspace()}
         newWorkspaceKey={info.platform === "darwin" ? "⇧⌘N" : "Ctrl+Shift+N"}

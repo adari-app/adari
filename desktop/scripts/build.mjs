@@ -66,8 +66,9 @@ const common = {
   logLevel: "warning",
   absWorkingDir: root,
   outExtension: { ".js": ".cjs" },
-  // The repo's fixtures ride inside the main bundle for demo mode (development builds only, below).
-  loader: { ".hfx": "binary", ".txt": "text" },
+  // The repo's fixtures ride inside the main bundle for demo mode (development builds only, below); the menu bar's
+  // mark (src/main/menu-bar) rides in every build, as data URLs.
+  loader: { ".hfx": "binary", ".txt": "text", ".png": "dataurl" },
   // A dist build leaves out the demo, the showcase, the captures, the probes and the fixtures:
   // main.ts requires src/main/dev-modes.ts only when this is true, and esbuild drops the dead branch.
   define: { __ADARI_DEMO__: release ? "false" : "true" },

@@ -354,7 +354,8 @@ describe("Updates and About", () => {
     expect(words(run.view.tree)).toContain(privacyLine(null));
     expect(words(run.view.tree)).toContain("0.1.0 · abc12345");
     const titles = run.all((element) => element.props["className"] === "set-k").map((element) => element.props["children"]);
-    expect(titles).toEqual(["Version", "Privacy", "Open-source licenses"]);
+    // Report a problem and Send feedback follow (test/feedback-about.test.ts).
+    expect(titles).toEqual(["Version", "Privacy", "Open-source licenses", "Report a problem", "Send feedback"]);
     expect(run.find((element) => element.props["data-components"] !== undefined)).toBeUndefined();
     expect(run.all((element) => element.type === "pre" || element.type === "details")).toEqual([]);
     const view = () => run.find((element) => element.type === "button" && [element.props["children"]].flat().includes("View licenses"))!;
