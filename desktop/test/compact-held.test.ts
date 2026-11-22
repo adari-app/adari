@@ -122,12 +122,13 @@ describe("the ring's Compact held during a turn, with background tasks running",
     await settle();
     expect(state.submitted).toEqual([{ text: "/compact", while: "done" }]);
     expect(picks.compacting(key, claudeBinding)).toBe("running");
-    // The transcript shows the compaction: the ring stops, Chat says Compacted once.
+    // The transcript shows the compaction: the ring stops; its own "Conversation compacted" row says it.
     picks.receive(key, settings(9_000), "turn-2");
     expect(picks.compacting(key, claudeBinding)).toBeNull();
-    expect(picks.confirmations(key, "turn-2")).toEqual(["Compacted"]);
+    // Rule 10: no line of its own; the record's "Conversation compacted" row is the word.
+    expect(picks.confirmations(key, "turn-2")).toEqual([]);
     picks.receive(key, settings(9_000), "turn-2");
-    expect(picks.confirmations(key, "turn-2")).toEqual(["Compacted"]);
+    expect(picks.confirmations(key, "turn-2")).toEqual([]);
   });
 
   it("a monitor's event that starts a new turn before its check no longer holds it again: typed for Claude to queue", async () => {
@@ -166,7 +167,8 @@ describe("the ring's Compact held during a turn, with background tasks running",
     // While it works, the wait ends at the latest an hour from the send.
     expect(picks.nextExpiry(key)).toBe(1_000 + compactLimitMs);
     picks.receive(key, settings(12_000), "turn-9");
-    expect(picks.confirmations(key, "turn-9")).toEqual(["Compacted"]);
+    // Rule 10: no line of its own.
+    expect(picks.confirmations(key, "turn-9")).toEqual([]);
     expect(picks.compacting(key, claudeBinding)).toBeNull();
   });
 
@@ -203,7 +205,8 @@ describe("the ring's Compact held during a turn, with background tasks running",
     picks.receive(key, settings(9_000), "turn-2");
     release();
     await settle();
-    expect(picks.confirmations(key, "turn-2")).toEqual(["Compacted"]);
+    // Rule 10: no line of its own.
+    expect(picks.confirmations(key, "turn-2")).toEqual([]);
     expect(picks.compacting(key, claudeBinding)).toBeNull();
   });
 });

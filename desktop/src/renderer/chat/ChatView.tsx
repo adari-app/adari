@@ -49,7 +49,7 @@ import { handoffStore } from "../handoff/handoff-state";
 import { selectionHandoffKind } from "../handoff/selection";
 import { chatSends, chatUpdates, pendingBackstop, pendingMessages, subscribePending } from "./chat-state";
 import { shownTimeline } from "./running-strip";
-import { agentPicks } from "../components/agent-picks";
+import { agentPicks, turnAnchor } from "../components/agent-picks";
 import { commandRows } from "./command-rows";
 import { Markdown, type SendCode } from "./Markdown";
 import { revealRequests, useReveal } from "../search/reveal";
@@ -57,7 +57,7 @@ import { FoldedRow, ToolRow } from "./ToolRows";
 import { AgentMessageRow, SubagentsRow } from "./SubagentRows";
 import { useEscapeOwner } from "../components/escape-owners";
 import { stopBindingOf, stopPossible } from "../../shared/agent-stop";
-import { queuedSends, sayNoQueue, takeBackDeps, takeBacks } from "./take-back";
+import { putTakenBack, queuedSends, sayNoQueue, takeBackDeps, takeBacks } from "./take-back";
 import { agentName } from "../components/agent-kind";
 import { escTurns, turnEpisodeOf } from "../components/agent-stop";
 import { NeedsCard, needsCardShown } from "./NeedsCard";
@@ -70,7 +70,7 @@ import { pendingToolCalls } from "../../shared/prompt/subject";
 import { readerKind } from "../../shared/agent-names";
 import { codexNoDaemonFlag, codexNoSessionText, codexOtherFolderText } from "../../shared/chat/codex-header";
 import { integrationTargetOf } from "../../shared/integrations";
-import { ChatIntegration, chatIntegrationLook, useIntegrationNote } from "../components/integrations";
+import { ChatIntegration, chatIntegrationLook, IntegrationUnread, useIntegrationNote } from "../components/integrations";
 import { restartResumes } from "../components/restart-view";
 import { startScreenOf, startScreenTexts } from "../../shared/prompt/start-screen";
 
@@ -593,6 +593,7 @@ export function PendingBubble({
   now,
   onMenu,
   onTakeBack,
+  onShowTerminal,
 }: {
   message: PendingMessage;
   working: boolean;
@@ -600,16 +601,26 @@ export function PendingBubble({
   onMenu: OpenMenu;
   /** Shown on a Claude bubble that says Queued (Herdr took it, the transcript does not have it): takes it back. */
   onTakeBack?: () => void;
+  /** Shown on a bubble Adari could not confirm, or one still in the terminal's box: the pane's terminal. */
+  onShowTerminal?: () => void;
 }) {
   const label = pendingLabel(message, working, now);
   const shown = useMemo(() => ChatAttachmentText.extract(message.text), [message.text]);
   // A "Not sent" bubble: one tap puts its text back in the box.
   const notSent = message.state === "notSent";
-  // A normal message at once; dimmed only while "Sending…", "Queued" or not sent.
-  const waiting = notSent || label === "Sending…" || label === "Queued";
+  // Its keys went and nothing proved it (Put back is the person's own act), or it is still in the terminal's box.
+  const unconfirmed = message.state === "unconfirmed";
+  const inBox = message.state === "inBox";
+  // A normal message at once; dimmed only while "Sending…", "Queued", not sent or not confirmed.
+  const waiting = notSent || unconfirmed || inBox || label === "Sending…" || label === "Queued";
   const putBack = (): void => {
     const text = pendingMessages.takeNotSent(message.id);
     if (text !== null) putBackInBox(composerDrafts, (at, start) => handoffStore.expectLanding(at, start), message.key, text);
+  };
+  // Put back on a bubble Adari could not confirm: its text and its pictures (as chips while the box is empty).
+  const putBackAsked = (): void => {
+    const text = pendingMessages.takeNotSent(message.id);
+    if (text !== null) putTakenBack(composerDrafts, (at, start) => handoffStore.expectLanding(at, start), message.key, [text]);
   };
   return (
     <div
@@ -623,9 +634,24 @@ export function PendingBubble({
       {label === "" ? null : (
         <div className="pst">
           {label}
-          {onTakeBack !== undefined && label === "Queued" && message.state === "sent" ? (
+          {onTakeBack !== undefined && label === "Queued" && (message.state === "sent" || (message.state === "sending" && message.checking === true)) ? (
             <button className="pst-take" title="Takes it back into the box; Claude keeps working (Esc or Up does the same)" onClick={onTakeBack}>
               Take back
+            </button>
+          ) : null}
+          {(unconfirmed || inBox) && onShowTerminal !== undefined ? (
+            <button className="pst-take" title="Shows this pane's terminal" onClick={onShowTerminal}>
+              Show the terminal
+            </button>
+          ) : null}
+          {unconfirmed ? (
+            <button className="pst-take" title="Puts its text and pictures back in the box; nothing is sent" onClick={putBackAsked}>
+              Put back
+            </button>
+          ) : null}
+          {unconfirmed || inBox ? (
+            <button className="pst-take" title="Removes this note; nothing is sent or put back" onClick={() => pendingMessages.dismiss(message.id)}>
+              Dismiss
             </button>
           ) : null}
         </div>
@@ -756,9 +782,18 @@ export function ChatView({ host, row, onShowTerminal, bottomInset = 0, tile = fa
   // With no running turn (only background agents left), from when Herdr says the pane began working, else from when this view first saw it working.
   const firstSeenWorking = useMemo(() => Date.now() / 1_000, [herdrWorking]);
   const since = workingStart(workingSince(timeline), row.statusSinceUnixMs, firstSeenWorking);
-  // A Model or Effort pick the transcript confirmed, one quiet line in the turn it ends.
+  // A Model or Effort pick the transcript confirmed, one quiet line in the turn it ends (tied to that turn's
+  // anchor, not its serial id), shown by one Chat view once: a later view of the pane drops what this one showed.
   useSyncExternalStore(agentPicks.subscribe, agentPicks.version);
-  const confirmedPicks = agentPicks.confirmations(key, raw.turns.at(-1)?.id ?? null);
+  const pickAnchor = turnAnchor(raw.turns);
+  const confirmedPicks = agentPicks.confirmations(key, pickAnchor);
+  const pickView = useRef<object | null>(null);
+  if (pickView.current === null) pickView.current = {};
+  useEffect(() => agentPicks.viewing(key, pickView.current!), [key]);
+  const pickLines = confirmedPicks.join("\n");
+  useEffect(() => {
+    if (pickLines !== "") agentPicks.markShown(key, pickAnchor, pickView.current!);
+  }, [key, pickAnchor, pickLines]);
   // The command lines you typed, as small rows.
   useSyncExternalStore(commandRows.subscribe, commandRows.version);
   const commands = commandRows.forPane(key);
@@ -834,9 +869,11 @@ export function ChatView({ host, row, onShowTerminal, bottomInset = 0, tile = fa
   const turnRows = useMemo(() => {
     if (pendingPlaces.placed.size === 0) return plainTurnRows;
     const notSentAt = (at: number) =>
-      (pendingPlaces.placed.get(at) ?? []).map((message) => <PendingBubble key={message.id} message={message} working={false} now={0} onMenu={openMenu} />);
+      (pendingPlaces.placed.get(at) ?? []).map((message) => (
+        <PendingBubble key={message.id} message={message} working={false} now={0} onMenu={openMenu} onShowTerminal={onShowTerminal} />
+      ));
     return [...plainTurnRows.flatMap((row, index) => [...notSentAt(index), row]), ...notSentAt(plainTurnRows.length)];
-  }, [plainTurnRows, pendingPlaces, openMenu]);
+  }, [plainTurnRows, pendingPlaces, openMenu, onShowTerminal]);
 
   // Following the newest message.
   const scroller = useRef<HTMLDivElement>(null);
@@ -1084,7 +1121,15 @@ export function ChatView({ host, row, onShowTerminal, bottomInset = 0, tile = fa
         </div>
       ))}
       {(state.status === "unavailable" ? pending : pendingPlaces.waiting).map((message) => (
-        <PendingBubble key={message.id} message={message} working={working} now={now} onMenu={openMenu} {...(takeBackShown ? { onTakeBack: takeBackBubble } : {})} />
+        <PendingBubble
+          key={message.id}
+          message={message}
+          working={working}
+          now={now}
+          onMenu={openMenu}
+          onShowTerminal={onShowTerminal}
+          {...(takeBackShown ? { onTakeBack: takeBackBubble } : {})}
+        />
       ))}
     </>
   );
@@ -1117,6 +1162,7 @@ export function ChatView({ host, row, onShowTerminal, bottomInset = 0, tile = fa
       ) : (
         <>
           <ChatUnavailableLine line={chatUnavailableLine(state, row.kind)} />
+          {noSession ? <IntegrationUnread host={host} kind={row.kind} /> : null}
           <button className="btn sm" onClick={onShowTerminal}>
             Show the terminal
           </button>

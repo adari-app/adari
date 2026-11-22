@@ -1,9 +1,9 @@
-// Chat names the kinds it supports (Claude Code and Codex) and marks every other kind it reads Early: the pane's
+// Chat names the kinds it supports (Claude Code, Codex and Antigravity CLI) and marks every other kind it reads Early: the pane's
 // Chat tab (a split tile's header), New agent's list, Settings' agents (integrations and start commands) and one
 // plain line at the top of an early kind's empty Chat. A supported kind shows nothing new; a kind Chat doesn't read
 // keeps its own line. Grok Build, Cursor Agent and OpenCode carry the Early badge and line where the other early kinds
 // do (their Chat, chips and Model picks are unchanged: livepick-main.test.ts and their own tests cover those).
-// Antigravity CLI is early (Gemini CLI is deprecated in its favour) and takes Gemini CLI's place in New agent's first
+// Antigravity CLI is supported (Gemini CLI is deprecated in its favour, still early) and takes Gemini CLI's place in New agent's first
 // list; Gemini CLI stays startable after it by name, "Gemini CLI (deprecated)".
 
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -39,10 +39,10 @@ const { pendingMessages } = await import("../src/renderer/chat/chat-state");
 const { startCommandsStore } = await import("../src/renderer/components/resume");
 await loadSettings();
 
-const supported = ["claude", "codex"];
+const supported = ["claude", "codex", "agy"];
 /** Grok Build, Cursor Agent and OpenCode: Chat reads them, early. */
 const nowEarly = ["grok", "cursor", "opencode"];
-const early = [...nowEarly, "pi", "omp", "kilo", "gemini", "qwen", "agy", "copilot", "droid", "kimi", "hermes", "mastracode", "cline"];
+const early = [...nowEarly, "pi", "omp", "kilo", "gemini", "qwen", "copilot", "droid", "kimi", "hermes", "mastracode", "cline"];
 /** Kinds Herdr reports that Chat doesn't read (Amp, Devin, Kiro, Letta, Maki, Muse, Qoder): neither. */
 const unread = agentKinds.map((entry) => entry.kind).filter((kind) => !chatKinds.includes(kind));
 
@@ -74,9 +74,9 @@ afterEach(() => {
 });
 
 describe("one list of the kinds Chat supports, beside chatKinds", () => {
-  it("the two are supported, the fifteen others Chat reads (Grok Build, Cursor Agent, OpenCode and Antigravity CLI among them) are early, and the two lists make chatKinds", () => {
+  it("the three are supported (Antigravity CLI among them), the fourteen others Chat reads (Grok Build, Cursor Agent and OpenCode among them) are early, and the two lists make chatKinds", () => {
     expect([...chatSupportedKinds]).toEqual(supported);
-    expect(early).toHaveLength(15);
+    expect(early).toHaveLength(14);
     for (const kind of supported) expect(chatSupport(kind), kind).toBe("supported");
     for (const kind of early) expect(chatSupport(kind), kind).toBe("early");
     expect([...supported, ...early].sort()).toEqual([...chatKinds].sort());
@@ -97,7 +97,7 @@ describe("one list of the kinds Chat supports, beside chatKinds", () => {
   it("any case, and an alias as the kind it names (github-copilot is Copilot: early)", () => {
     expect(chatSupport("Claude")).toBe("supported");
     expect(chatSupport("CODEX")).toBe("supported");
-    expect(chatSupport("AGY")).toBe("early");
+    expect(chatSupport("AGY")).toBe("supported");
     expect(chatSupport("github-copilot")).toBe("early");
     expect(chatReads("github-copilot")).toBe(true);
   });
@@ -106,7 +106,7 @@ describe("one list of the kinds Chat supports, beside chatKinds", () => {
     expect(chatEarlyLabel).toBe("Early");
     expect(chatEarlyText("gemini")).toBe("Chat for Gemini CLI is early. It can miss things; the Terminal is always exact.");
     expect(chatEarlyText("qwen")).toBe("Chat for Qwen Code is early. It can miss things; the Terminal is always exact.");
-    expect(chatEarlyText("agy")).toBe("Chat for Antigravity CLI is early. It can miss things; the Terminal is always exact.");
+    expect(chatEarlyText("agy")).toBeNull();
     expect(chatEarlyText("codex")).toBeNull();
     expect(chatEarlyText("amp")).toBeNull();
   });
@@ -196,7 +196,7 @@ describe("the pane's Chat tab", () => {
   }
 
   it("an early kind's Chat tab carries the Early badge with its title", () => {
-    for (const kind of [...nowEarly, "qwen", "gemini", "copilot", "agy"]) {
+    for (const kind of [...nowEarly, "qwen", "gemini", "copilot"]) {
       const look = pane(kind);
       expect(look.chatTab, kind).toEqual([chatEarlyText(kind)]);
       expect(look.all, kind).toEqual([chatEarlyText(kind)]);
@@ -204,7 +204,7 @@ describe("the pane's Chat tab", () => {
   });
 
   it("a supported kind's, and a kind Chat doesn't read, show nothing new", () => {
-    for (const kind of ["claude", "codex", "amp"]) {
+    for (const kind of ["claude", "codex", "agy", "amp"]) {
       const look = pane(kind);
       expect(look.all, kind).toEqual([]);
       expect(look.words, kind).toBe("Chat");
@@ -240,7 +240,7 @@ describe("a split tile's header (its Chat is an icon there)", () => {
   it("an early kind's tile has the badge beside its kind; a supported or unread kind's and a shell's none", () => {
     expect(tile("qwen").header).toEqual([chatEarlyText("qwen")]);
     expect(tile("qwen").all).toEqual([chatEarlyText("qwen")]);
-    expect(tile("agy").header).toEqual([chatEarlyText("agy")]);
+    expect(tile("agy").header).toEqual([]);
     for (const kind of nowEarly) expect(tile(kind).header, kind).toEqual([chatEarlyText(kind)]);
     for (const kind of ["claude", "codex", "amp"]) expect(tile(kind).all, kind).toEqual([]);
     expect(tile("qwen", false).all).toEqual([]);
@@ -277,7 +277,7 @@ describe("New agent's list", () => {
 describe("Settings' agents", () => {
   const item = (target: string, kind: string, name: string): IntegrationItem => ({ target, kind, name, state: "current", available: true });
 
-  it("Machines' integrations line: the badge beside an early kind's name (Antigravity CLI's too), none beside a supported one's", () => {
+  it("Machines' integrations line: the badge beside an early kind's name, none beside a supported one's (Antigravity CLI's either)", () => {
     vi.stubGlobal("window", { addEventListener: () => undefined, removeEventListener: () => undefined });
     const host = sshHost("mini", "Mac mini", {
       incarnation: 2,
@@ -300,7 +300,7 @@ describe("Settings' agents", () => {
     expect(children.slice(0, 3).map((child) => (typeof child === "string" ? child : (child as Element).type))).toEqual(["GitHub Copilot", ChatEarlyBadge, ": installed"]);
     expect(look).toEqual({
       claude: { badges: [], words: "Claude Code: installed" },
-      antigravity_cli: { badges: [chatEarlyText("agy")], words: "Antigravity CLI: installed" },
+      antigravity_cli: { badges: [], words: "Antigravity CLI: installed" },
       copilot: { badges: [chatEarlyText("copilot")], words: "GitHub Copilot: installed" },
       qwen: { badges: [chatEarlyText("qwen")], words: "Qwen Code: installed" },
     });

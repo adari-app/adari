@@ -6,8 +6,9 @@
 import { randomUUID } from "node:crypto";
 
 import type { HostKeyQuestion, HostNotRunning, HostView } from "../shared/ipc-contract";
-import type { HostIntegrations } from "../shared/integrations";
+import type { HostIntegrations, IntegrationBinding } from "../shared/integrations";
 import type { HostStartScreens } from "../shared/prompt/start-screen";
+import { madePaneKeptMs } from "../shared/new-agent";
 import { PaneLife } from "../shared/pane-life";
 import type { HerdrHostBackend } from "./herdr/backend";
 import { dottedKind, relayOffReason, type EventSubscription } from "./herdr/events";
@@ -63,8 +64,12 @@ interface HostEntry {
   epoch: number | null;
   /** Its agent panes marked "Update ready" (UpdateMarkService). */
   updateReady: readonly string[];
+  /** Per CLI, the update command its notice named on a marked pane (UpdateMarkService). */
+  updateSuggestions: Readonly<Record<string, string>>;
   /** Herdr's integrations as read on one connection (IntegrationService); null: none. */
   integrations: HostIntegrations | null;
+  /** The connection Herdr's integration list was not read on (IntegrationService); null: none. */
+  integrationsUnread: IntegrationBinding | null;
   /** Its panes showing a start screen (StartScreenService); null: none. */
   startScreens: HostStartScreens | null;
   /** This Mac's Herdr is not running (HerdrNotRunningHereError): a note, not an error. */
@@ -110,6 +115,17 @@ export interface ConnectionIdentity {
 /** The epoch of the connection `backend` sends on now (null: none held); 0 for a backend without connections (the demo: one for its life). */
 function epochOf(backend: HerdrHostBackend): number | null {
   return backend.connectionEpoch === undefined ? 0 : backend.connectionEpoch();
+}
+
+/** The start a made pane belongs to: the machine's entry, connection and command connection it was bound to. */
+export interface MadeBinding {
+  readonly incarnation: number;
+  readonly connection: number;
+  readonly epoch: number | null;
+}
+
+function madeField(panes: readonly string[]): { madePanes?: readonly string[] } {
+  return panes.length === 0 ? {} : { madePanes: panes };
 }
 
 function describe(error: unknown): string {
@@ -163,7 +179,9 @@ export class HostRegistry {
       connection: 0,
       epoch: null,
       updateReady: [] as readonly string[],
+      updateSuggestions: {} as Readonly<Record<string, string>>,
       integrations: null as HostIntegrations | null,
+      integrationsUnread: null as IntegrationBinding | null,
       startScreens: null as HostStartScreens | null,
       notRunning: null,
       cached,
@@ -259,19 +277,25 @@ export class HostRegistry {
       incarnation: entry.incarnation,
       epoch: entry.epoch,
       ...(entry.updateReady.length === 0 ? {} : { updateReady: entry.updateReady }),
+      ...(Object.keys(entry.updateSuggestions).length === 0 ? {} : { updateSuggestions: entry.updateSuggestions }),
       ...(this.integrationsShown(entry) ? { integrations: entry.integrations! } : {}),
+      ...(this.unreadShown(entry) ? { integrationsUnread: entry.integrationsUnread! } : {}),
       ...(this.startScreensShown(entry) ? { startScreens: entry.startScreens! } : {}),
       ...(entry.notRunning === null ? {} : { notRunning: entry.notRunning }),
+      ...madeField(this.madeOf(entry)),
     }));
   }
 
   /** The machine's panes marked "Update ready" now; the window hears only a change. */
-  setUpdateReady(hostId: string, panes: readonly string[]): void {
+  setUpdateReady(hostId: string, panes: readonly string[], suggestions: Readonly<Record<string, string>> = {}): void {
     const entry = this.entries.find((candidate) => candidate.descriptor.id === hostId);
     if (entry === undefined) return;
     const next = [...panes].sort();
-    if (next.length === entry.updateReady.length && next.every((pane, index) => pane === entry.updateReady[index])) return;
+    const same = next.length === entry.updateReady.length && next.every((pane, index) => pane === entry.updateReady[index]);
+    const sameSuggestions = JSON.stringify(Object.entries(suggestions).sort()) === JSON.stringify(Object.entries(entry.updateSuggestions).sort());
+    if (same && sameSuggestions) return;
     entry.updateReady = next;
+    entry.updateSuggestions = { ...suggestions };
     this.changed();
   }
 
@@ -283,6 +307,19 @@ export class HostRegistry {
     const entry = this.entries.find((candidate) => candidate.descriptor.id === hostId);
     if (entry === undefined || (entry.integrations === null && integrations === null)) return;
     entry.integrations = integrations;
+    this.changed();
+  }
+
+  /**
+   * The connection the machine's integration list was not read on (IntegrationService; null:
+   * none). Shown only while the machine answers on that entry, connection and command connection, and never beside a list.
+   */
+  setIntegrationsUnread(hostId: string, unread: IntegrationBinding | null): void {
+    const entry = this.entries.find((candidate) => candidate.descriptor.id === hostId);
+    if (entry === undefined) return;
+    const was = entry.integrationsUnread;
+    if (was === unread || (was !== null && unread !== null && was.incarnation === unread.incarnation && was.connection === unread.connection && was.epoch === unread.epoch)) return;
+    entry.integrationsUnread = unread;
     this.changed();
   }
 
@@ -301,6 +338,11 @@ export class HostRegistry {
   private startScreensShown(entry: HostEntry): boolean {
     const shown = entry.startScreens;
     return shown !== null && entry.state === "connected" && shown.incarnation === entry.incarnation && shown.connection === entry.connection && shown.epoch === entry.epoch;
+  }
+
+  private unreadShown(entry: HostEntry): boolean {
+    const shown = entry.integrationsUnread;
+    return shown !== null && !this.integrationsShown(entry) && entry.state === "connected" && shown.incarnation === entry.incarnation && shown.connection === entry.connection && shown.epoch === entry.epoch;
   }
 
   private integrationsShown(entry: HostEntry): boolean {
@@ -361,6 +403,74 @@ export class HostRegistry {
   pane(hostId: string, paneId: string): TopologyPaneInfo | null {
     const entry = this.entries.find((candidate) => candidate.descriptor.id === hostId);
     return entry?.topology?.panes.find((pane) => pane.paneID === paneId) ?? null;
+  }
+
+  // New agent's panes made and not listed yet: Herdr's own
+  // answer for each, so the window's terminal can open the pane it shows at once. Only the terminal (madePane) and the
+  // page's list (madePanes in list()) read them; every other check goes by the snapshot as before. Each belongs to the
+  // start that made it: the machine's entry, connection and command connection that start was bound to (its
+  // `binding`), checked when the reply is kept (noteMade), when the pane goes to the page and when a terminal opens
+  // through it. Kept until a snapshot asked for after the creation lists it, a snapshot asked for after it does not
+  // (closed), its start closed it (forgetMade), any of the three changed, or madePaneKeptMs passed. A snapshot asked
+  // for before the creation's reply never decides.
+  private readonly made = new Map<
+    string,
+    { readonly pane: TopologyPaneInfo; readonly incarnation: number; readonly connection: number; readonly epoch: number | null; readonly asked: number; readonly until: number }
+  >();
+
+  /** Keeps New agent's made pane for its start's `binding`; false (nothing kept) when the machine is not on it now. */
+  noteMade(hostId: string, pane: TopologyPaneInfo, binding: MadeBinding): boolean {
+    const entry = this.entries.find((candidate) => candidate.descriptor.id === hostId);
+    if (entry === undefined || !this.onBinding(entry, binding)) return false;
+    this.made.set(`${hostId}\n${pane.paneID}`, { pane, ...binding, asked: entry.asked, until: this.now() + madePaneKeptMs });
+    return true;
+  }
+
+  forgetMade(hostId: string, paneId: string): void {
+    this.made.delete(`${hostId}\n${paneId}`);
+  }
+
+  /** The machine answers on the entry, connection and command connection of `binding` now. */
+  private onBinding(entry: HostEntry, binding: MadeBinding): boolean {
+    return (
+      entry.state === "connected" &&
+      entry.incarnation === binding.incarnation &&
+      entry.connection !== 0 &&
+      entry.connection === binding.connection &&
+      epochOf(entry.backend) === binding.epoch
+    );
+  }
+
+  /** A made pane of `entry` still kept now (not listed by a later snapshot, its start's binding holding, in time), else null. */
+  private madeNow(entry: HostEntry, paneId: string): TopologyPaneInfo | null {
+    const key = `${entry.descriptor.id}\n${paneId}`;
+    const made = this.made.get(key);
+    if (made === undefined) return null;
+    // Only a snapshot asked for after the reply was kept decides: it lists the pane (done) or does not (closed).
+    const later = entry.answered > made.asked;
+    if (!this.onBinding(entry, made) || this.now() >= made.until || later) {
+      this.made.delete(key);
+      return null;
+    }
+    return made.pane;
+  }
+
+  /** The pane as the snapshot lists it, else as New agent's creation answered it and still kept (madeNow), or null. */
+  madePane(hostId: string, paneId: string): TopologyPaneInfo | null {
+    const entry = this.entries.find((candidate) => candidate.descriptor.id === hostId);
+    if (entry === undefined) return null;
+    const listed = this.pane(hostId, paneId);
+    const made = this.madeNow(entry, paneId);
+    return listed ?? made;
+  }
+
+  /** The made panes of `entry` still kept, for the page (it keeps its own copy of each only while main does). */
+  private madeOf(entry: HostEntry): string[] {
+    const prefix = `${entry.descriptor.id}\n`;
+    return [...this.made.keys()]
+      .filter((key) => key.startsWith(prefix))
+      .map((key) => key.slice(prefix.length))
+      .filter((paneId) => this.madeNow(entry, paneId) !== null);
   }
 
   /** Every agent pane of the last snapshots, machine by machine, in their order. */

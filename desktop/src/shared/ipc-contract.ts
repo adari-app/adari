@@ -4,6 +4,7 @@
 // sender is this app's own page. Nothing else crosses: no generic invoke,
 // no Node in the renderer (contextIsolation on, sandbox on, nodeIntegration off).
 
+import type { AgyStatusRow } from "./agy-input";
 import type { SessionTopology } from "../main/herdr/wire";
 import type { SendBinding } from "./send-binding";
 import type { RestartBinding } from "./agent-restart";
@@ -14,6 +15,7 @@ import type { AgentStartCommands } from "./start-commands";
 import type { FolderListing } from "./folder-browse";
 import type { FollowedSession } from "./pane-life";
 import type { NewAgentRequest, NewAgentResult } from "../main/herdr/new-agent";
+import type { NewAgentProgress } from "./new-agent";
 import type { CatalogAgent, CatalogView } from "./model-catalog";
 import type { ModelPick } from "./model-choices";
 import type { NewWorkspaceRequest, NewWorkspaceResult } from "./new-workspace";
@@ -36,9 +38,10 @@ import type { UpdateView } from "./updates";
 import type { FeedbackKind } from "./feedback";
 import type { AnswerRequest, AnswerResult, PanePrompt } from "./prompt/view";
 import type { SettingsSection, UploadsDeleteResult, UploadsInventory } from "./settings";
-import type { HostIntegrations, IntegrationBinding, IntegrationInstallReply } from "./integrations";
+import type { AgentUpdateAnswer, AgentUpdateRequest } from "./agent-update";
+import type { HostIntegrations, IntegrationBinding, IntegrationInstallReply, IntegrationUpdateAllReply } from "./integrations";
 import type { HostStartScreens } from "./prompt/start-screen";
-import type { NeedsYouReport, NotifySettings } from "./needs-notify";
+import type { NeedsYouReport, NotifyDelivery, NotifySettings } from "./needs-notify";
 
 export const IPC = {
   appInfo: "herdr:app-info",
@@ -64,6 +67,10 @@ export const IPC = {
   /** Bytes the page's terminal parsed, so a credited stream (herdr-core) sends more. */
   terminalParsed: "herdr:terminal-parsed",
   paneSend: "herdr:pane-send",
+  /** The check that follows a Send's Return (a picture message to Claude): its outcome, asked once by its id. */
+  paneSendCheck: "herdr:pane-send-check",
+  /** The page is done with that check: its record reads stop. */
+  paneSendCheckEnd: "herdr:pane-send-check-end",
   paneStop: "herdr:pane-stop",
   paneStopIfWorking: "herdr:pane-stop-if-working",
   paneAfterStop: "herdr:pane-after-stop",
@@ -104,6 +111,10 @@ export const IPC = {
   ghosttyOpen: "herdr:ghostty-open",
   startCommands: "herdr:start-commands",
   newAgent: "herdr:new-agent",
+  /** New agent's progress to the page that asked (shared/new-agent.ts NewAgentProgress): a step's line, and its pane once made. */
+  newAgentProgress: "herdr:new-agent-progress",
+  /** The page put a New agent's pane on screen (its start id): the record's shown; nothing goes to any machine. */
+  newAgentShown: "herdr:new-agent-shown",
   /**
    * An agent's model list on a machine (machine id, agent: shared/model-catalog.ts
    * CatalogAgent), held or read on first ask (src/main/model-catalogs.ts); and each change of one (a read begun or
@@ -142,6 +153,10 @@ export const IPC = {
   draftKept: "herdr:draft-kept",
   /** A held typed `/compact` that did not go, to Kept drafts (machine id, pane id, the line). */
   draftKeep: "herdr:draft-keep",
+  /** An unproved message (drafts.json `unproved`) is kept no more: the transcript settled it, Put back or Dismiss. */
+  unprovedRelease: "herdr:unproved-release",
+  /** Where the session's transcript stood when an unproved message went (the page's baseline): kept with it. */
+  unprovedHistory: "herdr:unproved-history",
   promptsList: "herdr:prompts-list",
   promptsChanged: "herdr:prompts-changed",
   promptAnswer: "herdr:prompt-answer",
@@ -151,6 +166,10 @@ export const IPC = {
   uploadsDeleteNow: "herdr:uploads-delete-now",
   /** Settings › Chat saves one kind's start command on a machine (its id, the kind, the command). */
   startCommandSave: "herdr:start-command-save",
+  /** An agent CLI's update command on a machine (machine id, kind, command; empty: none). */
+  updateCommandSave: "herdr:update-command-save",
+  /** Update on an agent CLI after its confirmation (machine id, AgentUpdateRequest). */
+  agentUpdateRun: "herdr:agent-update-run",
   /** About's Open-source licenses (no arguments): the notices file the app ships, opened. */
   openLicenses: "herdr:open-licenses",
   /** A link in Chat or the Terminal, opened in the default browser (http and https only, checked in main). */
@@ -176,8 +195,15 @@ export const IPC = {
   updateAutomatic: "herdr:update-automatic",
   /** Install or Update on one of Herdr's integrations (machine id, target, binding). */
   integrationInstall: "herdr:integration-install",
+  /** Settings' Update all on one machine (machine id, binding). */
+  integrationUpdateAll: "herdr:integration-update-all",
   /** Settings opened: the integrations read again (no arguments). */
   integrationsRefresh: "herdr:integrations-refresh",
+  /** Chat's Retry for a machine whose list was not read on this connection (machine id, binding). */
+  integrationsRetry: "herdr:integrations-retry",
+  /** Settings' "Install Herdr's integrations when I start an agent": read (no arguments), and set (one boolean). */
+  integrationAutoInstall: "herdr:integration-auto-install",
+  integrationAutoInstallSet: "herdr:integration-auto-install-set",
   /** The sidebar's Needs you rows on each change (src/shared/needs-notify.ts NeedsYouReport, checked in main). */
   needsYouReport: "herdr:needs-you-report",
   /** Settings › Notifications' three switches (no arguments), and a change of them (one object of booleans). */
@@ -185,6 +211,10 @@ export const IPC = {
   notifySettingsSet: "herdr:notify-settings-set",
   /** Settings' Send a test notification (no arguments): what to say. */
   notifyTest: "herdr:notify-test",
+  /** What became of the last notification (no arguments): NotifyDelivery, or null when nothing is known. */
+  notifyDelivery: "herdr:notify-delivery",
+  /** Settings' Open Notification Settings (no arguments): main opens macOS's Notifications pane, its one fixed address. */
+  notifyOpenSystemSettings: "herdr:notify-open-system-settings",
 } as const;
 
 /** "local": This Mac, built in and reached with no SSH. */
@@ -209,6 +239,27 @@ export type HostState = "connecting" | "connected" | "offline";
  * it). A hand-off picked on a row is bound to these; the main process refuses
  * it when they changed.
  */
+/**
+ * How the check after a Send's Return ended (send.ts confirmPictures): `taken` (Claude Code's record or a read of its
+ * box proved it went), `unknown` (nothing proved it: the page waits for the transcript, then says it could not
+ * confirm it), `stillInBox` (seen in Claude's box after the one corrective Return: the terminal holds it, unsent).
+ * None of them is a failure: the keys went, so the message is never put back on the app's own word.
+ */
+export type SendCheck = "taken" | "unknown" | "stillInBox";
+
+/**
+ * A Send's answer once its keys and Return went with no transport error. `check`: the id to ask for the check that
+ * follows (sendCheck), or null when none follows (the message went, as today).
+ */
+export interface SendReceipt {
+  readonly check: string | null;
+  /**
+   * The id main keeps the message under in drafts.json until the transcript settles it (UnprovedSend), written before
+   * this answer; absent: not kept (no check follows, or no store).
+   */
+  readonly kept?: string;
+}
+
 /** A read after an Esc to `paneId` showed Claude's working line gone (main tells the page at that read). */
 export interface EscScreenEvent {
   readonly hostId: string;
@@ -300,6 +351,16 @@ export interface HostView {
   /** The agent panes whose Claude Code has an update installed (absent: none). */
   readonly updateReady?: readonly string[];
   /**
+   * Per CLI, the update command its own notice named on a marked pane (Codex's "Run <command> to
+   * update."), offered in Settings as a suggestion only (absent: none).
+   */
+  readonly updateSuggestions?: Readonly<Record<string, string>>;
+  /**
+   * New agent's panes made on this connection and not listed yet that main still keeps (hosts.ts madePane; absent:
+   * none). The page shows such a pane from Herdr's own answer only while a list sent after it heard of it carries it.
+   */
+  readonly madePanes?: readonly string[];
+  /**
    * This Mac's Herdr is not running (no socket where Herdr puts it): the words and a short
    * hint, shown as a note under the machine, not an error (absent: it runs, or the machine is not This Mac).
    */
@@ -309,6 +370,12 @@ export interface HostView {
    * (absent: not read yet, or this machine's Herdr does not answer integration.list).
    */
   readonly integrations?: HostIntegrations;
+  /**
+   * The machine's Herdr has the integration calls but its list was not read on this
+   * connection (it did not answer, or its answer was dropped): the entry, connection and command connection that is
+   * so on. Chat's no-session state says so with a Retry (absent: read, still reading, or a machine with no such calls).
+   */
+  readonly integrationsUnread?: IntegrationBinding;
   /**
    * The panes showing an agent's start screen that waits for the person
    * (Codex's hook review) while Herdr reports them idle, as main last read them on this connection (absent: none).
@@ -515,7 +582,12 @@ export type ModelPickOutcome =
    * `said` the name the new "Switched to …" line gave ("Grok 4.6"; null: no new
    * line), so a pick confirmed by that line alone can be told from a later border naming another model.
    */
-  | { readonly type: "grok"; readonly confirmed: boolean; readonly shown: string | null; readonly said: string | null; readonly effort: string | null };
+  | { readonly type: "grok"; readonly confirmed: boolean; readonly shown: string | null; readonly said: string | null; readonly effort: string | null }
+  /**
+   * Antigravity CLI's last row read after the Return: `confirmed` when it names the picked row's model and level
+   * (agyAfterPick); `row` what it said last (null: none read).
+   */
+  | { readonly type: "agy"; readonly confirmed: boolean; readonly row: AgyStatusRow | null };
 
 /** How a Grok pick went: set (its screen shows it), its model list opened, or not, with why. */
 export type GrokPickResult =
@@ -528,12 +600,14 @@ export type GrokPickResult =
 export interface PaneModeEvent {
   readonly hostId: string;
   readonly paneId: string;
-  readonly agent: "claude" | "grok";
+  readonly agent: "claude" | "grok" | "agy";
   readonly scope: SettingsScope;
   readonly run?: { readonly connection: number; readonly arrival: number } | null;
   readonly mode: string | null;
   /** Grok's border's model name with that mode ("Grok 4.7 Fast"); absent or null: none read. */
   readonly borderModel?: string | null;
+  /** Antigravity CLI's last row with that mode: its model and level ("Gemini 4 Hydrogen", "low"); absent or null: none read. */
+  readonly agyRow?: AgyStatusRow | null;
 }
 
 /**
@@ -788,10 +862,22 @@ export interface HerdrDesktopBridge {
    * Sends a message by the Swift app's rule (src/main/herdr/send.ts): Herdr's
    * agent.prompt to a Claude or Codex agent, else one paste and its Return; a
    * shell takes one line. Bound to the pane as you saw it (`binding`): sent only
-   * while a fresh snapshot still shows it. Rejects with the note to show; the
-   * text is kept.
+   * while a fresh snapshot still shows it. Rejects with the note to show (nothing reached the agent's box, or its
+   * Return was refused); the text is kept. Resolves once the keys and the Return went: with a receipt naming the
+   * check that follows (a picture message to Claude Code), or nothing (older fakes, and every other send).
    */
-  sendToPane(hostId: string, paneId: string, text: string, binding: SendBinding): Promise<void>;
+  sendToPane(hostId: string, paneId: string, text: string, binding: SendBinding): Promise<SendReceipt | void>;
+  /** The outcome of the check a Send's receipt named (asked once; null once it is gone). Absent in older fakes. */
+  sendCheck?(checkId: string): Promise<SendCheck | null>;
+  /** The page is done with that check (its bubble settled, put back or dismissed): main reads the record no more. */
+  sendCheckEnd?(checkId: string): Promise<void>;
+  /** The transcript settled an unproved message, or the person put it back or dismissed it: main keeps it no more. */
+  unprovedRelease?(id: string): Promise<void>;
+  /**
+   * Where the session's transcript stood when unproved message `id` went, as the page matches it (its baseline's last
+   * item; null: the transcript held nothing): kept with it, so its restored bubble tells its own message from history.
+   */
+  unprovedHistory?(id: string, anchor: string | null): Promise<void>;
   /**
    * Stop: Escape to the pane's agent (`agent.send_keys`),
    * only while a fresh snapshot still shows the agent `binding` saw working
@@ -905,6 +991,10 @@ export interface HerdrDesktopBridge {
    * the machine's start commands after it (used from then on), or rejects with why it was not saved.
    */
   saveStartCommand?(hostId: string, kind: string, command: string): Promise<AgentStartCommands>;
+  /** Saves `kind`'s update command on the machine (empty: none); the file as read after. */
+  saveUpdateCommand?(hostId: string, kind: string, command: string): Promise<AgentStartCommands>;
+  /** Update after its confirmation: a shell tab on the machine with the command typed (agent-update.ts). */
+  runAgentUpdate?(hostId: string, request: AgentUpdateRequest): Promise<AgentUpdateAnswer>;
   /**
    * The folders directly in `directory` on the machine (as typed, ending in "/"; "~/" is its home),
    * for New workspace's and New agent's folder field; read only. Absent in older test bridges.
@@ -912,8 +1002,15 @@ export interface HerdrDesktopBridge {
   browseFolder?(hostId: string, directory: string): Promise<FolderListing>;
   /** This Mac's folder window, starting at `typed` when it is a folder there; the folder chosen, or null. */
   pickFolder?(hostId: string, typed: string): Promise<string | null>;
-  /** New agent: a tab in the workspace with the kind (or a shell) started in it; resolves once the snapshot lists it. */
-  newAgent(hostId: string, request: NewAgentRequest): Promise<NewAgentResult>;
+  /**
+   * New agent: a tab in the workspace with the kind (or a shell) started in it; resolves once the snapshot lists it.
+   * With `startId` (isStartId), its progress comes by onNewAgentProgress under that id as it goes: the pane once made.
+   */
+  newAgent(hostId: string, request: NewAgentRequest, startId?: string): Promise<NewAgentResult>;
+  /** New agent's progress (absent in older test bridges). */
+  onNewAgentProgress?(listener: (progress: NewAgentProgress) => void): () => void;
+  /** The page put the pane of the New agent with `startId` on screen (absent in older test bridges). */
+  newAgentShown?(startId: string, paneId: string): Promise<void>;
   /** `agent`'s model list on the machine, as held now (a read begun behind when none or old; absent in older fakes). */
   modelCatalog?(hostId: string, agent: CatalogAgent): Promise<CatalogView>;
   /** Each change of a model list (absent in older fakes). */
@@ -1031,8 +1128,15 @@ export interface HerdrDesktopBridge {
   setAutomaticUpdates?(on: boolean): Promise<UpdateView>;
   /** Your Install or Update for `target` on the machine as the window showed it (absent in older fakes). */
   installIntegration?(hostId: string, target: string, binding: IntegrationBinding): Promise<IntegrationInstallReply>;
+  /** Settings' Update all: the machine's out-of-date integrations, one after the other, bound to it as shown. */
+  updateAllIntegrations?(hostId: string, binding: IntegrationBinding): Promise<IntegrationUpdateAllReply>;
   /** Settings opened: each machine that answered is read again (absent in older fakes). */
   refreshIntegrations?(): Promise<void>;
+  /** Chat's Retry: the machine's list asked again, bound to it as the window showed it (absent in older fakes). */
+  retryIntegrations?(hostId: string, binding: IntegrationBinding): Promise<void>;
+  /** Settings' install-before-start switch, and a change of it: the switch after (absent in older fakes). */
+  integrationAutoInstall?(): Promise<boolean>;
+  setIntegrationAutoInstall?(on: boolean): Promise<boolean>;
   /** The sidebar's Needs you rows, for the notifications, the Dock badge and the menu bar item (absent in older fakes). */
   reportNeedsYou?(report: NeedsYouReport): void;
   /** Settings › Notifications' switches, and a change of them: the switches after (absent in older fakes). */
@@ -1040,6 +1144,10 @@ export interface HerdrDesktopBridge {
   setNotifySettings?(change: Partial<NotifySettings>): Promise<NotifySettings>;
   /** Send a test notification: what to say (absent in older fakes). */
   testNotification?(): Promise<string>;
+  /** What became of the last notification: shown or failed (macOS did not show it), null when nothing is known (absent in older fakes). */
+  notifyDelivery?(): Promise<NotifyDelivery | null>;
+  /** Open Notification Settings: macOS's Notifications pane, the address fixed in main (absent in older fakes). */
+  openNotificationSettings?(): void;
 }
 
 declare global {

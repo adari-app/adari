@@ -47,7 +47,10 @@ export { startFixCaptureSteps } from "./start-fix-captures";
 // Settings › Chat's Codex note, and a Codex Chat from another folder or with no session (155-157).
 export { codexSessionCaptureSteps } from "./codex-session-captures";
 // Chat's no-session state naming Herdr's missing integration, Install, Settings' line, a no-session send (158-162).
-export { integrationsCaptureSteps } from "./integrations-captures";
+export { integrationsCaptureSteps, autoInstallCaptureSteps } from "./integrations-captures";
+export { newAgentSpeedCaptureSteps } from "./new-agent-speed-captures";
+// Update all, an agent CLI's update command and Update's confirmation (290-292).
+export { otherCaptureKinds, updatesCaptureSteps } from "./updates-captures";
 // A chat link under the mouse, a terminal URL with Cmd held, the Model chip and Send in the box (163-168).
 export { linksChipsCaptureSteps } from "./links-chips-captures";
 export { firstChatCaptureSteps } from "./first-chat-captures";
@@ -73,9 +76,15 @@ export { reorderCaptureSteps } from "./reorder-captures";
 // The first message in a new Pi chat: before it, then one message and no Not sent copy (260-261).
 export { firstSendCaptureSteps } from "./firstsend-captures";
 // Settings › About's Report a problem and Send feedback, then both clicked (270-271; feedbackCaptureSteps above).
+// Codex's own question in Plan mode, 1 of 2 and the last, and Implement this plan? as the Needs card (300-302).
+export { codexQuestionCaptureSteps } from "./codex-question-captures";
 export { DemoClaudeQueue } from "./demo/demo-claude-queue";
 // An early kind's pane with its Early badge and line, New agent's list, Settings, a split tile (190-196).
 export { chatSupportCaptureSteps, chatSupportCaptureTargets } from "./chat-support-captures";
+// Antigravity CLI's models in New agent, its new pane's three chips and their menus (294-299).
+export { agyModelsCaptureSteps } from "./agy-models-captures";
+// Antigravity CLI's built-in list over SSH 303-304.
+export { agyListCaptureSteps } from "./agy-list-captures";
 // The icons (201), Cursor's list from This Mac (202), Codex's update card (203), Claude's note (204).
 export { listsCaptureSteps, listsCodexPane, listsCodexUpdateScreen } from "./lists-captures";
 // The capture's fake-herdr This Mac (steps 99-100); This Mac itself (this-mac.ts) ships.

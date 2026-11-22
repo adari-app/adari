@@ -1,0 +1,79 @@
+{
+  "note": "A review's screens, verbatim (its review-screens.json): each accepted pair (a command or diff line cut at the edge against the same text with a blank there, at 30 and 200 columns, and agy's trust folder written two ways) must refuse with no key, and each strict pair (the same question at two widths) must be one question. Both apps read this file.",
+  "observations": [
+    {
+      "name": "claude-bash",
+      "agent": "claude",
+      "a": "Output above\n\n  ls -la /tmp/demo/sample-folder\n\n──────────────────────────────\n Bash command\n List folder\n╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌\n ls\n /aaaaaaaaaaaaaaaaaaaaaaaaaaaa\n aaaaaaaaaaaaaaaaaaaaaaaaaaaaa\n aaaaaaaa/tmp/x\n╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌\n Do you want to proceed?\n ❯ 1. Yes\n   2. No\n\n Esc to cancel · Tab to amend",
+      "b": "Output above\n\n  ls -la /tmp/demo/sample-folder\n\n────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n Bash command\n List folder\n╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌\n ls /aaaaaaaaaaaaaaaaaaaaaaaaaaaa aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/tmp/x\n╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌\n Do you want to proceed?\n ❯ 1. Yes\n   2. No\n\n Esc to cancel · Tab to amend"
+    },
+    {
+      "name": "codex-command",
+      "agent": "codex",
+      "a": "Output above\n\n  ls -la /tmp/demo/sample-folder\n\n\n  Would you like to run the\n  following command?\n\n  Environment: local\n\n  Reason: List folder\n\n  $ ls\n  /aaaaaaaaaaaaaaaaaaaaaaaaaaa\n  aaaaaaaaaaaaaaaaaaaaaaaaaaaa\n  aaaaaaaaaa/tmp/x\n\n\n› 1. Yes, proceed (y)\n  2. No (esc)\n\n  Press enter to confirm or esc to cancel",
+      "b": "Output above\n\n  ls -la /tmp/demo/sample-folder\n\n\n  Would you like to run the following command?\n\n  Environment: local\n\n  Reason: List folder\n\n  $ ls /aaaaaaaaaaaaaaaaaaaaaaaaaaa aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/tmp/x\n\n\n› 1. Yes, proceed (y)\n  2. No (esc)\n\n  Press enter to confirm or esc to cancel"
+    },
+    {
+      "name": "grok-command",
+      "agent": "grok",
+      "a": "Output above\n\n  ls -la /tmp/demo/sample-folder\n\n  ┃\n  ┃  ›  List the sample folder\n  ┃  │ ls /aaaaaaaaaaaaaaaaaaa\n  ┃    aaaaaaaaaaaaaaaaaaaaaaa\n  ┃    aaaaaaaaaaaaaaaaaaaaaaa\n  ┃    /tmp/x\n  ┃  ← → narrow scope  ·  e edit pattern\n  ┃\n  ┃  1 (○) Yes, and don't ask\n  ┃  again for anything (alway\n  ┃  s-approve mode)\n  ┃  2 (○) Always allow: ls -l\n  ┃  a /tmp/demo/sample-folder\n  ┃  /notes /tmp/demo/sample-f\n  ┃  older/logs\n  ┃  3 (●) Yes, proceed\n  ┃  4 (○) No, reject (type to\n  ┃   add feedback)\n  ┃  5 (○) Never allow: ls -la\n  ┃\n\n  1/5:select  │  Tab:next opti",
+      "b": "Output above\n\n  ls -la /tmp/demo/sample-folder\n\n  ┃\n  ┃  ›  List the sample folder\n  ┃  │ ls /aaaaaaaaaaaaaaaaaaa aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/tmp/x\n  ┃  ← → narrow scope  ·  e edit pattern\n  ┃\n  ┃  1 (○) Yes, and don't ask again for anything (always-approve mode)\n  ┃  2 (○) Always allow: ls -la /tmp/demo/sample-folder/notes /tmp/demo/sample-folder/logs\n  ┃  3 (●) Yes, proceed\n  ┃  4 (○) No, reject (type to add feedback)\n  ┃  5 (○) Never allow: ls -la\n  ┃\n\n  1/5:select  │  Tab:next option  │  ←/→:scope  │  e:edit pattern  │  Ctrl+o:always-approve  │  Ctrl+c:cancel  │  Esc"
+    },
+    {
+      "name": "agy-command",
+      "agent": "agy",
+      "a": "● Ran (ls) (ctrl+o to expand)\n\nCommand\n──────────────────────────────\n\nRequesting permission for:\n   ls /aaaaaaaaaaaaaaaaaaaaaaa\n   aaaaaaaaaaaaaaaaaaaaaaaaaaa\n   aaaaaaaaaaaaaaa/tmp/x\n\nRun this command?\n> 1. Yes, run command\n  2. Yes, and always allow in\n     this conversation for\n     commands that start with\n     'ls'\n  3. Yes, and always allow for\n     commands that start with\n     'ls' (Persist to\n     settings.json)\n  4. No, cancel\n\n  ↑/↓ Navigate · tab Amend · ctrl+g edit/expand command\nesc to cancel  Gemini 4 Hydrogen · low",
+      "b": "● Ran (ls) (ctrl+o to expand)\n\nCommand\n────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n\nRequesting permission for:\n   ls /aaaaaaaaaaaaaaaaaaaaaaa aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/tmp/x\n\nRun this command?\n> 1. Yes, run command\n  2. Yes, and always allow in this conversation for commands that start with 'ls'\n  3. Yes, and always allow for commands that start with 'ls' (Persist to settings.json)\n  4. No, cancel\n\n  ↑/↓ Navigate · tab Amend · ctrl+g edit/expand command\nesc to cancel                                                                                                                                                                    Gemini 4 Hydrogen · low"
+    },
+    {
+      "name": "claude-edit",
+      "agent": "claude",
+      "a": "Output above\n\n  ls -la /tmp/demo/sample-folder\n\n──────────────────────────────\n Edit file\n notes.txt\n╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌\n  1 + echo\n      aaaaaaaaaaaaaaaaaaaaaaaa\n      aaaaaaaaaaaaaaaaaaaaaaaa\n      aaaaaaaaaaaaaaaaa\n╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌\n Do you want to make this edit\n to notes.txt?\n ❯ 1. Yes\n   2. Yes, allow all edits\n      during this session\n      (shift+tab)\n   3. No\n\n Esc to cancel · Tab to amend",
+      "b": "Output above\n\n  ls -la /tmp/demo/sample-folder\n\n────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n Edit file\n notes.txt\n╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌\n  1 + echo aaaaaaaaaaaaaaaaaaaaaaaa aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\n╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌\n Do you want to make this edit to notes.txt?\n ❯ 1. Yes\n   2. Yes, allow all edits during this session (shift+tab)\n   3. No\n\n Esc to cancel · Tab to amend"
+    },
+    {
+      "name": "codex-form",
+      "agent": "codex",
+      "a": "Output above\n\n  ls -la /tmp/demo/sample-folder\n\n\n  Field 1/1\n  Allow Calendar to create an\n  event\n\n  Title: aaaaaaaaaaaaaaaaaaaaa\n  b\n\n  › 1. Allow   Run the tool\n               and continue\n               with the event\n               as the request\n               describes it\n    2. Cancel  Cancel this\n               tool call and\n               tell the agent\n               the event was\n               not made\n  enter to submit | esc to cancel",
+      "b": "Output above\n\n  ls -la /tmp/demo/sample-folder\n\n\n  Field 1/1\n  Allow Calendar to create an event\n\n  Title: aaaaaaaaaaaaaaaaaaaaa b\n\n  › 1. Allow   Run the tool and continue with the event as the request describes it\n    2. Cancel  Cancel this tool call and tell the agent the event was not made\n  enter to submit | esc to cancel"
+    },
+    {
+      "name": "agy-create-diff",
+      "agent": "agy",
+      "a": "● Edited 1 file (ask.txt) (ctrl+o to expand)\n\nCreate file\n──────────────────────────────\n\n/tmp/demo/x.txt  +1\n  1  +  echo aaaaaaaaaaaaaaaaa\naaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\naaaaaaaaaaaaaaaaaa\n\nAllow creation of this file?\n> 1. Yes, allow creation\n  2. No, deny creation\n\n  ↑/↓ Navigate · f full diff\nesc to cancel  Gemini 4 Hydrogen · low",
+      "b": "● Edited 1 file (ask.txt) (ctrl+o to expand)\n\nCreate file\n────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n\n/tmp/demo/x.txt  +1\n  1  +  echo aaaaaaaaaaaaaaaaa aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\n\nAllow creation of this file?\n> 1. Yes, allow creation\n  2. No, deny creation\n\n  ↑/↓ Navigate · f full diff\nesc to cancel                                                                                                                                                                    Gemini 4 Hydrogen · low"
+    },
+    {
+      "name": "agy-edit-diff",
+      "agent": "agy",
+      "a": "● Edited 1 file (notes.txt) (ctrl+o to expand)\n\nPending edit\n──────────────────────────────\n\n/tmp/demo/x.txt  +1 -0\n  1  +  echo aaaaaaaaaaaaaaaaa\naaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\naaaaaaaaaaaaaaaaaa\n\n  shift+tab to auto-approve file edits\nAccept this file edit?\n> 1. Yes, accept this change\n  2. No, reject this change\n\n  ↑/↓ Navigate · f full diff\nesc to cancel  Gemini 4 Hydrogen · low",
+      "b": "● Edited 1 file (notes.txt) (ctrl+o to expand)\n\nPending edit\n────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n\n/tmp/demo/x.txt  +1 -0\n  1  +  echo aaaaaaaaaaaaaaaaa aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\n\n  shift+tab to auto-approve file edits\nAccept this file edit?\n> 1. Yes, accept this change\n  2. No, reject this change\n\n  ↑/↓ Navigate · f full diff\nesc to cancel                                                                                                                                                                    Gemini 4 Hydrogen · low"
+    },
+    {
+      "name": "agy-trust-unicode",
+      "agent": "agy",
+      "a": "Accessing workspace:\n\n/tmp/demo/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\naaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/café\n\nDo you trust the contents of this project?\n\nAntigravity CLI requires permission to read, edit, and execute files here.\n\n> Yes, I trust this folder\n  No, exit\n\n  ↑/↓ Navigate · enter Confirm\n          auto · Gemini 4 Hydrogen · low",
+      "b": "Accessing workspace:\n\n/tmp/demo/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/café\n\nDo you trust the contents of this project?\n\nAntigravity CLI requires permission to read, edit, and execute files here.\n\n> Yes, I trust this folder\n  No, exit\n\n  ↑/↓ Navigate · enter Confirm\n                                                                                                                                                                          auto · Gemini 4 Hydrogen · low"
+    }
+  ],
+  "strict": [
+    {
+      "name": "question-midword",
+      "agent": "claude",
+      "a": "Output above\n\n  ls -la /tmp/demo/sample-folder\n\n──────────────────────────────\n Edit file\n notes-aaaaaaaaaaaaaaaaaaaaaaa\n aaaaaaa.txt\n╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌\n  3 - echo the sample folder\n      holds the notes and the\n      logs of the first week\n      of the trial\n  3 + echo the sample folder\n      holds the notes, the\n      logs and the listings of\n      the first two weeks of\n      the trial\n╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌\n Do you want to make this edit\n to\n notes-aaaaaaaaaaaaaaaaaaaaaaa\n aaaaaaa.txt?\n ❯ 1. Yes\n   2. Yes, allow all edits\n      during this session\n      (shift+tab)\n   3. No\n\n Esc to cancel · Tab to amend",
+      "b": "Output above\n\n  ls -la /tmp/demo/sample-folder\n\n────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n Edit file\n notes-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.txt\n╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌\n  3 - echo the sample folder holds the notes and the logs of the first week of the trial\n  3 + echo the sample folder holds the notes, the logs and the listings of the first two weeks of the trial\n╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌\n Do you want to make this edit to notes-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.txt?\n ❯ 1. Yes\n   2. Yes, allow all edits during this session (shift+tab)\n   3. No\n\n Esc to cancel · Tab to amend"
+    },
+    {
+      "name": "wrapped-option-like-digit",
+      "agent": "claude",
+      "a": "Output above\n\n  ls -la /tmp/demo/sample-folder\n\n──────────────────────────────\n Bash command\n List the sample folder's\n notes and logs with line\n numbers, then say when the\n listing is done\n╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌\n ls -la\n /tmp/demo/sample-folder/notes\n /tmp/demo/sample-folder/logs\n | cat -n | head -n 40 && echo\n done listing the sample\n folder\n╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌\n Do you want to proceed?\n ❯ 1. Yes, allow the following\n      2. examples to run\n   2. No\n\n Esc to cancel · Tab to amend",
+      "b": "Output above\n\n  ls -la /tmp/demo/sample-folder\n\n────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n Bash command\n List the sample folder's notes and logs with line numbers, then say when the listing is done\n╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌\n ls -la /tmp/demo/sample-folder/notes /tmp/demo/sample-folder/logs | cat -n | head -n 40 && echo done listing the sample folder\n╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌\n Do you want to proceed?\n ❯ 1. Yes, allow the following 2. examples to run\n   2. No\n\n Esc to cancel · Tab to amend"
+    },
+    {
+      "name": "codex-option-row-34",
+      "agent": "codex",
+      "a": "Output above\n\n  ls -la /tmp/demo/sample-folder\n\n\n  Field 1/1\n  Allow Calendar to create an\n  event\n\n  Calendar: primary\n  Title: Roadmap review\n\n  › 1. Allow   Run this tool using\n               2. examples from\n               notes\n    2. Cancel  Cancel the tool\n               call\n  enter to submit | esc to cancel",
+      "b": "Output above\n\n  ls -la /tmp/demo/sample-folder\n\n\n  Field 1/1\n  Allow Calendar to create an event\n\n  Calendar: primary\n  Title: Roadmap review\n\n  › 1. Allow   Run this tool using 2. examples from notes\n    2. Cancel  Cancel the tool call\n  enter to submit | esc to cancel"
+    }
+  ]
+}

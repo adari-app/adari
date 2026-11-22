@@ -25,14 +25,15 @@ import type { ChangesService } from "./changes/service";
 import type { ChatService } from "./chat/service";
 import type { ChatImageBlob } from "../shared/chat/model";
 import type { GhosttyActions } from "./ghostty";
-import { isSendBinding, notAtPromptText, type SendBinding } from "../shared/send-binding";
+import { agentSession, isSendBinding, notAtPromptText, type SendBinding } from "../shared/send-binding";
 import { isPaneBinding } from "../shared/pane-binding";
-import { cleanupBinding, cursorPickReadLines, inPaneTurn, pickCursorBound, pickGrokBound, sendBound, takeBackTurn, type SendBox, type SendSite, type TypedCommand } from "./herdr/send";
+import { cleanupBinding, cursorPickReadLines, inPaneTurn, pickCursorBound, pickGrokBound, SendChecks, sendBound, sendWithReceipt, takeBackTurn, type SendBox, type SendSite, type TypedCommand } from "./herdr/send";
 import { openCodeSettleMs, pickOpenCodeBound } from "./herdr/opencode-pick";
 import { pickModeBound } from "./herdr/mode-pick";
 import { isModeAgent, isOfferedMode } from "../shared/approval-modes";
 import { cursorModelLineOf, cursorTypedRead, grokModelLabel, grokTypedRead, grokWindows, isCursorPick, isGrokPick, parseCursorFooter, readCursorScreen, readGrokScreen, type GrokFiles, type TypedScreenRead } from "../shared/agent-settings";
-import type { ModelPickOutcome } from "../shared/ipc-contract";
+import type { ModelPickOutcome, SendCheck, SendReceipt } from "../shared/ipc-contract";
+import { unprovedNoRoomText, type UnprovedSend } from "../shared/drafts";
 import type { PaneReadGate } from "../shared/chat/live-reader";
 import { paneReadKey } from "./chat/live-reads";
 import { restartAgent } from "./herdr/restart";
@@ -44,6 +45,7 @@ import {
   boxChecks,
   composerWrites,
   realWait,
+  steadyNow,
   screenQueued,
   screenWorking,
   sentTexts,
@@ -51,27 +53,33 @@ import {
   boxReadLines,
   pulledRows,
   takeBackQueuedOnce,
+  type AfterStop,
   type ClaudeBoxSite,
+  type LeftoverRun,
   type QueuedTakeBack,
   type TakeBackTurn,
 } from "./herdr/claude-box";
 import type { HerdrHostBackend } from "./herdr/backend";
 import { isRestartBinding } from "../shared/agent-restart";
 import { isStopBinding, stopTexts } from "../shared/agent-stop";
-import { takeBackTexts } from "../shared/claude-screen";
+import { claudeBoxTexts, imagePaths, takeBackTexts } from "../shared/claude-screen";
 import { transcriptQueueRecord, type QueueRecord } from "../shared/claude-queue-record";
 import { sessionRefFromAgentSession } from "../shared/chat/locator";
 import { isAnswerRequest } from "../shared/prompt/view";
 import type { PromptService } from "./prompt/prompts";
-import { saveStartCommandOf, startCommandsOf } from "./start-commands";
+import { freshStartCommandsOf, saveStartCommandOf, startCommandsOf, type StartCommandsSource } from "./start-commands";
+import { runAgentUpdate } from "./herdr/agent-update";
+import { isAgentUpdateRequest, isUpdateCommandKind } from "../shared/agent-update";
 import { folderPickTexts } from "./folder-pick";
 import { isBrowseDirectory, maxBrowsePathBytes, type FolderListing } from "../shared/folder-browse";
-import { agentPollMs, firstAgentTimeoutMs, liveClock, newAgent, type NewAgentHerdr, type NewAgentRequest, type NewAgentResult } from "./herdr/new-agent";
+import { AgentStartFailed, agentPollMs, firstAgentTimeoutMs, liveClock, newAgent, type NewAgentClock, type NewAgentHerdr, type NewAgentRequest, type NewAgentResult } from "./herdr/new-agent";
+import { isStartId, newAgentProgressTexts, type NewAgentProgress } from "../shared/new-agent";
+import { keepLater, quietly, speedKind, StepTimer, type IntegrationWord, type SpeedRecord, type StartOutcome, type StartStepName } from "../shared/speed-record";
 import { newWorkspace } from "./herdr/new-workspace";
 import { openDrawerShell, type DrawerShellRequest } from "./herdr/drawer-shell";
 import { machineLink } from "./herdr/machine-link";
 import { isNewWorkspaceRequest } from "../shared/new-workspace";
-import { absentStartCommands, isEditableStartKind, maximumSaveRequestLength } from "../shared/start-commands";
+import { absentStartCommands, isEditableStartKind, maximumSaveRequestLength, updateCommandKey } from "../shared/start-commands";
 import type { HostRegistry } from "./hosts";
 import type { LayoutService } from "./layouts";
 import { isPaneAction, isWorkspaceRename, newAgentInSplit, runPaneAction, runWorkspaceRename } from "./pane-actions";
@@ -81,19 +89,47 @@ import type { PaneInputs } from "./pane-inputs";
 import type { UploadsDeleteResult, UploadsInventory } from "../shared/settings";
 import type { UpdateView } from "../shared/updates";
 import type { IntegrationService } from "./integrations";
+import { AttachTimes, PictureWatch } from "./picture-timing";
 import type { StartScreenService } from "./start-screens";
 import { startScreenRefusal, startScreenTexts } from "../shared/prompt/start-screen";
 import { isIntegrationBinding, isShownTarget } from "../shared/integrations";
 import { builtInCatalog, catalogAgentOf, effortPattern, isCatalogAgent, isModelId, type CatalogModel } from "../shared/model-catalog";
-import { cursorFamilyOf, grokRowOfScreenName, grokSwitchedNames, isModelPick, modelPickCommand, sameCursorFamily, startFlags, type StartFlag } from "../shared/model-choices";
+import { agyRowSaid, cursorFamilyOf, grokRowOfScreenName, grokSwitchedNames, isModelPick, modelPickCommand, sameCursorFamily, startFlags, type StartFlag } from "../shared/model-choices";
+import { agyBoxDraft, agyBoxEmpty, agyTypedRead, readAgyStatusRow, type AgyStatusRow } from "../shared/agy-input";
 import type { ModelCatalogs } from "./model-catalogs";
 
 export interface IpcDependencies {
   readonly info: AppInfo;
   /** The needs-you card's questions and answers; absent in older tests. */
-  readonly prompts?: Pick<PromptService, "list" | "answer">;
+  readonly prompts?: Pick<PromptService, "list" | "answer"> & Partial<Pick<PromptService, "sendRead">>;
+  /**
+   * Where a picture message past its Return is kept until the transcript settles it (drafts.json, DraftStore
+   * reserveUnproved, keepUnproved and unprovedOutcome); absent in older tests: not kept.
+   */
+  readonly unproved?: {
+    /**
+     * Room for its copy, taken before any key (absent: none taken). Null: no room, so the Send is refused before any
+     * key with unprovedNoRoomText, the text kept in the composer.
+     */
+    reserve?(entry: Omit<UnprovedSend, "id" | "outcome" | "sentAt" | "history">): string | null;
+    /** The Send ended without its Return: the room goes back. */
+    release?(reservation: string): void;
+    /** Its id; null when it could not be kept (no room). */
+    keep(entry: Omit<UnprovedSend, "id" | "outcome" | "sentAt" | "history">, reservation?: string | null): string | null;
+    outcome(id: string, outcome: SendCheck): void;
+  };
+  /** New agent's clock (a test's; absent: the live one). */
+  readonly newAgentClock?: NewAgentClock;
+  /**
+   * Where each New agent's and picture message's timings go (main.ts: logged once and the last 20 kept for Report a
+   * Problem; speed-record.ts); absent in older tests.
+   */
+  readonly speed?: { record(record: SpeedRecord): void };
+  /** The picture message timer's clock (a test's; absent: the process's monotonic clock). */
+  readonly speedNow?: () => number;
   /** Herdr's integrations per machine; absent in older tests. */
-  readonly integrations?: Pick<IntegrationService, "install" | "refresh"> & Partial<Pick<IntegrationService, "startToken" | "agentStarted">>;
+  readonly integrations?: Pick<IntegrationService, "install" | "refresh"> &
+    Partial<Pick<IntegrationService, "startToken" | "agentStarted" | "beforeStart" | "retry" | "autoInstall" | "setAutoInstall" | "updateAll">>;
   /** The panes showing an agent's start screen (a send to one is refused); absent in older tests. */
   readonly startScreens?: Pick<StartScreenService, "shows"> & Partial<Pick<StartScreenService, "sendGuard" | "showing">>;
   /** `current` and `eventsLive` are optional (a hosts object without them checks a send on a fresh snapshot). */
@@ -215,6 +251,14 @@ function isChatImageBlob(value: unknown): value is ChatImageBlob {
     ranges += 1;
   }
   return ranges > 0;
+}
+
+/** The same window: the same WebContents (Electron hands the same object for one window), or the same id. */
+function sameWindow(a: unknown, b: unknown): boolean {
+  if (a === b) return true;
+  const one = (a as { id?: unknown } | null)?.id;
+  const two = (b as { id?: unknown } | null)?.id;
+  return typeof one === "number" && one === two;
 }
 
 function isId(value: unknown): value is string {
@@ -348,11 +392,48 @@ export async function grokAfterPick(
   return last;
 }
 
+/** Reads of Antigravity CLI's screen after a model pick's Return, at most (a pause between; Grok's bound). */
+export const agyConfirmReads = grokConfirmReads;
+
+/**
+ * Antigravity CLI's screen after a model pick's Return (`/model <id>`), read until its last row names the picked
+ * row (agy 1.5.14 redraws it: "auto · Gemini 3.8 Flash · low"; model-choices.ts agyRowSaid), at most agyConfirmReads
+ * reads.
+ * Not named by then: not confirmed (nothing is typed again, nothing cleared); `row` is what the last row said last.
+ */
+export async function agyAfterPick(
+  models: readonly CatalogModel[],
+  picked: string,
+  read: () => Promise<string>,
+  pause: () => Promise<void>,
+): Promise<ModelPickOutcome> {
+  let row: AgyStatusRow | null = null;
+  for (let attempt = 0; attempt < agyConfirmReads; attempt += 1) {
+    if (attempt > 0) await pause();
+    let screen: string;
+    try {
+      screen = await read();
+    } catch {
+      continue;
+    }
+    row = readAgyStatusRow(screen) ?? row;
+    if (row !== null && agyRowSaid(models, row.model, row.level) === picked) return { type: "agy", confirmed: true, row };
+  }
+  return { type: "agy", confirmed: false, row };
+}
+
+/** A New agent progress without its id (main adds the page's). */
+type NewAgentProgressBody = NewAgentProgress extends infer P ? (P extends NewAgentProgress ? Omit<P, "startId"> : never) : never;
+
 /**
  * New agent's Model and Effort as the agent's start flags, each checked against the machine's list
  * for the agent (read first when none is held) and its strict pattern; a choice outside them refuses the start.
  */
-export async function newAgentFlags(catalogs: Pick<ModelCatalogs, "settled"> | undefined, hostId: string, request: NewAgentRequest): Promise<readonly StartFlag[]> {
+export async function newAgentFlags(
+  catalogs: (Pick<ModelCatalogs, "settled"> & Partial<Pick<ModelCatalogs, "refresh">>) | undefined,
+  hostId: string,
+  request: NewAgentRequest,
+): Promise<readonly StartFlag[]> {
   const model = request.model ?? null;
   const effort = request.effort ?? null;
   if (model === null && effort === null) return [];
@@ -361,6 +442,9 @@ export async function newAgentFlags(catalogs: Pick<ModelCatalogs, "settled"> | u
   const view = await catalogs.settled(hostId, agent);
   const checked = startFlags(agent, { model, effort }, view.models);
   if (!checked.ok) throw new Error(`${checked.reason} Nothing was made.`);
+  // Antigravity CLI's list read again behind a picked start (nothing waits for it): an id the machine no longer
+  // lists, which the CLI then refuses in the new pane, is not offered at the dialog's next opening.
+  if (agent === "agy") void catalogs.refresh?.(hostId, agent).catch(() => undefined);
   return checked.flags;
 }
 
@@ -483,10 +567,19 @@ export function registerIpc(deps: IpcDependencies): void {
     if (!isTerminalOpenRequest(request)) throw new Error("bad request");
     return deps.terminals.open(event.sender, request);
   });
+  // The checks that follow a Send's Return (a picture message to Claude), until the page asks for each.
+  const sendChecks = new SendChecks();
+  // The uploads' times until a picture message names them (picture-timing.ts).
+  const attachTimes = new AttachTimes();
+  // Each New agent under way with a start id: the window that asked for it and what marks its pane as put on screen
+  // by that window (IPC newAgentShown, for that pane only).
+  const newAgentShown = new Map<string, { readonly sender: unknown; readonly mark: (paneId: string) => void }>();
   // Bound to the pane as the user saw it, checked on a fresh snapshot right before writing (send.ts sendBound).
-  const sendBox = (hostId: string, paneId: string, backend: HerdrHostBackend): { box?: SendBox } => {
-    const site = boxSite(hostId, paneId, backend);
-    if (site === null) return {};
+  const sendBox = (hostId: string, paneId: string, backend: HerdrHostBackend, watch?: PictureWatch): { box?: SendBox } => {
+    const plain = boxSite(hostId, paneId, backend);
+    if (plain === null) return {};
+    // A picture message's reads and Return timed (picture-timing.ts), nothing else about them changed.
+    const site = watch === undefined ? plain : watch.site(plain);
     return {
       box: {
         site,
@@ -504,8 +597,22 @@ export function registerIpc(deps: IpcDependencies): void {
         // What a take-back left in Claude's row; a read that shows it empty resolves it.
         pulled: () => pulledRows.get(backend, paneId),
         resolved: () => pulledRows.set(backend, paneId, null),
+        // An Esc's leftover belongs to the run it came from (the pane's terminal, session and Terminal input).
+        pulledRun: () => leftoverRunOf(hostId, paneId),
+        // Claude Code's own record for the session the Send is bound to: the proof a picture message went.
+        record: (session) => (watch === undefined ? queueRecordOf(hostId, paneId, backend, session) : watch.record(queueRecordOf(hostId, paneId, backend, session))),
+        // Our message the check saw still in Claude's box after its corrective Return.
+        stuck: (run) => sentTexts.stuck(backend, paneId, run),
+        markStuck: (sent) => sentTexts.markStuck(backend, paneId, sent),
+        unstuck: (sent) => sentTexts.unstuck(backend, paneId, sent),
       },
     };
+  };
+  // The pane's run as an Esc's leftover is bound to it: its terminal, its agent's session, its Terminal input count.
+  const leftoverRunOf = (hostId: string, paneId: string): LeftoverRun | null => {
+    const pane = deps.hosts.pane(hostId, paneId);
+    if (pane === null) return null;
+    return { terminalID: pane.terminalID, session: agentSession(deps.hosts.agent?.(hostId, paneId) ?? null), generation: deps.paneInputs?.generation(hostId, paneId) ?? null };
   };
   // Claude Code's box in a pane, read through the pane-read gate (one read of a pane at a time).
   const boxSite = (hostId: string, paneId: string, backend: HerdrHostBackend): ClaudeBoxSite | null => {
@@ -521,7 +628,17 @@ export function registerIpc(deps: IpcDependencies): void {
     };
   };
   // A Send's write, bound to the pane as the user saw it (free text, and a model pick's command main made).
-  const sendPaneBound = async (hostId: string, paneId: string, text: string, binding: SendBinding, command?: TypedCommand): Promise<void> => {
+  // `checks`: told once the keys and the Return of a message whose check follows went, then its outcome
+  // (send.ts SendSite.typed and checked).
+  const sendPaneBound = async (
+    hostId: string,
+    paneId: string,
+    text: string,
+    binding: SendBinding,
+    command?: TypedCommand,
+    checks?: Pick<SendSite, "typed" | "checked" | "stopped">,
+    watch?: PictureWatch,
+  ): Promise<void> => {
     const backend = deps.hosts.backend(hostId);
     if (backend === null) throw new Error("That machine is no longer listed.");
     // Codex's hook review on the pane's screen: its Return would pick a choice; nothing goes.
@@ -532,19 +649,27 @@ export function registerIpc(deps: IpcDependencies): void {
       throw new Error(shown === null ? startScreenTexts.notSent : startScreenRefusal(shown));
     }
     const startScreens = deps.startScreens;
+    const prompts = deps.prompts;
     await sendBound(
       {
         writer: backend,
         // The latest snapshot while the events keep it current and it is under 10 s old; a fresh one otherwise
         // (relay off, events not acknowledged), before the write and the Return.
-        fresh: () => (deps.hosts.current === undefined ? deps.hosts.fresh(hostId) : deps.hosts.current(hostId)),
+        fresh: () => {
+          const check = (): Promise<boolean> => (deps.hosts.current === undefined ? deps.hosts.fresh(hostId) : deps.hosts.current(hostId));
+          return watch === undefined ? check() : watch.read(check);
+        },
         pane: () => deps.hosts.pane(hostId, paneId),
         agent: () => deps.hosts.agent(hostId, paneId),
         run: () => deps.hosts.run(hostId, paneId),
         // Terminal input since a cleanup's binding calls off its keys.
         ...(deps.paneInputs === undefined ? {} : { inputGeneration: () => deps.paneInputs!.generation(hostId, paneId) }),
         ...(startScreens?.sendGuard === undefined ? {} : { startScreen: () => startScreens.sendGuard!(hostId, paneId) }),
-        ...sendBox(hostId, paneId, backend),
+        // An idle or done Antigravity pane's screen, read in this Send's turn through the shared gate (its question
+        // read whole becomes the card).
+        ...(prompts?.sendRead === undefined ? {} : { agyScreen: () => prompts.sendRead!(hostId, paneId) }),
+        ...checks,
+        ...sendBox(hostId, paneId, backend, watch),
       },
       paneId,
       text,
@@ -559,7 +684,11 @@ export function registerIpc(deps: IpcDependencies): void {
     // With the sidebar's events live, the pane's change brings its own snapshot.
     if (deps.hosts.eventsLive?.(hostId) !== true) void deps.hosts.refresh(hostId);
   };
-  handle(IPC.paneSend, async (_event, hostId, paneId, text, binding) => {
+  // A Send answers the page once its keys and Return went: at once for a send with no check after it, and for a
+  // picture message to Claude right after Herdr took it, with the id of the check that still runs in the pane's turn
+  // (so the composer empties at the Return). A failure before then rejects with its note, as before. A check never
+  // fails the Send: an error in it reads as unknown.
+  handle(IPC.paneSend, async (_event, hostId, paneId, text, binding): Promise<SendReceipt> => {
     if (
       !isId(hostId) ||
       !isId(paneId) ||
@@ -569,7 +698,61 @@ export function registerIpc(deps: IpcDependencies): void {
     ) {
       throw new Error("bad request");
     }
-    await sendPaneBound(hostId, paneId, text, binding);
+    // A picture message past its Return is kept in drafts.json (written before this answer, so before the page retires
+    // its draft) until the transcript settles it; main's check's outcome goes with it. Its room is taken before any
+    // key: with none, the Send is refused here, nothing written, the text kept in the composer.
+    const entry = { hostId, paneId, text, terminalID: binding.terminalID, session: binding.session };
+    const kept: { id: string | null; reservation: string | null } = { id: null, reservation: null };
+    // A picture message to Claude Code is timed step by step (picture-timing.ts).
+    const pictures = binding.isAgent && binding.kind === "claude" ? imagePaths(text) : [];
+    const speed = deps.speed;
+    const watch = pictures.length === 0 || speed === undefined ? undefined : new PictureWatch(deps.speedNow ?? steadyNow, "claude", attachTimes.take(hostId, pictures), (record) => speed.record(record));
+    if (binding.isAgent && binding.kind === "claude" && imagePaths(text).length > 0 && deps.unproved?.reserve !== undefined) {
+      kept.reservation = deps.unproved.reserve(entry);
+      if (kept.reservation === null) throw new Error(unprovedNoRoomText);
+    }
+    try {
+      const receipt = await sendWithReceipt(sendChecks, (follow) =>
+        sendPaneBound(hostId, paneId, text, binding, undefined, {
+          ...follow,
+          typed: () => {
+            watch?.typed();
+            const reservation = kept.reservation;
+            kept.reservation = null;
+            try {
+              kept.id = deps.unproved?.keep(entry, reservation) ?? null;
+            } catch {
+              kept.id = null;
+            }
+            follow.typed?.();
+          },
+          checked: (outcome) => {
+            watch?.checked(outcome);
+            follow.checked?.(outcome);
+            if (kept.id !== null) deps.unproved?.outcome(kept.id, outcome);
+          },
+        }, watch),
+      );
+      // A Send that ended with no check after its write (none of its own) is recorded so.
+      if (receipt.check === null) watch?.ended(false);
+      return kept.id === null || receipt.check === null ? receipt : { ...receipt, kept: kept.id };
+    } catch (error) {
+      watch?.ended(true);
+      throw error;
+    } finally {
+      // No Return went (refused or failed before it, or a send with no copy): its room goes back.
+      if (kept.reservation !== null) deps.unproved?.release?.(kept.reservation);
+    }
+  });
+  // The check's outcome, asked once by the page (the receipt's id); null once it is gone.
+  handle(IPC.paneSendCheck, async (_event, checkId) => {
+    if (typeof checkId !== "string" || !SendChecks.isId(checkId)) throw new Error("bad request");
+    return sendChecks.take(checkId);
+  });
+  // The page is done with a check (its bubble settled, put back or dismissed, or its pane went): no more record reads.
+  handle(IPC.paneSendCheckEnd, async (_event, checkId) => {
+    if (typeof checkId !== "string" || !SendChecks.isId(checkId)) throw new Error("bad request");
+    sendChecks.end(checkId);
   });
   // A live model pick, never a finished command. The pane must be the agent's (its
   // binding names the kind, which the bound send compares); the model and effort are checked against the machine's
@@ -590,12 +773,12 @@ export function registerIpc(deps: IpcDependencies): void {
     let built = modelPickCommand(pick, view.models);
     // Grok's and Cursor's list still being read (the row came from the list held before): its read
     // is waited for and the pick checked again, so a row shown either picks or says why not.
-    if (!built.ok && view.loading && (pick.agent === "grok" || pick.agent === "cursor") && deps.modelCatalogs.afterReading !== undefined) {
+    if (!built.ok && view.loading && (pick.agent === "grok" || pick.agent === "cursor" || pick.agent === "agy") && deps.modelCatalogs.afterReading !== undefined) {
       view = await deps.modelCatalogs.afterReading(hostId, pick.agent);
       built = modelPickCommand(pick, view.models);
     }
     if (!built.ok) throw new Error(`Not sent: ${built.reason}`);
-    if (pick.agent !== "grok" && pick.agent !== "cursor") {
+    if (pick.agent !== "grok" && pick.agent !== "cursor" && pick.agent !== "agy") {
       await sendPaneBound(hostId, paneId, built.command, pickBinding(binding));
       return;
     }
@@ -608,9 +791,18 @@ export function registerIpc(deps: IpcDependencies): void {
       const once = (): Promise<string> => calls.paneRead(paneId, cursorPickReadLines);
       return gate === undefined ? once() : gate.reading(key, once);
     };
-    const name = pick.agent === "grok" ? "Grok" : "Cursor";
+    const name = pick.agent === "grok" ? "Grok" : pick.agent === "agy" ? "Antigravity CLI" : "Cursor";
     // The agent's box on its screen: its text ("" when empty) and whether the agent works; null: not on its screen.
     const boxOf = (screen: string): { readonly text: string; readonly working: boolean } | null => {
+      if (pick.agent === "agy") {
+        // Its input box seen whole and idle (agy-input.ts: never a question, a command list or a working turn);
+        // its last row says "esc to cancel" while it works.
+        // (Herdr's word that it works was checked before this read: a pick is then held for the next turn.)
+        if (agyBoxEmpty(screen)) return { text: "", working: false };
+        const draft = agyBoxDraft(screen);
+        // A box seen whole but not empty is a draft, whatever it reads as.
+        return draft === null ? null : { text: draft === "" ? " " : draft, working: false };
+      }
       if (pick.agent === "grok") {
         const grok = readGrokScreen(screen);
         return grok === null ? null : { text: grok.draft, working: false };
@@ -645,6 +837,7 @@ export function registerIpc(deps: IpcDependencies): void {
     const shows = async (command: string): Promise<TypedScreenRead> => {
       try {
         const screen = await read();
+        if (pick.agent === "agy") return agyTypedRead(screen, command);
         return family === null ? grokTypedRead(screen, command) : cursorTypedRead(screen, command, family.name);
       } catch {
         return "differs";
@@ -652,6 +845,14 @@ export function registerIpc(deps: IpcDependencies): void {
     };
     const pause = deps.pickSettleMs === undefined ? undefined : (): Promise<void> => new Promise((resolve) => setTimeout(resolve, deps.pickSettleMs));
     await sendPaneBound(hostId, paneId, built.command, pickBinding(binding), { ready, shows, ...(pause === undefined ? {} : { pause }) });
+    if (pick.agent === "agy") {
+      const pause = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, deps.pickSettleMs ?? openCodeSettleMs));
+      let last: string | null = null;
+      const outcome = await agyAfterPick(view.models, pick.model, async () => (last = await read()), pause);
+      // The last screen read goes to the shown Chat's watch too (its three chips), before the answer.
+      if (last !== null) deps.cursorReads?.noteScreen(hostId, paneId, last);
+      return outcome;
+    }
     if (pick.agent === "grok") {
       // As a Grok pick does: its files read again for the chips (Grok writes the model it switched to there).
       void deps.chat.grokFiles(hostId, paneId);
@@ -901,8 +1102,22 @@ export function registerIpc(deps: IpcDependencies): void {
       sent: () => undefined,
       machine: () => deps.hosts.backend(hostId) === backend && deps.hosts.connectionIdentity?.(hostId)?.incarnation === binding.incarnation,
     }, paneId);
-    // One at a time per pane; the send is claimed as the box matches it (not after the clear).
-    const found = await afterStopOnce(backend, paneId, boundBoxSite(site, bound.holds), sentTexts, afterStopTurns, seen, bound.run);
+    // The run a leftover of this Esc belongs to: the page's terminal and session, the Terminal input as bound.
+    const leftoverRun: LeftoverRun = { terminalID: binding.terminalID, session: binding.session, generation: deps.paneInputs?.generation(hostId, paneId) ?? null };
+    // One at a time per pane; the send is claimed as the box matches it (not after the clear). The page has its
+    // answer as soon as the box gave it (the message back and cleared, other text, or the reads ended): the reads
+    // for the working line go on and tell the page by paneEscScreen. A message that came back and was not proved
+    // cleared leaves its leftover row: the next Send reads it first, clears a start of it, and is refused while it
+    // will not clear.
+    let answer: (found: AfterStop) => void = () => undefined;
+    const known = new Promise<AfterStop>((resolve) => {
+      answer = resolve;
+    });
+    const all = afterStopOnce(backend, paneId, boundBoxSite(site, bound.holds), sentTexts, afterStopTurns, seen, bound.run, (found) => {
+      if (found.cancelled !== null && !found.cleared) pulledRows.set(backend, paneId, { spare: [found.cancelled], note: claudeBoxTexts.leftNotSent, loose: true, run: leftoverRun });
+      answer(found);
+    });
+    const found = await Promise.race([known, all]);
     return { ...found, working };
   });
   // Claude Code's queue record for the pane's session, the transcript of
@@ -1037,8 +1252,9 @@ export function registerIpc(deps: IpcDependencies): void {
     void deps.hosts.refresh(hostId);
     return note === null ? null : redactError(note);
   });
-  // The user's Install or Update (bound to the machine as the window showed it), and
-  // Settings' fresh read. Nothing is installed without the click; a stale binding sends nothing (integrations.ts).
+  // The user's Install or Update (bound to the machine as the window showed it), Settings'
+  // fresh read, Chat's Retry of a list not read, and Settings' install-before-start switch. Nothing is installed
+  // without the click or New agent's start of that kind; a stale binding sends nothing (integrations.ts).
   if (deps.integrations !== undefined) {
     const integrations = deps.integrations;
     handle(IPC.integrationInstall, async (_event, hostId, target, binding) => {
@@ -1046,7 +1262,29 @@ export function registerIpc(deps: IpcDependencies): void {
       const reply = await integrations.install(hostId, target, binding);
       return reply.sent ? reply : { sent: false, note: redactError(reply.note) };
     });
+    // Settings' Update all: the machine's out-of-date integrations through the same install, one after the other.
+    handle(IPC.integrationUpdateAll, async (_event, hostId, binding, ...rest) => {
+      if (!isId(hostId) || !isIntegrationBinding(binding) || rest.length > 0) throw new Error("bad request");
+      if (integrations.updateAll === undefined) throw new Error("This build cannot update Herdr's integrations from here.");
+      const reply = await integrations.updateAll(hostId, binding);
+      return {
+        results: reply.results.map(({ target, reply: one }) => ({ target, reply: one.sent ? one : { sent: false, note: redactError(one.note) } })),
+        note: reply.note === null ? null : redactError(reply.note),
+      };
+    });
     handle(IPC.integrationsRefresh, () => integrations.refresh());
+    handle(IPC.integrationsRetry, async (_event, hostId, binding, ...rest) => {
+      if (!isId(hostId) || !isIntegrationBinding(binding) || rest.length > 0) throw new Error("bad request");
+      await integrations.retry?.(hostId, binding);
+    });
+    handle(IPC.integrationAutoInstall, (_event, ...rest) => {
+      if (rest.length > 0) throw new Error("bad request");
+      return integrations.autoInstall?.() ?? true;
+    });
+    handle(IPC.integrationAutoInstallSet, (_event, on, ...rest) => {
+      if (typeof on !== "boolean" || rest.length > 0) throw new Error("bad request");
+      return integrations.setAutoInstall?.(on) ?? true;
+    });
   }
   // The needs-you card's questions and answers (src/main/prompt/prompts.ts).
   if (deps.prompts !== undefined) {
@@ -1078,7 +1316,14 @@ export function registerIpc(deps: IpcDependencies): void {
     ) {
       throw new Error("bad request");
     }
-    return uploadId === undefined ? deps.uploadAttachment(hostId, data, extension) : deps.uploadAttachment(hostId, data, extension, uploadId);
+    // Its copy's time and size kept for the picture message that names it (picture-timing.ts), nothing else.
+    const now = deps.speedNow ?? steadyNow;
+    const from = now();
+    const uploading = uploadId === undefined ? deps.uploadAttachment(hostId, data, extension) : deps.uploadAttachment(hostId, data, extension, uploadId);
+    return uploading.then((uploaded) => {
+      if (deps.speed !== undefined) attachTimes.set(hostId, uploaded.path, { ms: now() - from, bytes: uploaded.byteCount });
+      return uploaded;
+    });
   });
   on(IPC.attachmentCancel, (_event, uploadId) => {
     if (isId(uploadId)) deps.cancelUpload?.(uploadId);
@@ -1140,12 +1385,10 @@ export function registerIpc(deps: IpcDependencies): void {
   // Settings › Chat's save: a machine's id, one of the kinds Settings edits, and the command (the
   // checks themselves, the reader's, run in start-commands-write.ts). Only on a machine that answers now; what was
   // saved is the machine's start commands from then on (New agent, Resume and restart read it in main).
-  handle(IPC.startCommandSave, async (_event, hostId, kind, command, ...rest) => {
-    if (!isId(hostId) || !isEditableStartKind(kind) || typeof command !== "string" || command.length > maximumSaveRequestLength || rest.length > 0) {
-      throw new Error("bad request");
-    }
-    // Asked when the request comes, and again when its turn in the machine's queue comes,
-    // right before the write: still listed, still the backend it was queued on (an edit replaces it), connected.
+  // One key of the machine's start-commands file saved (a kind's start command, or `<kind>.update`): asked when
+  // the request comes, and again when its turn in the machine's queue comes, right before the write: still listed,
+  // still the backend it was queued on (an edit replaces it), connected.
+  const saveStartKey = (hostId: string, key: string, command: string) => {
     const writable = () => {
       const backend = deps.hosts.backend(hostId);
       const host = deps.hosts.list().find((candidate) => candidate.id === hostId);
@@ -1154,9 +1397,30 @@ export function registerIpc(deps: IpcDependencies): void {
       return backend;
     };
     const backend = writable();
-    return saveStartCommandOf(backend, kind, command, () => {
+    return saveStartCommandOf(backend, key, command, () => {
       if (writable() !== backend) throw new Error("That machine was edited before the save started. Nothing was saved.");
     });
+  };
+  handle(IPC.startCommandSave, async (_event, hostId, kind, command, ...rest) => {
+    if (!isId(hostId) || !isEditableStartKind(kind) || typeof command !== "string" || command.length > maximumSaveRequestLength || rest.length > 0) {
+      throw new Error("bad request");
+    }
+    return saveStartKey(hostId, kind, command);
+  });
+  // Settings › Updates › Agent CLIs' update command, one CLI's, the same file and queue (`<kind>.update`;
+  // its own check runs in start-commands-write.ts).
+  handle(IPC.updateCommandSave, async (_event, hostId, kind, command, ...rest) => {
+    if (!isId(hostId) || !isUpdateCommandKind(kind) || typeof command !== "string" || command.length > maximumSaveRequestLength || rest.length > 0) {
+      throw new Error("bad request");
+    }
+    return saveStartKey(hostId, updateCommandKey(kind), command);
+  });
+  // Update on an agent CLI, after its confirmation: a shell tab by the drawer's shell path, the machine's
+  // update command typed into it as saved (agent-update.ts). Only on a click; never by itself.
+  handle(IPC.agentUpdateRun, async (_event, hostId, request, ...rest) => {
+    if (!isId(hostId) || !isAgentUpdateRequest(request) || rest.length > 0) throw new Error("bad request");
+    // The machine's file read afresh on Run (one read per click), never the cached read.
+    return runAgentUpdate(deps.hosts, hostId, request, (backend) => freshStartCommandsOf(backend as StartCommandsSource));
   });
   handle(IPC.openLicenses, async (_event, ...rest) => {
     if (rest.length > 0) throw new Error("bad request");
@@ -1165,43 +1429,201 @@ export function registerIpc(deps: IpcDependencies): void {
   });
   // New agent: a tab in the workspace, or a split of a pane (the guarded split: fresh state, refused past 4, one
   // at a time per tab; pane-actions.ts), and the kind started there (new-agent.ts); the next snapshot lists it.
-  handle(IPC.newAgent, async (event, hostId, request) => {
-    if (!isId(hostId) || !isNewAgentRequest(request)) throw new Error("bad request");
-    const backend = deps.hosts.backend(hostId);
-    if (backend === null) throw new Error("That machine is no longer listed.");
-    // The workspace is one the machine has as it answers now, before anything is read or made.
-    const host = deps.hosts.list().find((candidate) => candidate.id === hostId);
-    if (host === undefined) throw new Error("That machine is no longer listed.");
-    if (host.state !== "connected" || host.topology === null) throw new Error(`${host.name} is not answering.`);
-    if (!host.topology.workspaces.some((workspace) => workspace.workspaceID === request.workspaceId)) {
-      throw new Error(`That workspace is not on ${host.name} now.`);
-    }
-    const actions = backend.workspaceActions?.();
-    if (actions === undefined) throw new Error("This machine cannot start an agent from here.");
-    // The machine and the connection New agent began on, taken before anything is
-    // awaited; every request it sends is checked against it right before it goes (machine-link.ts).
-    const link = machineLink(deps.hosts, hostId, host.name);
-    // The Model and Effort checked against the machine's list for the agent before anything is made.
-    const flags = await newAgentFlags(deps.modelCatalogs, hostId, request);
-    const commands = await startCommandsOf(backend);
-    // The machine's name for New agent's lines, and its home for a `~` folder (folder-cwd.ts).
-    const home = backend.homeFolder?.bind(backend);
-    const machine = { name: host.name, link, ...(home === undefined ? {} : { home }) };
-    // Whether the kind's integration is in place on this machine before anything goes; the
-    // pane its agent started in is then marked as started after it (integrations.ts startToken).
-    const token = request.kind === "shell" ? null : (deps.integrations?.startToken?.(hostId, request.kind) ?? null);
-    const started = async (run: Promise<NewAgentResult>): Promise<NewAgentResult> => {
-      const result = await run;
-      if (token !== null && result.start.type !== "noAgent" && result.start.type !== "shell") deps.integrations?.agentStarted?.(token, result.paneId, result.kind);
-      return result;
+  //
+  // The page that gave a start id hears, under it, a line naming the step in front
+  // of the pane that runs now (the model list, the start commands, Herdr's integration step, the agent list, the tab or
+  // split) and the pane once it is made, with Herdr's answer for it, so the window goes to it while the rest carries
+  // on; the answer comes at the end as before. The Model and Effort check and the start commands are read together, and
+  // a refused check is said as soon as it answers (the other read's late reply is dropped). What goes to Herdr for the
+  // start, its order (the integration step first, for every kind, as before this round) and every binding check are as
+  // before. Each New agent's steps are timed and kept (speed-record.ts): every timing and progress call only watches.
+  handle(IPC.newAgent, async (event, hostId, request, startId, ...rest) => {
+    if (!isId(hostId) || !isNewAgentRequest(request) || (startId !== undefined && !isStartId(startId)) || rest.length > 0) throw new Error("bad request");
+    const clock = deps.newAgentClock ?? liveClock;
+    const timer = new StepTimer<StartStepName>(() => clock.now());
+    const at = Date.now();
+    // Told only to the page that asked, only while it is there and only until the answer.
+    let answered = false;
+    const tell = (progress: NewAgentProgressBody): void =>
+      quietly(() => {
+        if (startId === undefined || answered) return;
+        const sender = event.sender as { isDestroyed?: () => boolean; send?: (channel: string, payload: NewAgentProgress) => void };
+        if (sender.isDestroyed?.() === true) return;
+        sender.send?.(IPC.newAgentProgress, { ...progress, startId } as NewAgentProgress);
+      });
+    // The steps in front of the pane that run now, in the order they began; the line names the first (null: none).
+    const running = new Map<string, string>();
+    let said: string | null = null;
+    const sayStep = (): void => {
+      const words = running.values().next().value ?? null;
+      if (words === said) return;
+      said = words;
+      tell({ type: "step", words });
     };
-    const start = (herdr: NewAgentHerdr) => started(newAgent(herdr, commands, request, liveClock, firstAgentTimeoutMs, agentPollMs, machine, flags));
-    if (request.where?.type === "split") {
-      return newAgentInSplit(deps.hosts, deps.layouts, event.sender, hostId, request, actions, start);
+    const stepBegan = (step: string, words: string): void => {
+      running.set(step, words);
+      sayStep();
+    };
+    const stepEnded = (step: string): void => {
+      if (running.delete(step)) sayStep();
+    };
+    let outcome: StartOutcome | null = null;
+    let paneMade = false;
+    let madeId: string | null = null;
+    let shownMs: number | null = null;
+    // The page says when it put the pane on screen (newAgentShown): that is the record's shown. Only the window that
+    // asked for this start, and only for the pane it made and told; anything else is ignored.
+    let told: string | null = null;
+    const shownEntry = {
+      sender: event.sender as unknown,
+      mark: (paneId: string): void => {
+        if (shownMs === null && told !== null && paneId === told) shownMs = timer.since();
+      },
+    };
+    if (startId !== undefined && !newAgentShown.has(startId)) newAgentShown.set(startId, shownEntry);
+    try {
+      const backend = deps.hosts.backend(hostId);
+      if (backend === null) throw new Error("That machine is no longer listed.");
+      // The workspace is one the machine has as it answers now, before anything is read or made.
+      const host = deps.hosts.list().find((candidate) => candidate.id === hostId);
+      if (host === undefined) throw new Error("That machine is no longer listed.");
+      if (host.state !== "connected" || host.topology === null) throw new Error(`${host.name} is not answering.`);
+      if (!host.topology.workspaces.some((workspace) => workspace.workspaceID === request.workspaceId)) {
+        throw new Error(`That workspace is not on ${host.name} now.`);
+      }
+      const actions = backend.workspaceActions?.();
+      if (actions === undefined) throw new Error("This machine cannot start an agent from here.");
+      // The machine and the connection New agent began on, taken before anything is
+      // awaited; every request it sends is checked against it right before it goes (machine-link.ts).
+      const link = machineLink(deps.hosts, hostId, host.name);
+      // Beside the link and before the first wait: the machine's entry, connection and command connection
+      // New agent began on. The install in front of the start is bound to these and they are never taken again
+      // after a wait, so an edit or a reconnect while the flags or the start commands are read sends no install
+      // anywhere (integrations.ts beforeStart).
+      const identity = deps.hosts.connectionIdentity(hostId);
+      const binding = identity === null ? null : { incarnation: identity.incarnation, connection: deps.hosts.connection(hostId) ?? 0, epoch: identity.epoch };
+      // The Model and Effort checked against the machine's list for the agent before anything is made, and the start
+      // commands, read together (neither waits on the other). A refused check refuses the start as soon as it answers,
+      // before anything is made, as before this round; the commands' late reply is then dropped.
+      const choosing = (request.model ?? null) !== null || (request.effort ?? null) !== null;
+      if (choosing) stepBegan("flags", newAgentProgressTexts.models(host.name));
+      stepBegan("commands", newAgentProgressTexts.commands(host.name));
+      const flagsRead = timer.time("flags", () => newAgentFlags(deps.modelCatalogs, hostId, request));
+      const commandsRead = timer.time("commands", () => startCommandsOf(backend));
+      void flagsRead.then(
+        () => stepEnded("flags"),
+        () => stepEnded("flags"),
+      );
+      void commandsRead.then(
+        () => stepEnded("commands"),
+        () => stepEnded("commands"),
+      );
+      const flags = await flagsRead;
+      const commands = await commandsRead;
+      // The machine's name for New agent's lines, and its home for a `~` folder (folder-cwd.ts).
+      const home = backend.homeFolder?.bind(backend);
+      const machine = { name: host.name, link, ...(home === undefined ? {} : { home }) };
+      const place = request.where?.type === "split" ? "pane" : "tab";
+      let startedAt: number | null = null;
+      const start = async (herdr: NewAgentHerdr): Promise<NewAgentResult> => {
+        // Herdr's integration for the kind installed or updated first when Settings' switch is on and this
+        // connection's list says it is missing or old; bounded, and the agent starts whatever came of it.
+        let word: IntegrationWord = "none";
+        const from = clock.now();
+        const installed =
+          request.kind === "shell" || binding === null
+            ? null
+            : ((await deps.integrations?.beforeStart?.(hostId, request.kind, binding, {
+                began: (step) =>
+                  quietly(() => {
+                    word = step.joined ? "waited" : step.action;
+                    stepBegan("integration", newAgentProgressTexts.integration(step.action, step.name, host.name));
+                  }),
+                ended: (stalled) =>
+                  quietly(() => {
+                    if (stalled) word = "stalled";
+                  }),
+              })) ?? null);
+        stepEnded("integration");
+        if (request.kind !== "shell") timer.add("integration", clock.now() - from, { word });
+        // Whether the kind's integration is in place on this machine before the start goes; the
+        // pane its agent started in is then marked as started after it (integrations.ts startToken).
+        const token = request.kind === "shell" ? null : (deps.integrations?.startToken?.(hostId, request.kind) ?? null);
+        const result = await newAgent(herdr, commands, request, clock, firstAgentTimeoutMs, agentPollMs, machine, flags, {
+          pending: (step) => {
+            running.delete("list");
+            running.delete("pane");
+            if (step === "list") running.set("list", newAgentProgressTexts.list(host.name));
+            if (step === "pane") running.set("pane", newAgentProgressTexts.pane(place, host.name));
+            sayStep();
+          },
+          paneMade: (pane) => {
+            paneMade = true;
+            madeId = pane.paneId;
+            // Kept for this start only: its machine's entry, connection and command connection (`binding`, taken
+            // before the first wait) must still hold now, and again as the page hears it; a reply that fails either
+            // is dropped and the pane is not shown early (the answer still comes). Its terminal can then open before
+            // a snapshot lists it (hosts.ts madePane, which checks them a third time).
+            quietly(() => {
+              if (binding === null || deps.hosts.noteMade?.(hostId, pane.pane, binding) !== true) return;
+              if (deps.hosts.madePane?.(hostId, pane.paneId) === null) return;
+              told = pane.paneId;
+              tell({ type: "pane", paneId: pane.paneId, tabId: pane.tabId, tab: pane.tab, pane: pane.pane });
+            });
+          },
+          timer,
+          ended: (end) => {
+            outcome = end;
+          },
+        });
+        quietly(() => {
+          startedAt = clock.now();
+        });
+        if (token !== null && result.start.type !== "noAgent" && result.start.type !== "shell") deps.integrations?.agentStarted?.(token, result.paneId, result.kind);
+        // The install's line first, then what the start said.
+        if (installed === null) return result;
+        return { ...result, summary: result.summary === null ? installed : `${installed} ${result.summary}` };
+      };
+      if (request.where?.type === "split") {
+        const result = await newAgentInSplit(deps.hosts, deps.layouts, event.sender, hostId, request, actions, start);
+        // Its refresh ran in newAgentInSplit, after the start answered.
+        quietly(() => {
+          if (startedAt !== null) timer.add("refresh", clock.now() - startedAt);
+        });
+        return result;
+      }
+      const result = await start(actions);
+      await timer.time("refresh", () => deps.hosts.refresh(hostId));
+      return result;
+    } catch (error) {
+      quietly(() => {
+        outcome = !paneMade ? "refused" : error instanceof AgentStartFailed && error.paneClosed ? "closed" : "failed";
+        // A start that failed and closed its pane: main and the page let it go now (the page before the answer).
+        const made = madeId;
+        if (made !== null && error instanceof AgentStartFailed && error.paneClosed) {
+          deps.hosts.forgetMade?.(hostId, made);
+          if (told === made) tell({ type: "closed", paneId: made });
+        }
+      });
+      throw error;
+    } finally {
+      answered = true;
+      // The made pane stays kept after the answer, until a later snapshot lists it or the rest (hosts.ts madePane).
+      if (startId !== undefined && newAgentShown.get(startId) === shownEntry) newAgentShown.delete(startId);
+      const record: SpeedRecord = { what: "start", at, kind: speedKind(request.kind), steps: timer.list(), shownMs, totalMs: timer.since(), outcome: outcome ?? "failed" };
+      const speed = deps.speed;
+      if (speed !== undefined) keepLater((kept: SpeedRecord) => speed.record(kept), record);
     }
-    const result = await start(actions);
-    await deps.hosts.refresh(hostId);
-    return result;
+  });
+  // The page put a New agent's pane on screen (its start id): the record's shown. Nothing is asked of any machine.
+  // Only from the window that asked for that start, and only for the pane that start made; anything else is ignored.
+  handle(IPC.newAgentShown, (event, startId, paneId, ...rest) => {
+    if (!isStartId(startId) || !isId(paneId) || rest.length > 0) throw new Error("bad request");
+    quietly(() => {
+      const shown = newAgentShown.get(startId);
+      if (shown === undefined || !sameWindow(shown.sender, event.sender)) return;
+      shown.mark(paneId);
+    });
   });
   // The terminal drawer's shell, made by New agent's shell path (tab.create alone) in
   // a workspace the machine has as it answers now. Its × is the pane close, which always asks in the page

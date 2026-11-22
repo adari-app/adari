@@ -24,6 +24,16 @@
 // model's default when a model without the chosen level is picked. The list is
 // asked for only when you open either (or a remembered choice needs it); main
 // checks the choice against it again before anything is made.
+//
+// While it starts: the step in front of
+// the pane that runs now (the model list or the start commands read, Herdr's
+// integration installed or updated, the agent list, the tab or split) is
+// named in the note once that step ran about a second, and the line goes as
+// soon as another step runs; once the pane exists the dialog closes and the
+// window goes to it (onShown, with Herdr's answer for it) while the start
+// carries on, and its answer comes later (onStarted, or onFailed with the
+// same words a failure says here). A failure that closed the shown pane says
+// so first (onClosed), so the window stops showing it.
 
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 
@@ -32,6 +42,9 @@ import { splitRefusal } from "../../shared/pane-layout";
 import {
   defaultPlace,
   lastKind,
+  newStartId,
+  progressAfterMs,
+  type NewAgentProgress,
   newAgentKinds,
   newAgentNote,
   placeKey,
@@ -70,9 +83,21 @@ export interface NewAgentDialogProps {
   readonly exact?: boolean;
   /** The folder field's list and This Mac's Choose… (absent: a plain field). */
   readonly folders?: FolderCalls | null;
-  /** `models`, the Model and Effort chosen (absent, or both null: the agent's defaults). */
-  start(place: NewAgentPlace, folder: string | null, kind: string, where: NewAgentWhere, models?: StartChoice): Promise<NewAgentResult>;
-  onStarted(place: NewAgentPlace, result: NewAgentResult): void;
+  /**
+   * `models`, the Model and Effort chosen (absent, or both null: the agent's defaults); `startId`, the id its progress
+   * comes under (`progress`).
+   */
+  start(place: NewAgentPlace, folder: string | null, kind: string, where: NewAgentWhere, models: StartChoice | undefined, startId: string): Promise<NewAgentResult>;
+  /** New agent's progress from main (absent: none comes; the dialog waits for the answer as before). */
+  readonly progress?: (listener: (progress: NewAgentProgress) => void) => () => void;
+  /** The new pane exists (main's word for it, with Herdr's answer): the dialog is done; the start carries on behind it. */
+  onShown?(place: NewAgentPlace, made: Extract<NewAgentProgress, { readonly type: "pane" }>): void;
+  /** The answer; `shown`: its pane was shown already (onShown). */
+  onStarted(place: NewAgentPlace, result: NewAgentResult, shown: boolean): void;
+  /** A failure after the pane `paneId` was shown, in the words the dialog would have said (after "Not started: "). */
+  onFailed?(place: NewAgentPlace, message: string, paneId: string): void;
+  /** The start failed and closed the pane `paneId` it showed (before onFailed). */
+  onClosed?(place: NewAgentPlace, paneId: string): void;
   onClose(): void;
 }
 
@@ -89,7 +114,23 @@ const whereChoices: readonly { readonly value: NewAgentWhereChoice; readonly tit
   { value: "down", title: "Split down" },
 ];
 
-export function NewAgentDialog({ places, wanted, storage, splitTarget = null, initialWhere = "tab", initialFolder, exact = false, folders = null, start, onStarted, onClose }: NewAgentDialogProps) {
+export function NewAgentDialog({
+  places,
+  wanted,
+  storage,
+  splitTarget = null,
+  initialWhere = "tab",
+  initialFolder,
+  exact = false,
+  folders = null,
+  start,
+  progress,
+  onShown,
+  onStarted,
+  onFailed,
+  onClosed,
+  onClose,
+}: NewAgentDialogProps) {
   useEscapeOwner();
   const [key, setKey] = useState<string | null>(() => {
     if (exact && wanted !== null) return placeKey(wanted);
@@ -107,6 +148,8 @@ export function NewAgentDialog({ places, wanted, storage, splitTarget = null, in
   }, []);
   const [kind, setKind] = useState(() => lastKind(storage));
   const [phase, setPhase] = useState<Phase>({ type: "editing" });
+  // The step before the pane that has run about a second, named (null: none).
+  const [stepLine, setStepLine] = useState<string | null>(null);
   const [whereChoice, setWhereChoice] = useState<NewAgentWhereChoice>(initialWhere);
   // Closed (Escape, Cancel): a start still under way opens nothing.
   const closed = useRef(false);
@@ -149,17 +192,31 @@ export function NewAgentDialog({ places, wanted, storage, splitTarget = null, in
   // A remembered model the machine's list no longer names (once it has been read) is the agent's default again.
   const listRead = catalog !== null && catalog.models.length > 0;
   const chosenModel = remembered.model !== null && (!listRead || listed.some((model) => model.id === remembered.model)) ? remembered.model : null;
-  const levels = catalogAgent === null || !startTakesEffort(catalogAgent) ? null : effortChoices(catalogAgent, catalogModels, chosenModel);
+  // Antigravity CLI's Effort row only for a model that has levels (its level is part of the id it starts with).
+  const agyLevels = catalogAgent === "agy" ? (chosenModel === null ? null : effortChoices("agy", catalogModels, chosenModel)) : undefined;
+  const levels =
+    catalogAgent === null || !startTakesEffort(catalogAgent)
+      ? null
+      : agyLevels !== undefined
+        ? agyLevels === null || agyLevels.levels.length === 0
+          ? null
+          : agyLevels
+        : effortChoices(catalogAgent, catalogModels, chosenModel);
   const chosenEffort = levels === null || remembered.effort === null ? null : listRead ? fallbackEffort(levels, remembered.effort) : remembered.effort;
   const chosen: StartChoice = { model: chosenModel, effort: chosenEffort };
   const chosenLabel = chosenModel === null ? "Agent's default" : (listed.find((model) => model.id === chosenModel)?.label ?? chosenModel);
   // The list is asked for when a remembered choice needs checking, or when you open Model or Effort.
-  const needsList = remembered.model !== null || remembered.effort !== null;
+  // Antigravity CLI's at once: whether it has a list at all decides its Model row (an old CLI has none).
+  const needsList = remembered.model !== null || remembered.effort !== null || catalogAgent === "agy";
   const loadList = (): void => {
-    if (place !== null && catalogAgent !== null && catalogAgent !== "agy") modelCatalogStore.load(place.hostId, catalogAgent);
+    if (place !== null && catalogAgent !== null) modelCatalogStore.load(place.hostId, catalogAgent);
   };
+  // Antigravity CLI's Model row only once its list was read (none read: today's line, plain `agy`).
+  const agyNoList = catalogAgent === "agy" && !listRead;
   useEffect(() => {
-    if (needsList && catalog === null) loadList();
+    // Antigravity CLI's asked again at each opening or choice (the service keeps its own retry bound): a first empty
+    // answer is not kept for good.
+    if (needsList && (catalog === null || catalogAgent === "agy")) loadList();
     setModelOpen(false);
   }, [choiceKey]);
   const setChoice = (next: StartChoice): void => {
@@ -168,7 +225,8 @@ export function NewAgentDialog({ places, wanted, storage, splitTarget = null, in
   const pickModel = (id: string | null): void => {
     if (catalogAgent === null) return;
     // T3 Code's rule: the chosen level stays when the new model takes it, else that model's default.
-    const effort = levels === null ? null : fallbackEffort(effortChoices(catalogAgent, catalogModels, id), chosen.effort);
+    // Antigravity CLI's from the picked model's own levels (none before a model is picked).
+    const effort = !startTakesEffort(catalogAgent) || (catalogAgent === "agy" && id === null) ? null : fallbackEffort(effortChoices(catalogAgent, catalogModels, id), chosen.effort);
     setChoice({ model: id, effort });
   };
 
@@ -192,20 +250,64 @@ export function NewAgentDialog({ places, wanted, storage, splitTarget = null, in
     if (place === null || phase.type === "working") return;
     setPhase({ type: "working" });
     rememberKind(storage, choice.kind);
-    if (catalogAgent !== null && catalogAgent !== "agy") rememberStartChoice(storage, place.hostId, catalogAgent, chosen);
+    // Antigravity CLI with no list read starts plain, as before (no choice goes, the one remembered stays).
+    if (catalogAgent !== null && !agyNoList) rememberStartChoice(storage, place.hostId, catalogAgent, chosen);
     const trimmed = folder.trim();
-    const models = catalogAgent === null || catalogAgent === "agy" ? undefined : chosen;
-    start(place, trimmed === "" ? null : trimmed, choice.kind, request, models).then(
+    const models = catalogAgent === null || agyNoList ? undefined : chosen;
+    const startId = newStartId();
+    // Its pane shown (the dialog done); a step's line shows once it ran progressAfterMs.
+    let shown = false;
+    let shownPane = "";
+    let stepTimer: ReturnType<typeof setTimeout> | null = null;
+    const quiet = (): void => {
+      if (stepTimer !== null) clearTimeout(stepTimer);
+      stepTimer = null;
+    };
+    const stop = progress?.((said) => {
+      if (said.startId !== startId) return;
+      quiet();
+      if (said.type === "step") {
+        // Another step runs: the line names it only once it, too, ran progressAfterMs.
+        setStepLine(null);
+        if (said.words !== null) {
+          const words = said.words;
+          stepTimer = setTimeout(() => {
+            if (!closed.current && !shown) setStepLine(words);
+          }, progressAfterMs);
+        }
+        return;
+      }
+      if (said.type === "closed") {
+        if (shown && said.paneId === shownPane) onClosed?.(place, said.paneId);
+        return;
+      }
+      // Closed meanwhile: a start still under way opens nothing.
+      if (closed.current || shown) return;
+      shown = true;
+      shownPane = said.paneId;
+      onShown?.(place, said);
+    });
+    const done = (): void => {
+      quiet();
+      stop?.();
+    };
+    start(place, trimmed === "" ? null : trimmed, choice.kind, request, models, startId).then(
       (result) => {
-        if (closed.current) return;
+        done();
+        if (closed.current && !shown) return;
         // The new pane's chips say the choice at once, until the agent says its own.
         if (models !== undefined && result.start.type !== "noAgent" && result.start.type !== "shell") {
           agentPicks.noteStart(place.hostId, result.paneId, { kind: result.kind, model: models.model, modelLabel: models.model === null || catalogAgent === null ? null : startChipLabel(catalogAgent, catalogModels, models.model), effort: models.effort });
         }
-        onStarted(place, result);
+        onStarted(place, result, shown);
       },
       (failure: unknown) => {
-        if (!closed.current) setPhase({ type: "failed", message: message(failure) });
+        done();
+        if (shown) onFailed?.(place, message(failure), shownPane);
+        else if (!closed.current) {
+          setStepLine(null);
+          setPhase({ type: "failed", message: message(failure) });
+        }
       },
     );
   };
@@ -248,7 +350,7 @@ export function NewAgentDialog({ places, wanted, storage, splitTarget = null, in
     phase.type === "failed"
       ? `Not started: ${phase.message}`
       : working
-        ? `Starting ${choice.kind === "shell" ? "a shell" : choice.title}…`
+        ? (stepLine ?? `Starting ${choice.kind === "shell" ? "a shell" : choice.title}…`)
         : place === null
           ? exact
             ? "That workspace is not available now."
@@ -344,7 +446,7 @@ export function NewAgentDialog({ places, wanted, storage, splitTarget = null, in
         {catalogAgent === null ? null : (
           <div className="fld na-models">
             <div className="lb">{levels === null ? "Model" : "Model and effort"}</div>
-            {catalogAgent === "agy" || !startTakesModel(catalogAgent) ? (
+            {agyNoList || !startTakesModel(catalogAgent) ? (
               <div className="na-mnote">{antigravityNoList}</div>
             ) : (
               <div className="na-mrow">

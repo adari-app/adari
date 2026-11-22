@@ -192,7 +192,7 @@ export class HerdrClient {
   /**
    * Asks Herdr to install (or update) one agent integration
    * (`integration.install`, IntegrationInstallParams { target }); Herdr's messages (IntegrationInstallResult). Only
-   * on a person's click (src/main/integrations.ts), never on its own. Herdr's lines are its `details.messages`;
+   * on a person's click, or before New agent starts that kind with Settings' switch on (src/main/integrations.ts). Herdr's lines are its `details.messages`;
    * a reply in another shape, or naming another target, is a DecodingError.
    */
   integrationInstall(target: string): Promise<string[]> {

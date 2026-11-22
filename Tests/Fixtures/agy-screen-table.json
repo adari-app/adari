@@ -1,0 +1,2850 @@
+{
+ "source": "A review's screens.json and mac-screens.json (the Mac at b6b38489), the sample folder renamed to a neutral path of the same length",
+ "screens": [
+  {
+   "name": "trust-119",
+   "text": "Accessing workspace:\n\n/tmp/demo/agy-sample/work-012\n\nDo you trust the contents of this project?\n\nAntigravity CLI requires permission to read, edit, and execute files here.\n\n> Yes, I trust this folder\n  No, exit\n\n  ↑/↓ Navigate · enter Confirm\n                                                                                         auto · Gemini 4 Hydrogen · low\n",
+   "mac": {
+    "kind": "agyTrust",
+    "question": "Do you trust the contents of this project?",
+    "context": {
+     "type": "file",
+     "name": "/tmp/demo/agy-sample/work-012"
+    },
+    "options": [
+     {
+      "key": "1",
+      "label": "Yes, I trust this folder",
+      "keys": [
+       "Enter"
+      ],
+      "marked": true,
+      "lasting": false
+     },
+     {
+      "key": "2",
+      "label": "No, exit",
+      "keys": [
+       "Down",
+       "Enter"
+      ],
+      "marked": false,
+      "lasting": false
+     }
+    ],
+    "body": [
+     "Accessing workspace:",
+     "/tmp/demo/agy-sample/work-012",
+     "Antigravity CLI requires permission to read, edit, and execute files here."
+    ],
+    "drawnOptions": [
+     "Yes, I trust this folder",
+     "No, exit"
+    ]
+   }
+  },
+  {
+   "name": "trust-119-width-60",
+   "text": "Accessing workspace:\n\n/tmp/demo/agy-sample/work-012\n\nDo you trust the contents of this project?\n\nAntigravity CLI requires permission to read, edit, and\nexecute files here.\n\n> Yes, I trust this folder\n  No, exit\n\n  ↑/↓ Navigate · enter Confirm\n                              auto · Gemini 4 Hydrogen · low\n",
+   "mac": null
+  },
+  {
+   "name": "trust-119-width-80",
+   "text": "Accessing workspace:\n\n/tmp/demo/agy-sample/work-012\n\nDo you trust the contents of this project?\n\nAntigravity CLI requires permission to read, edit, and execute files here.\n\n> Yes, I trust this folder\n  No, exit\n\n  ↑/↓ Navigate · enter Confirm\n                                                  auto · Gemini 4 Hydrogen · low\n",
+   "mac": {
+    "kind": "agyTrust",
+    "question": "Do you trust the contents of this project?",
+    "context": {
+     "type": "file",
+     "name": "/tmp/demo/agy-sample/work-012"
+    },
+    "options": [
+     {
+      "key": "1",
+      "label": "Yes, I trust this folder",
+      "keys": [
+       "Enter"
+      ],
+      "marked": true,
+      "lasting": false
+     },
+     {
+      "key": "2",
+      "label": "No, exit",
+      "keys": [
+       "Down",
+       "Enter"
+      ],
+      "marked": false,
+      "lasting": false
+     }
+    ],
+    "body": [
+     "Accessing workspace:",
+     "/tmp/demo/agy-sample/work-012",
+     "Antigravity CLI requires permission to read, edit, and execute files here."
+    ],
+    "drawnOptions": [
+     "Yes, I trust this folder",
+     "No, exit"
+    ]
+   }
+  },
+  {
+   "name": "trust-119-width-100",
+   "text": "Accessing workspace:\n\n/tmp/demo/agy-sample/work-012\n\nDo you trust the contents of this project?\n\nAntigravity CLI requires permission to read, edit, and execute files here.\n\n> Yes, I trust this folder\n  No, exit\n\n  ↑/↓ Navigate · enter Confirm\n                                                                      auto · Gemini 4 Hydrogen · low\n",
+   "mac": {
+    "kind": "agyTrust",
+    "question": "Do you trust the contents of this project?",
+    "context": {
+     "type": "file",
+     "name": "/tmp/demo/agy-sample/work-012"
+    },
+    "options": [
+     {
+      "key": "1",
+      "label": "Yes, I trust this folder",
+      "keys": [
+       "Enter"
+      ],
+      "marked": true,
+      "lasting": false
+     },
+     {
+      "key": "2",
+      "label": "No, exit",
+      "keys": [
+       "Down",
+       "Enter"
+      ],
+      "marked": false,
+      "lasting": false
+     }
+    ],
+    "body": [
+     "Accessing workspace:",
+     "/tmp/demo/agy-sample/work-012",
+     "Antigravity CLI requires permission to read, edit, and execute files here."
+    ],
+    "drawnOptions": [
+     "Yes, I trust this folder",
+     "No, exit"
+    ]
+   }
+  },
+  {
+   "name": "trust-119-width-119",
+   "text": "Accessing workspace:\n\n/tmp/demo/agy-sample/work-012\n\nDo you trust the contents of this project?\n\nAntigravity CLI requires permission to read, edit, and execute files here.\n\n> Yes, I trust this folder\n  No, exit\n\n  ↑/↓ Navigate · enter Confirm\n                                                                                         auto · Gemini 4 Hydrogen · low\n",
+   "mac": {
+    "kind": "agyTrust",
+    "question": "Do you trust the contents of this project?",
+    "context": {
+     "type": "file",
+     "name": "/tmp/demo/agy-sample/work-012"
+    },
+    "options": [
+     {
+      "key": "1",
+      "label": "Yes, I trust this folder",
+      "keys": [
+       "Enter"
+      ],
+      "marked": true,
+      "lasting": false
+     },
+     {
+      "key": "2",
+      "label": "No, exit",
+      "keys": [
+       "Down",
+       "Enter"
+      ],
+      "marked": false,
+      "lasting": false
+     }
+    ],
+    "body": [
+     "Accessing workspace:",
+     "/tmp/demo/agy-sample/work-012",
+     "Antigravity CLI requires permission to read, edit, and execute files here."
+    ],
+    "drawnOptions": [
+     "Yes, I trust this folder",
+     "No, exit"
+    ]
+   }
+  },
+  {
+   "name": "trust-119-width-160",
+   "text": "Accessing workspace:\n\n/tmp/demo/agy-sample/work-012\n\nDo you trust the contents of this project?\n\nAntigravity CLI requires permission to read, edit, and execute files here.\n\n> Yes, I trust this folder\n  No, exit\n\n  ↑/↓ Navigate · enter Confirm\n                                                                                                                                  auto · Gemini 4 Hydrogen · low\n",
+   "mac": {
+    "kind": "agyTrust",
+    "question": "Do you trust the contents of this project?",
+    "context": {
+     "type": "file",
+     "name": "/tmp/demo/agy-sample/work-012"
+    },
+    "options": [
+     {
+      "key": "1",
+      "label": "Yes, I trust this folder",
+      "keys": [
+       "Enter"
+      ],
+      "marked": true,
+      "lasting": false
+     },
+     {
+      "key": "2",
+      "label": "No, exit",
+      "keys": [
+       "Down",
+       "Enter"
+      ],
+      "marked": false,
+      "lasting": false
+     }
+    ],
+    "body": [
+     "Accessing workspace:",
+     "/tmp/demo/agy-sample/work-012",
+     "Antigravity CLI requires permission to read, edit, and execute files here."
+    ],
+    "drawnOptions": [
+     "Yes, I trust this folder",
+     "No, exit"
+    ]
+   }
+  },
+  {
+   "name": "trust-119-width-200",
+   "text": "Accessing workspace:\n\n/tmp/demo/agy-sample/work-012\n\nDo you trust the contents of this project?\n\nAntigravity CLI requires permission to read, edit, and execute files here.\n\n> Yes, I trust this folder\n  No, exit\n\n  ↑/↓ Navigate · enter Confirm\n                                                                                                                                                                          auto · Gemini 4 Hydrogen · low\n",
+   "mac": {
+    "kind": "agyTrust",
+    "question": "Do you trust the contents of this project?",
+    "context": {
+     "type": "file",
+     "name": "/tmp/demo/agy-sample/work-012"
+    },
+    "options": [
+     {
+      "key": "1",
+      "label": "Yes, I trust this folder",
+      "keys": [
+       "Enter"
+      ],
+      "marked": true,
+      "lasting": false
+     },
+     {
+      "key": "2",
+      "label": "No, exit",
+      "keys": [
+       "Down",
+       "Enter"
+      ],
+      "marked": false,
+      "lasting": false
+     }
+    ],
+    "body": [
+     "Accessing workspace:",
+     "/tmp/demo/agy-sample/work-012",
+     "Antigravity CLI requires permission to read, edit, and execute files here."
+    ],
+    "drawnOptions": [
+     "Yes, I trust this folder",
+     "No, exit"
+    ]
+   }
+  },
+  {
+   "name": "trust-119-no-footer",
+   "text": "Accessing workspace:\n\n/tmp/demo/agy-sample/work-012\n\nDo you trust the contents of this project?\n\nAntigravity CLI requires permission to read, edit, and execute files here.\n\n> Yes, I trust this folder\n  No, exit\n\n                                                                                         auto · Gemini 4 Hydrogen · low\n",
+   "mac": null
+  },
+  {
+   "name": "trust-119-no-marker",
+   "text": "Accessing workspace:\n\n/tmp/demo/agy-sample/work-012\n\nDo you trust the contents of this project?\n\nAntigravity CLI requires permission to read, edit, and execute files here.\n\n  Yes, I trust this folder\n  No, exit\n\n  ↑/↓ Navigate · enter Confirm\n                                                                                         auto · Gemini 4 Hydrogen · low\n",
+   "mac": null
+  },
+  {
+   "name": "trust-119-two-markers",
+   "text": "Accessing workspace:\n\n/tmp/demo/agy-sample/work-012\n\nDo you trust the contents of this project?\n\nAntigravity CLI requires permission to read, edit, and execute files here.\n\n> Yes, I trust this folder\n> No, exit\n\n  ↑/↓ Navigate · enter Confirm\n                                                                                         auto · Gemini 4 Hydrogen · low\n",
+   "mac": null
+  },
+  {
+   "name": "trust-119-idle-after",
+   "text": "Accessing workspace:\n\n/tmp/demo/agy-sample/work-012\n\nDo you trust the contents of this project?\n\nAntigravity CLI requires permission to read, edit, and execute files here.\n\n> Yes, I trust this folder\n  No, exit\n\n  ↑/↓ Navigate · enter Confirm\n                                                                                         auto · Gemini 4 Hydrogen · low\n\n────\n> \n────\n? for shortcuts          auto · Gemini 4 Hydrogen · low\n",
+   "mac": null
+  },
+  {
+   "name": "command-ask",
+   "text": "> Read notes.txt in this folder and tell me its second line in one short sentence.\n\n● Explored 1 file (notes.txt) (ctrl+o to expand)\n\n  The second line of notes.txt:2 is beta.\n\n────────────────────────────────────────────────────────────\n> Do three things in this folder: run ls -la, append the line delta to notes.txt, then create hello.py that prints hi and run it with python3. Answer in two short sentences.\n\n○ Thought for 3.2s (Initial plan is to execute three operations. First, list directory contents. Then append data to a specific file, ensuring the append operation is correctly configured. Finally...)\n● Ran (ls -la)\n● Edited 2 files (notes.txt, hello.py)\n● Ran (python3 hello.py) (ctrl+o to expand)\n\n  I ran ls -la (which showed only notes.txt initially) and appended delta to notes.txt. I also created hello.py and ran it with python3, which printed hi.\n\n────────────────────────────────────────────────────────────\n> Create the file ask.txt containing the single word hello.\n\n● Edited 1 file (ask.txt) (ctrl+o to expand)\n\n────────────────────────────────────────────────────────────\n> Run the shell command: date\n\n● Ran (date) (ctrl+o to expand)\n\nCommand\n─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n\nRequesting permission for:\n   date\n\nRun this command?\n> 1. Yes, run command\n  2. Yes, and always allow in this conversation for commands that start with 'date'\n  3. Yes, and always allow for commands that start with 'date' (Persist to settings.json)\n  4. No, cancel\n\n  ↑/↓ Navigate · tab Amend · ctrl+g edit/expand command\nesc to cancel                                                                                                                                                                     Gemini 4 Hydrogen · low\n",
+   "mac": {
+    "kind": "agyAsk",
+    "question": "Run this command?",
+    "context": {
+     "type": "command",
+     "text": "date"
+    },
+    "options": [
+     {
+      "key": "1",
+      "label": "Yes, run command",
+      "keys": [
+       "1"
+      ],
+      "marked": true,
+      "lasting": false
+     },
+     {
+      "key": "2",
+      "label": "Yes, and always allow in this conversation for commands that start with 'date'",
+      "keys": [
+       "2"
+      ],
+      "marked": false,
+      "lasting": true
+     },
+     {
+      "key": "3",
+      "label": "Yes, and always allow for commands that start with 'date' (Persist to settings.json)",
+      "keys": [
+       "3"
+      ],
+      "marked": false,
+      "lasting": true
+     },
+     {
+      "key": "4",
+      "label": "No, cancel",
+      "keys": [
+       "4"
+      ],
+      "marked": false,
+      "lasting": false
+     }
+    ],
+    "body": [
+     "Command",
+     "",
+     "Requesting permission for:",
+     "   date",
+     ""
+    ],
+    "drawnOptions": [
+     "  1. Yes, run command",
+     "  2. Yes, and always allow in this conversation for commands that start with 'date'",
+     "  3. Yes, and always allow for commands that start with 'date' (Persist to settings.json)",
+     "  4. No, cancel"
+    ]
+   }
+  },
+  {
+   "name": "command-ask-width-60",
+   "text": "> Read notes.txt in this folder and tell me its second line in one short sentence.\n\n● Explored 1 file (notes.txt) (ctrl+o to expand)\n\n  The second line of notes.txt:2 is beta.\n\n────────────────────────────────────────────────────────────\n> Do three things in this folder: run ls -la, append the line delta to notes.txt, then create hello.py that prints hi and run it with python3. Answer in two short sentences.\n\n○ Thought for 3.2s (Initial plan is to execute three operations. First, list directory contents. Then append data to a specific file, ensuring the append operation is correctly configured. Finally...)\n● Ran (ls -la)\n● Edited 2 files (notes.txt, hello.py)\n● Ran (python3 hello.py) (ctrl+o to expand)\n\n  I ran ls -la (which showed only notes.txt initially) and appended delta to notes.txt. I also created hello.py and ran it with python3, which printed hi.\n\n────────────────────────────────────────────────────────────\n> Create the file ask.txt containing the single word hello.\n\n● Edited 1 file (ask.txt) (ctrl+o to expand)\n\n────────────────────────────────────────────────────────────\n> Run the shell command: date\n\n● Ran (date) (ctrl+o to expand)\n\nCommand\n────────────────────────────────────────────────────────────\n\nRequesting permission for:\n   date\n\nRun this command?\n> 1. Yes, run command\n  2. Yes, and always allow in this conversation for commands\n     that start with 'date'\n  3. Yes, and always allow for commands that start with\n     'date' (Persist to settings.json)\n  4. No, cancel\n\n  ↑/↓ Navigate · tab Amend · ctrl+g edit/expand command\nesc to cancel                        Gemini 4 Hydrogen · low\n",
+   "mac": {
+    "kind": "agyAsk",
+    "question": "Run this command?",
+    "context": {
+     "type": "command",
+     "text": "date"
+    },
+    "options": [
+     {
+      "key": "1",
+      "label": "Yes, run command",
+      "keys": [
+       "1"
+      ],
+      "marked": true,
+      "lasting": false
+     },
+     {
+      "key": "2",
+      "label": "Yes, and always allow in this conversation for commands that start with 'date'",
+      "keys": [
+       "2"
+      ],
+      "marked": false,
+      "lasting": true
+     },
+     {
+      "key": "3",
+      "label": "Yes, and always allow for commands that start with 'date' (Persist to settings.json)",
+      "keys": [
+       "3"
+      ],
+      "marked": false,
+      "lasting": true
+     },
+     {
+      "key": "4",
+      "label": "No, cancel",
+      "keys": [
+       "4"
+      ],
+      "marked": false,
+      "lasting": false
+     }
+    ],
+    "body": [
+     "Command",
+     "",
+     "Requesting permission for:",
+     "   date",
+     ""
+    ],
+    "drawnOptions": [
+     "  1. Yes, run command",
+     "  2. Yes, and always allow in this conversation for commands",
+     "     that start with 'date'",
+     "  3. Yes, and always allow for commands that start with",
+     "     'date' (Persist to settings.json)",
+     "  4. No, cancel"
+    ]
+   }
+  },
+  {
+   "name": "command-ask-width-80",
+   "text": "> Read notes.txt in this folder and tell me its second line in one short sentence.\n\n● Explored 1 file (notes.txt) (ctrl+o to expand)\n\n  The second line of notes.txt:2 is beta.\n\n────────────────────────────────────────────────────────────────────────────────\n> Do three things in this folder: run ls -la, append the line delta to notes.txt, then create hello.py that prints hi and run it with python3. Answer in two short sentences.\n\n○ Thought for 3.2s (Initial plan is to execute three operations. First, list directory contents. Then append data to a specific file, ensuring the append operation is correctly configured. Finally...)\n● Ran (ls -la)\n● Edited 2 files (notes.txt, hello.py)\n● Ran (python3 hello.py) (ctrl+o to expand)\n\n  I ran ls -la (which showed only notes.txt initially) and appended delta to notes.txt. I also created hello.py and ran it with python3, which printed hi.\n\n────────────────────────────────────────────────────────────────────────────────\n> Create the file ask.txt containing the single word hello.\n\n● Edited 1 file (ask.txt) (ctrl+o to expand)\n\n────────────────────────────────────────────────────────────────────────────────\n> Run the shell command: date\n\n● Ran (date) (ctrl+o to expand)\n\nCommand\n────────────────────────────────────────────────────────────────────────────────\n\nRequesting permission for:\n   date\n\nRun this command?\n> 1. Yes, run command\n  2. Yes, and always allow in this conversation for commands that start with\n     'date'\n  3. Yes, and always allow for commands that start with 'date' (Persist to\n     settings.json)\n  4. No, cancel\n\n  ↑/↓ Navigate · tab Amend · ctrl+g edit/expand command\nesc to cancel                                            Gemini 4 Hydrogen · low\n",
+   "mac": {
+    "kind": "agyAsk",
+    "question": "Run this command?",
+    "context": {
+     "type": "command",
+     "text": "date"
+    },
+    "options": [
+     {
+      "key": "1",
+      "label": "Yes, run command",
+      "keys": [
+       "1"
+      ],
+      "marked": true,
+      "lasting": false
+     },
+     {
+      "key": "2",
+      "label": "Yes, and always allow in this conversation for commands that start with 'date'",
+      "keys": [
+       "2"
+      ],
+      "marked": false,
+      "lasting": true
+     },
+     {
+      "key": "3",
+      "label": "Yes, and always allow for commands that start with 'date' (Persist to settings.json)",
+      "keys": [
+       "3"
+      ],
+      "marked": false,
+      "lasting": true
+     },
+     {
+      "key": "4",
+      "label": "No, cancel",
+      "keys": [
+       "4"
+      ],
+      "marked": false,
+      "lasting": false
+     }
+    ],
+    "body": [
+     "Command",
+     "",
+     "Requesting permission for:",
+     "   date",
+     ""
+    ],
+    "drawnOptions": [
+     "  1. Yes, run command",
+     "  2. Yes, and always allow in this conversation for commands that start with",
+     "     'date'",
+     "  3. Yes, and always allow for commands that start with 'date' (Persist to",
+     "     settings.json)",
+     "  4. No, cancel"
+    ]
+   }
+  },
+  {
+   "name": "command-ask-width-100",
+   "text": "> Read notes.txt in this folder and tell me its second line in one short sentence.\n\n● Explored 1 file (notes.txt) (ctrl+o to expand)\n\n  The second line of notes.txt:2 is beta.\n\n────────────────────────────────────────────────────────────────────────────────────────────────────\n> Do three things in this folder: run ls -la, append the line delta to notes.txt, then create hello.py that prints hi and run it with python3. Answer in two short sentences.\n\n○ Thought for 3.2s (Initial plan is to execute three operations. First, list directory contents. Then append data to a specific file, ensuring the append operation is correctly configured. Finally...)\n● Ran (ls -la)\n● Edited 2 files (notes.txt, hello.py)\n● Ran (python3 hello.py) (ctrl+o to expand)\n\n  I ran ls -la (which showed only notes.txt initially) and appended delta to notes.txt. I also created hello.py and ran it with python3, which printed hi.\n\n────────────────────────────────────────────────────────────────────────────────────────────────────\n> Create the file ask.txt containing the single word hello.\n\n● Edited 1 file (ask.txt) (ctrl+o to expand)\n\n────────────────────────────────────────────────────────────────────────────────────────────────────\n> Run the shell command: date\n\n● Ran (date) (ctrl+o to expand)\n\nCommand\n────────────────────────────────────────────────────────────────────────────────────────────────────\n\nRequesting permission for:\n   date\n\nRun this command?\n> 1. Yes, run command\n  2. Yes, and always allow in this conversation for commands that start with 'date'\n  3. Yes, and always allow for commands that start with 'date' (Persist to settings.json)\n  4. No, cancel\n\n  ↑/↓ Navigate · tab Amend · ctrl+g edit/expand command\nesc to cancel                                                                Gemini 4 Hydrogen · low\n",
+   "mac": {
+    "kind": "agyAsk",
+    "question": "Run this command?",
+    "context": {
+     "type": "command",
+     "text": "date"
+    },
+    "options": [
+     {
+      "key": "1",
+      "label": "Yes, run command",
+      "keys": [
+       "1"
+      ],
+      "marked": true,
+      "lasting": false
+     },
+     {
+      "key": "2",
+      "label": "Yes, and always allow in this conversation for commands that start with 'date'",
+      "keys": [
+       "2"
+      ],
+      "marked": false,
+      "lasting": true
+     },
+     {
+      "key": "3",
+      "label": "Yes, and always allow for commands that start with 'date' (Persist to settings.json)",
+      "keys": [
+       "3"
+      ],
+      "marked": false,
+      "lasting": true
+     },
+     {
+      "key": "4",
+      "label": "No, cancel",
+      "keys": [
+       "4"
+      ],
+      "marked": false,
+      "lasting": false
+     }
+    ],
+    "body": [
+     "Command",
+     "",
+     "Requesting permission for:",
+     "   date",
+     ""
+    ],
+    "drawnOptions": [
+     "  1. Yes, run command",
+     "  2. Yes, and always allow in this conversation for commands that start with 'date'",
+     "  3. Yes, and always allow for commands that start with 'date' (Persist to settings.json)",
+     "  4. No, cancel"
+    ]
+   }
+  },
+  {
+   "name": "command-ask-width-119",
+   "text": "> Read notes.txt in this folder and tell me its second line in one short sentence.\n\n● Explored 1 file (notes.txt) (ctrl+o to expand)\n\n  The second line of notes.txt:2 is beta.\n\n───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n> Do three things in this folder: run ls -la, append the line delta to notes.txt, then create hello.py that prints hi and run it with python3. Answer in two short sentences.\n\n○ Thought for 3.2s (Initial plan is to execute three operations. First, list directory contents. Then append data to a specific file, ensuring the append operation is correctly configured. Finally...)\n● Ran (ls -la)\n● Edited 2 files (notes.txt, hello.py)\n● Ran (python3 hello.py) (ctrl+o to expand)\n\n  I ran ls -la (which showed only notes.txt initially) and appended delta to notes.txt. I also created hello.py and ran it with python3, which printed hi.\n\n───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n> Create the file ask.txt containing the single word hello.\n\n● Edited 1 file (ask.txt) (ctrl+o to expand)\n\n───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n> Run the shell command: date\n\n● Ran (date) (ctrl+o to expand)\n\nCommand\n───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n\nRequesting permission for:\n   date\n\nRun this command?\n> 1. Yes, run command\n  2. Yes, and always allow in this conversation for commands that start with 'date'\n  3. Yes, and always allow for commands that start with 'date' (Persist to settings.json)\n  4. No, cancel\n\n  ↑/↓ Navigate · tab Amend · ctrl+g edit/expand command\nesc to cancel                                                                                   Gemini 4 Hydrogen · low\n",
+   "mac": {
+    "kind": "agyAsk",
+    "question": "Run this command?",
+    "context": {
+     "type": "command",
+     "text": "date"
+    },
+    "options": [
+     {
+      "key": "1",
+      "label": "Yes, run command",
+      "keys": [
+       "1"
+      ],
+      "marked": true,
+      "lasting": false
+     },
+     {
+      "key": "2",
+      "label": "Yes, and always allow in this conversation for commands that start with 'date'",
+      "keys": [
+       "2"
+      ],
+      "marked": false,
+      "lasting": true
+     },
+     {
+      "key": "3",
+      "label": "Yes, and always allow for commands that start with 'date' (Persist to settings.json)",
+      "keys": [
+       "3"
+      ],
+      "marked": false,
+      "lasting": true
+     },
+     {
+      "key": "4",
+      "label": "No, cancel",
+      "keys": [
+       "4"
+      ],
+      "marked": false,
+      "lasting": false
+     }
+    ],
+    "body": [
+     "Command",
+     "",
+     "Requesting permission for:",
+     "   date",
+     ""
+    ],
+    "drawnOptions": [
+     "  1. Yes, run command",
+     "  2. Yes, and always allow in this conversation for commands that start with 'date'",
+     "  3. Yes, and always allow for commands that start with 'date' (Persist to settings.json)",
+     "  4. No, cancel"
+    ]
+   }
+  },
+  {
+   "name": "command-ask-width-160",
+   "text": "> Read notes.txt in this folder and tell me its second line in one short sentence.\n\n● Explored 1 file (notes.txt) (ctrl+o to expand)\n\n  The second line of notes.txt:2 is beta.\n\n────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n> Do three things in this folder: run ls -la, append the line delta to notes.txt, then create hello.py that prints hi and run it with python3. Answer in two short sentences.\n\n○ Thought for 3.2s (Initial plan is to execute three operations. First, list directory contents. Then append data to a specific file, ensuring the append operation is correctly configured. Finally...)\n● Ran (ls -la)\n● Edited 2 files (notes.txt, hello.py)\n● Ran (python3 hello.py) (ctrl+o to expand)\n\n  I ran ls -la (which showed only notes.txt initially) and appended delta to notes.txt. I also created hello.py and ran it with python3, which printed hi.\n\n────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n> Create the file ask.txt containing the single word hello.\n\n● Edited 1 file (ask.txt) (ctrl+o to expand)\n\n────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n> Run the shell command: date\n\n● Ran (date) (ctrl+o to expand)\n\nCommand\n────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n\nRequesting permission for:\n   date\n\nRun this command?\n> 1. Yes, run command\n  2. Yes, and always allow in this conversation for commands that start with 'date'\n  3. Yes, and always allow for commands that start with 'date' (Persist to settings.json)\n  4. No, cancel\n\n  ↑/↓ Navigate · tab Amend · ctrl+g edit/expand command\nesc to cancel                                                                                                                            Gemini 4 Hydrogen · low\n",
+   "mac": {
+    "kind": "agyAsk",
+    "question": "Run this command?",
+    "context": {
+     "type": "command",
+     "text": "date"
+    },
+    "options": [
+     {
+      "key": "1",
+      "label": "Yes, run command",
+      "keys": [
+       "1"
+      ],
+      "marked": true,
+      "lasting": false
+     },
+     {
+      "key": "2",
+      "label": "Yes, and always allow in this conversation for commands that start with 'date'",
+      "keys": [
+       "2"
+      ],
+      "marked": false,
+      "lasting": true
+     },
+     {
+      "key": "3",
+      "label": "Yes, and always allow for commands that start with 'date' (Persist to settings.json)",
+      "keys": [
+       "3"
+      ],
+      "marked": false,
+      "lasting": true
+     },
+     {
+      "key": "4",
+      "label": "No, cancel",
+      "keys": [
+       "4"
+      ],
+      "marked": false,
+      "lasting": false
+     }
+    ],
+    "body": [
+     "Command",
+     "",
+     "Requesting permission for:",
+     "   date",
+     ""
+    ],
+    "drawnOptions": [
+     "  1. Yes, run command",
+     "  2. Yes, and always allow in this conversation for commands that start with 'date'",
+     "  3. Yes, and always allow for commands that start with 'date' (Persist to settings.json)",
+     "  4. No, cancel"
+    ]
+   }
+  },
+  {
+   "name": "command-ask-width-200",
+   "text": "> Read notes.txt in this folder and tell me its second line in one short sentence.\n\n● Explored 1 file (notes.txt) (ctrl+o to expand)\n\n  The second line of notes.txt:2 is beta.\n\n────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n> Do three things in this folder: run ls -la, append the line delta to notes.txt, then create hello.py that prints hi and run it with python3. Answer in two short sentences.\n\n○ Thought for 3.2s (Initial plan is to execute three operations. First, list directory contents. Then append data to a specific file, ensuring the append operation is correctly configured. Finally...)\n● Ran (ls -la)\n● Edited 2 files (notes.txt, hello.py)\n● Ran (python3 hello.py) (ctrl+o to expand)\n\n  I ran ls -la (which showed only notes.txt initially) and appended delta to notes.txt. I also created hello.py and ran it with python3, which printed hi.\n\n────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n> Create the file ask.txt containing the single word hello.\n\n● Edited 1 file (ask.txt) (ctrl+o to expand)\n\n────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n> Run the shell command: date\n\n● Ran (date) (ctrl+o to expand)\n\nCommand\n────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n\nRequesting permission for:\n   date\n\nRun this command?\n> 1. Yes, run command\n  2. Yes, and always allow in this conversation for commands that start with 'date'\n  3. Yes, and always allow for commands that start with 'date' (Persist to settings.json)\n  4. No, cancel\n\n  ↑/↓ Navigate · tab Amend · ctrl+g edit/expand command\nesc to cancel                                                                                                                                                                    Gemini 4 Hydrogen · low\n",
+   "mac": {
+    "kind": "agyAsk",
+    "question": "Run this command?",
+    "context": {
+     "type": "command",
+     "text": "date"
+    },
+    "options": [
+     {
+      "key": "1",
+      "label": "Yes, run command",
+      "keys": [
+       "1"
+      ],
+      "marked": true,
+      "lasting": false
+     },
+     {
+      "key": "2",
+      "label": "Yes, and always allow in this conversation for commands that start with 'date'",
+      "keys": [
+       "2"
+      ],
+      "marked": false,
+      "lasting": true
+     },
+     {
+      "key": "3",
+      "label": "Yes, and always allow for commands that start with 'date' (Persist to settings.json)",
+      "keys": [
+       "3"
+      ],
+      "marked": false,
+      "lasting": true
+     },
+     {
+      "key": "4",
+      "label": "No, cancel",
+      "keys": [
+       "4"
+      ],
+      "marked": false,
+      "lasting": false
+     }
+    ],
+    "body": [
+     "Command",
+     "",
+     "Requesting permission for:",
+     "   date",
+     ""
+    ],
+    "drawnOptions": [
+     "  1. Yes, run command",
+     "  2. Yes, and always allow in this conversation for commands that start with 'date'",
+     "  3. Yes, and always allow for commands that start with 'date' (Persist to settings.json)",
+     "  4. No, cancel"
+    ]
+   }
+  },
+  {
+   "name": "command-ask-no-footer",
+   "text": "> Read notes.txt in this folder and tell me its second line in one short sentence.\n\n● Explored 1 file (notes.txt) (ctrl+o to expand)\n\n  The second line of notes.txt:2 is beta.\n\n────────────────────────────────────────────────────────────\n> Do three things in this folder: run ls -la, append the line delta to notes.txt, then create hello.py that prints hi and run it with python3. Answer in two short sentences.\n\n○ Thought for 3.2s (Initial plan is to execute three operations. First, list directory contents. Then append data to a specific file, ensuring the append operation is correctly configured. Finally...)\n● Ran (ls -la)\n● Edited 2 files (notes.txt, hello.py)\n● Ran (python3 hello.py) (ctrl+o to expand)\n\n  I ran ls -la (which showed only notes.txt initially) and appended delta to notes.txt. I also created hello.py and ran it with python3, which printed hi.\n\n────────────────────────────────────────────────────────────\n> Create the file ask.txt containing the single word hello.\n\n● Edited 1 file (ask.txt) (ctrl+o to expand)\n\n────────────────────────────────────────────────────────────\n> Run the shell command: date\n\n● Ran (date) (ctrl+o to expand)\n\nCommand\n─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n\nRequesting permission for:\n   date\n\nRun this command?\n> 1. Yes, run command\n  2. Yes, and always allow in this conversation for commands that start with 'date'\n  3. Yes, and always allow for commands that start with 'date' (Persist to settings.json)\n  4. No, cancel\n\nesc to cancel                                                                                                                                                                     Gemini 4 Hydrogen · low\n",
+   "mac": null
+  },
+  {
+   "name": "command-ask-no-marker",
+   "text": "  Read notes.txt in this folder and tell me its second line in one short sentence.\n\n● Explored 1 file (notes.txt) (ctrl+o to expand)\n\n  The second line of notes.txt:2 is beta.\n\n────────────────────────────────────────────────────────────\n  Do three things in this folder: run ls -la, append the line delta to notes.txt, then create hello.py that prints hi and run it with python3. Answer in two short sentences.\n\n○ Thought for 3.2s (Initial plan is to execute three operations. First, list directory contents. Then append data to a specific file, ensuring the append operation is correctly configured. Finally...)\n● Ran (ls -la)\n● Edited 2 files (notes.txt, hello.py)\n● Ran (python3 hello.py) (ctrl+o to expand)\n\n  I ran ls -la (which showed only notes.txt initially) and appended delta to notes.txt. I also created hello.py and ran it with python3, which printed hi.\n\n────────────────────────────────────────────────────────────\n  Create the file ask.txt containing the single word hello.\n\n● Edited 1 file (ask.txt) (ctrl+o to expand)\n\n────────────────────────────────────────────────────────────\n  Run the shell command: date\n\n● Ran (date) (ctrl+o to expand)\n\nCommand\n─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n\nRequesting permission for:\n   date\n\nRun this command?\n  1. Yes, run command\n  2. Yes, and always allow in this conversation for commands that start with 'date'\n  3. Yes, and always allow for commands that start with 'date' (Persist to settings.json)\n  4. No, cancel\n\n  ↑/↓ Navigate · tab Amend · ctrl+g edit/expand command\nesc to cancel                                                                                                                                                                     Gemini 4 Hydrogen · low\n",
+   "mac": null
+  },
+  {
+   "name": "command-ask-two-markers",
+   "text": "> Read notes.txt in this folder and tell me its second line in one short sentence.\n\n● Explored 1 file (notes.txt) (ctrl+o to expand)\n\n  The second line of notes.txt:2 is beta.\n\n────────────────────────────────────────────────────────────\n> Do three things in this folder: run ls -la, append the line delta to notes.txt, then create hello.py that prints hi and run it with python3. Answer in two short sentences.\n\n○ Thought for 3.2s (Initial plan is to execute three operations. First, list directory contents. Then append data to a specific file, ensuring the append operation is correctly configured. Finally...)\n● Ran (ls -la)\n● Edited 2 files (notes.txt, hello.py)\n● Ran (python3 hello.py) (ctrl+o to expand)\n\n  I ran ls -la (which showed only notes.txt initially) and appended delta to notes.txt. I also created hello.py and ran it with python3, which printed hi.\n\n────────────────────────────────────────────────────────────\n> Create the file ask.txt containing the single word hello.\n\n● Edited 1 file (ask.txt) (ctrl+o to expand)\n\n────────────────────────────────────────────────────────────\n> Run the shell command: date\n\n● Ran (date) (ctrl+o to expand)\n\nCommand\n─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n\nRequesting permission for:\n   date\n\nRun this command?\n> 1. Yes, run command\n> 2. Yes, and always allow in this conversation for commands that start with 'date'\n  3. Yes, and always allow for commands that start with 'date' (Persist to settings.json)\n  4. No, cancel\n\n  ↑/↓ Navigate · tab Amend · ctrl+g edit/expand command\nesc to cancel                                                                                                                                                                     Gemini 4 Hydrogen · low\n",
+   "mac": null
+  },
+  {
+   "name": "command-ask-idle-after",
+   "text": "> Read notes.txt in this folder and tell me its second line in one short sentence.\n\n● Explored 1 file (notes.txt) (ctrl+o to expand)\n\n  The second line of notes.txt:2 is beta.\n\n────────────────────────────────────────────────────────────\n> Do three things in this folder: run ls -la, append the line delta to notes.txt, then create hello.py that prints hi and run it with python3. Answer in two short sentences.\n\n○ Thought for 3.2s (Initial plan is to execute three operations. First, list directory contents. Then append data to a specific file, ensuring the append operation is correctly configured. Finally...)\n● Ran (ls -la)\n● Edited 2 files (notes.txt, hello.py)\n● Ran (python3 hello.py) (ctrl+o to expand)\n\n  I ran ls -la (which showed only notes.txt initially) and appended delta to notes.txt. I also created hello.py and ran it with python3, which printed hi.\n\n────────────────────────────────────────────────────────────\n> Create the file ask.txt containing the single word hello.\n\n● Edited 1 file (ask.txt) (ctrl+o to expand)\n\n────────────────────────────────────────────────────────────\n> Run the shell command: date\n\n● Ran (date) (ctrl+o to expand)\n\nCommand\n─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n\nRequesting permission for:\n   date\n\nRun this command?\n> 1. Yes, run command\n  2. Yes, and always allow in this conversation for commands that start with 'date'\n  3. Yes, and always allow for commands that start with 'date' (Persist to settings.json)\n  4. No, cancel\n\n  ↑/↓ Navigate · tab Amend · ctrl+g edit/expand command\nesc to cancel                                                                                                                                                                     Gemini 4 Hydrogen · low\n\n────\n> \n────\n? for shortcuts          auto · Gemini 4 Hydrogen · low\n",
+   "mac": null
+  },
+  {
+   "name": "command-ask-bare-cancel",
+   "text": "> Read notes.txt in this folder and tell me its second line in one short sentence.\n\n● Explored 1 file (notes.txt) (ctrl+o to expand)\n\n  The second line of notes.txt:2 is beta.\n\n────────────────────────────────────────────────────────────\n> Do three things in this folder: run ls -la, append the line delta to notes.txt, then create hello.py that prints hi and run it with python3. Answer in two short sentences.\n\n○ Thought for 3.2s (Initial plan is to execute three operations. First, list directory contents. Then append data to a specific file, ensuring the append operation is correctly configured. Finally...)\n● Ran (ls -la)\n● Edited 2 files (notes.txt, hello.py)\n● Ran (python3 hello.py) (ctrl+o to expand)\n\n  I ran ls -la (which showed only notes.txt initially) and appended delta to notes.txt. I also created hello.py and ran it with python3, which printed hi.\n\n────────────────────────────────────────────────────────────\n> Create the file ask.txt containing the single word hello.\n\n● Edited 1 file (ask.txt) (ctrl+o to expand)\n\n────────────────────────────────────────────────────────────\n> Run the shell command: date\n\n● Ran (date) (ctrl+o to expand)\n\nCommand\n─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n\nRequesting permission for:\n   date\n\nRun this command?\n> 1. Yes, run command\n  2. Yes, and always allow in this conversation for commands that start with 'date'\n  3. Yes, and always allow for commands that start with 'date' (Persist to settings.json)\n  4. No, cancel\n\n  ↑/↓ Navigate · tab Amend · ctrl+g edit/expand command\nesc to cancel\n",
+   "mac": {
+    "kind": "agyAsk",
+    "question": "Run this command?",
+    "context": {
+     "type": "command",
+     "text": "date"
+    },
+    "options": [
+     {
+      "key": "1",
+      "label": "Yes, run command",
+      "keys": [
+       "1"
+      ],
+      "marked": true,
+      "lasting": false
+     },
+     {
+      "key": "2",
+      "label": "Yes, and always allow in this conversation for commands that start with 'date'",
+      "keys": [
+       "2"
+      ],
+      "marked": false,
+      "lasting": true
+     },
+     {
+      "key": "3",
+      "label": "Yes, and always allow for commands that start with 'date' (Persist to settings.json)",
+      "keys": [
+       "3"
+      ],
+      "marked": false,
+      "lasting": true
+     },
+     {
+      "key": "4",
+      "label": "No, cancel",
+      "keys": [
+       "4"
+      ],
+      "marked": false,
+      "lasting": false
+     }
+    ],
+    "body": [
+     "Command",
+     "",
+     "Requesting permission for:",
+     "   date",
+     ""
+    ],
+    "drawnOptions": [
+     "  1. Yes, run command",
+     "  2. Yes, and always allow in this conversation for commands that start with 'date'",
+     "  3. Yes, and always allow for commands that start with 'date' (Persist to settings.json)",
+     "  4. No, cancel"
+    ]
+   }
+  },
+  {
+   "name": "command-ask-bare-no-footer",
+   "text": "> Read notes.txt in this folder and tell me its second line in one short sentence.\n\n● Explored 1 file (notes.txt) (ctrl+o to expand)\n\n  The second line of notes.txt:2 is beta.\n\n────────────────────────────────────────────────────────────\n> Do three things in this folder: run ls -la, append the line delta to notes.txt, then create hello.py that prints hi and run it with python3. Answer in two short sentences.\n\n○ Thought for 3.2s (Initial plan is to execute three operations. First, list directory contents. Then append data to a specific file, ensuring the append operation is correctly configured. Finally...)\n● Ran (ls -la)\n● Edited 2 files (notes.txt, hello.py)\n● Ran (python3 hello.py) (ctrl+o to expand)\n\n  I ran ls -la (which showed only notes.txt initially) and appended delta to notes.txt. I also created hello.py and ran it with python3, which printed hi.\n\n────────────────────────────────────────────────────────────\n> Create the file ask.txt containing the single word hello.\n\n● Edited 1 file (ask.txt) (ctrl+o to expand)\n\n────────────────────────────────────────────────────────────\n> Run the shell command: date\n\n● Ran (date) (ctrl+o to expand)\n\nCommand\n─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n\nRequesting permission for:\n   date\n\nRun this command?\n> 1. Yes, run command\n  2. Yes, and always allow in this conversation for commands that start with 'date'\n  3. Yes, and always allow for commands that start with 'date' (Persist to settings.json)\n  4. No, cancel\n\nesc to cancel\n",
+   "mac": null
+  },
+  {
+   "name": "command-ask-body-edge-blank",
+   "text": "> Read notes.txt in this folder and tell me its second line in one short sentence.\n\n● Explored 1 file (notes.txt) (ctrl+o to expand)\n\n  The second line of notes.txt:2 is beta.\n\n────────────────────────────────────────────────────────────\n> Do three things in this folder: run ls -la, append the line delta to notes.txt, then create hello.py that prints hi and run it with python3. Answer in two short sentences.\n\n○ Thought for 3.2s (Initial plan is to execute three operations. First, list directory contents. Then append data to a specific file, ensuring the append operation is correctly configured. Finally...)\n● Ran (ls -la)\n● Edited 2 files (notes.txt, hello.py)\n● Ran (python3 hello.py) (ctrl+o to expand)\n\n  I ran ls -la (which showed only notes.txt initially) and appended delta to notes.txt. I also created hello.py and ran it with python3, which printed hi.\n\n────────────────────────────────────────────────────────────\n> Create the file ask.txt containing the single word hello.\n\n● Edited 1 file (ask.txt) (ctrl+o to expand)\n\n────────────────────────────────────────────────────────────\n> Run the shell command: date\n\n● Ran (date) (ctrl+o to expand)\n\nCommand\n─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n\nRequesting permission for:\n   date\n\n   \nRun this command?\n> 1. Yes, run command\n  2. Yes, and always allow in this conversation for commands that start with 'date'\n  3. Yes, and always allow for commands that start with 'date' (Persist to settings.json)\n  4. No, cancel\n\n  ↑/↓ Navigate · tab Amend · ctrl+g edit/expand command\nesc to cancel                                                                                                                                                                     Gemini 4 Hydrogen · low\n",
+   "mac": {
+    "kind": "agyAsk",
+    "question": "Run this command?",
+    "context": {
+     "type": "command",
+     "text": "date"
+    },
+    "options": [
+     {
+      "key": "1",
+      "label": "Yes, run command",
+      "keys": [
+       "1"
+      ],
+      "marked": true,
+      "lasting": false
+     },
+     {
+      "key": "2",
+      "label": "Yes, and always allow in this conversation for commands that start with 'date'",
+      "keys": [
+       "2"
+      ],
+      "marked": false,
+      "lasting": true
+     },
+     {
+      "key": "3",
+      "label": "Yes, and always allow for commands that start with 'date' (Persist to settings.json)",
+      "keys": [
+       "3"
+      ],
+      "marked": false,
+      "lasting": true
+     },
+     {
+      "key": "4",
+      "label": "No, cancel",
+      "keys": [
+       "4"
+      ],
+      "marked": false,
+      "lasting": false
+     }
+    ],
+    "body": [
+     "Command",
+     "",
+     "Requesting permission for:",
+     "   date",
+     "",
+     "   "
+    ],
+    "drawnOptions": [
+     "  1. Yes, run command",
+     "  2. Yes, and always allow in this conversation for commands that start with 'date'",
+     "  3. Yes, and always allow for commands that start with 'date' (Persist to settings.json)",
+     "  4. No, cancel"
+    ]
+   }
+  },
+  {
+   "name": "command-ask-option-trailing",
+   "text": "> Read notes.txt in this folder and tell me its second line in one short sentence.\n\n● Explored 1 file (notes.txt) (ctrl+o to expand)\n\n  The second line of notes.txt:2 is beta.\n\n────────────────────────────────────────────────────────────\n> Do three things in this folder: run ls -la, append the line delta to notes.txt, then create hello.py that prints hi and run it with python3. Answer in two short sentences.\n\n○ Thought for 3.2s (Initial plan is to execute three operations. First, list directory contents. Then append data to a specific file, ensuring the append operation is correctly configured. Finally...)\n● Ran (ls -la)\n● Edited 2 files (notes.txt, hello.py)\n● Ran (python3 hello.py) (ctrl+o to expand)\n\n  I ran ls -la (which showed only notes.txt initially) and appended delta to notes.txt. I also created hello.py and ran it with python3, which printed hi.\n\n────────────────────────────────────────────────────────────\n> Create the file ask.txt containing the single word hello.\n\n● Edited 1 file (ask.txt) (ctrl+o to expand)\n\n────────────────────────────────────────────────────────────\n> Run the shell command: date\n\n● Ran (date) (ctrl+o to expand)\n\nCommand\n─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n\nRequesting permission for:\n   date\n\nRun this command?\n> 1. Yes, run command \n  2. Yes, and always allow in this conversation for commands that start with 'date'\n  3. Yes, and always allow for commands that start with 'date' (Persist to settings.json)\n  4. No, cancel\n\n  ↑/↓ Navigate · tab Amend · ctrl+g edit/expand command\nesc to cancel                                                                                                                                                                     Gemini 4 Hydrogen · low\n",
+   "mac": {
+    "kind": "agyAsk",
+    "question": "Run this command?",
+    "context": {
+     "type": "command",
+     "text": "date"
+    },
+    "options": [
+     {
+      "key": "1",
+      "label": "Yes, run command",
+      "keys": [
+       "1"
+      ],
+      "marked": true,
+      "lasting": false
+     },
+     {
+      "key": "2",
+      "label": "Yes, and always allow in this conversation for commands that start with 'date'",
+      "keys": [
+       "2"
+      ],
+      "marked": false,
+      "lasting": true
+     },
+     {
+      "key": "3",
+      "label": "Yes, and always allow for commands that start with 'date' (Persist to settings.json)",
+      "keys": [
+       "3"
+      ],
+      "marked": false,
+      "lasting": true
+     },
+     {
+      "key": "4",
+      "label": "No, cancel",
+      "keys": [
+       "4"
+      ],
+      "marked": false,
+      "lasting": false
+     }
+    ],
+    "body": [
+     "Command",
+     "",
+     "Requesting permission for:",
+     "   date",
+     ""
+    ],
+    "drawnOptions": [
+     "  1. Yes, run command ",
+     "  2. Yes, and always allow in this conversation for commands that start with 'date'",
+     "  3. Yes, and always allow for commands that start with 'date' (Persist to settings.json)",
+     "  4. No, cancel"
+    ]
+   }
+  },
+  {
+   "name": "create-file-ask",
+   "text": "      ▄▀▀▄        Antigravity CLI 1.5.13\n     ▀▀▀▀▀▀       someone.x@example.test (Google AI Pro)\n    ▀▀▀▀▀▀▀▀      Gemini 4 Hydrogen (Low)\n   ▄▀▀    ▀▀▄     /tmp/demo/agy-sample/work-01\n  ▄▀▀      ▀▀▄\n\n────────────────────────────────────────────────────────────\n> Read notes.txt in this folder and tell me its second line in one short sentence.\n\n● Explored 1 file (notes.txt) (ctrl+o to expand)\n\n  The second line of notes.txt:2 is beta.\n\n────────────────────────────────────────────────────────────\n> Do three things in this folder: run ls -la, append the line delta to notes.txt, then create hello.py that prints hi and run it with python3. Answer in two short sentences.\n\n○ Thought for 3.2s (Initial plan is to execute three operations. First, list directory contents. Then append data to a specific file, ensuring the append operation is correctly configured. Finally...)\n● Ran (ls -la)\n● Edited 2 files (notes.txt, hello.py)\n● Ran (python3 hello.py) (ctrl+o to expand)\n\n  I ran ls -la (which showed only notes.txt initially) and appended delta to notes.txt. I also created hello.py and ran it with python3, which printed hi.\n\n────────────────────────────────────────────────────────────\n> Create the file ask.txt containing the single word hello.\n\n● Edited 1 file (ask.txt) (ctrl+o to expand)\n\nCreate file\n─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n\n/tmp/demo/agy-sample/work-01/ask.txt  +1\n  1  +  hello\n\nAllow creation of this file?\n> 1. Yes, allow creation\n  2. No, deny creation\n\n  ↑/↓ Navigate · f full diff\nesc to cancel                                                                                                                                                                     Gemini 4 Hydrogen · low\n",
+   "mac": {
+    "kind": "agyAsk",
+    "question": "Allow creation of this file?",
+    "context": {
+     "type": "file",
+     "name": "/tmp/demo/agy-sample/work-01/ask.txt"
+    },
+    "options": [
+     {
+      "key": "1",
+      "label": "Yes, allow creation",
+      "keys": [
+       "1"
+      ],
+      "marked": true,
+      "lasting": false
+     },
+     {
+      "key": "2",
+      "label": "No, deny creation",
+      "keys": [
+       "2"
+      ],
+      "marked": false,
+      "lasting": false
+     }
+    ],
+    "body": [
+     "Create file",
+     "",
+     "/tmp/demo/agy-sample/work-01/ask.txt  +1",
+     "  1  +  hello",
+     ""
+    ],
+    "drawnOptions": [
+     "  1. Yes, allow creation",
+     "  2. No, deny creation"
+    ]
+   }
+  },
+  {
+   "name": "create-file-ask-width-60",
+   "text": "      ▄▀▀▄        Antigravity CLI 1.5.13\n     ▀▀▀▀▀▀       someone.x@example.test (Google AI Pro)\n    ▀▀▀▀▀▀▀▀      Gemini 4 Hydrogen (Low)\n   ▄▀▀    ▀▀▄     /tmp/demo/agy-sample/work-01\n  ▄▀▀      ▀▀▄\n\n────────────────────────────────────────────────────────────\n> Read notes.txt in this folder and tell me its second line in one short sentence.\n\n● Explored 1 file (notes.txt) (ctrl+o to expand)\n\n  The second line of notes.txt:2 is beta.\n\n────────────────────────────────────────────────────────────\n> Do three things in this folder: run ls -la, append the line delta to notes.txt, then create hello.py that prints hi and run it with python3. Answer in two short sentences.\n\n○ Thought for 3.2s (Initial plan is to execute three operations. First, list directory contents. Then append data to a specific file, ensuring the append operation is correctly configured. Finally...)\n● Ran (ls -la)\n● Edited 2 files (notes.txt, hello.py)\n● Ran (python3 hello.py) (ctrl+o to expand)\n\n  I ran ls -la (which showed only notes.txt initially) and appended delta to notes.txt. I also created hello.py and ran it with python3, which printed hi.\n\n────────────────────────────────────────────────────────────\n> Create the file ask.txt containing the single word hello.\n\n● Edited 1 file (ask.txt) (ctrl+o to expand)\n\nCreate file\n────────────────────────────────────────────────────────────\n\n/tmp/demo/agy-sample/work-01/ask.txt  +1\n  1  +  hello\n\nAllow creation of this file?\n> 1. Yes, allow creation\n  2. No, deny creation\n\n  ↑/↓ Navigate · f full diff\nesc to cancel                        Gemini 4 Hydrogen · low\n",
+   "mac": {
+    "kind": "agyAsk",
+    "question": "Allow creation of this file?",
+    "context": {
+     "type": "file",
+     "name": "/tmp/demo/agy-sample/work-01/ask.txt"
+    },
+    "options": [
+     {
+      "key": "1",
+      "label": "Yes, allow creation",
+      "keys": [
+       "1"
+      ],
+      "marked": true,
+      "lasting": false
+     },
+     {
+      "key": "2",
+      "label": "No, deny creation",
+      "keys": [
+       "2"
+      ],
+      "marked": false,
+      "lasting": false
+     }
+    ],
+    "body": [
+     "Create file",
+     "",
+     "/tmp/demo/agy-sample/work-01/ask.txt  +1",
+     "  1  +  hello",
+     ""
+    ],
+    "drawnOptions": [
+     "  1. Yes, allow creation",
+     "  2. No, deny creation"
+    ]
+   }
+  },
+  {
+   "name": "create-file-ask-width-80",
+   "text": "      ▄▀▀▄        Antigravity CLI 1.5.13\n     ▀▀▀▀▀▀       someone.x@example.test (Google AI Pro)\n    ▀▀▀▀▀▀▀▀      Gemini 4 Hydrogen (Low)\n   ▄▀▀    ▀▀▄     /tmp/demo/agy-sample/work-01\n  ▄▀▀      ▀▀▄\n\n────────────────────────────────────────────────────────────────────────────────\n> Read notes.txt in this folder and tell me its second line in one short sentence.\n\n● Explored 1 file (notes.txt) (ctrl+o to expand)\n\n  The second line of notes.txt:2 is beta.\n\n────────────────────────────────────────────────────────────────────────────────\n> Do three things in this folder: run ls -la, append the line delta to notes.txt, then create hello.py that prints hi and run it with python3. Answer in two short sentences.\n\n○ Thought for 3.2s (Initial plan is to execute three operations. First, list directory contents. Then append data to a specific file, ensuring the append operation is correctly configured. Finally...)\n● Ran (ls -la)\n● Edited 2 files (notes.txt, hello.py)\n● Ran (python3 hello.py) (ctrl+o to expand)\n\n  I ran ls -la (which showed only notes.txt initially) and appended delta to notes.txt. I also created hello.py and ran it with python3, which printed hi.\n\n────────────────────────────────────────────────────────────────────────────────\n> Create the file ask.txt containing the single word hello.\n\n● Edited 1 file (ask.txt) (ctrl+o to expand)\n\nCreate file\n────────────────────────────────────────────────────────────────────────────────\n\n/tmp/demo/agy-sample/work-01/ask.txt  +1\n  1  +  hello\n\nAllow creation of this file?\n> 1. Yes, allow creation\n  2. No, deny creation\n\n  ↑/↓ Navigate · f full diff\nesc to cancel                                            Gemini 4 Hydrogen · low\n",
+   "mac": {
+    "kind": "agyAsk",
+    "question": "Allow creation of this file?",
+    "context": {
+     "type": "file",
+     "name": "/tmp/demo/agy-sample/work-01/ask.txt"
+    },
+    "options": [
+     {
+      "key": "1",
+      "label": "Yes, allow creation",
+      "keys": [
+       "1"
+      ],
+      "marked": true,
+      "lasting": false
+     },
+     {
+      "key": "2",
+      "label": "No, deny creation",
+      "keys": [
+       "2"
+      ],
+      "marked": false,
+      "lasting": false
+     }
+    ],
+    "body": [
+     "Create file",
+     "",
+     "/tmp/demo/agy-sample/work-01/ask.txt  +1",
+     "  1  +  hello",
+     ""
+    ],
+    "drawnOptions": [
+     "  1. Yes, allow creation",
+     "  2. No, deny creation"
+    ]
+   }
+  },
+  {
+   "name": "create-file-ask-width-100",
+   "text": "      ▄▀▀▄        Antigravity CLI 1.5.13\n     ▀▀▀▀▀▀       someone.x@example.test (Google AI Pro)\n    ▀▀▀▀▀▀▀▀      Gemini 4 Hydrogen (Low)\n   ▄▀▀    ▀▀▄     /tmp/demo/agy-sample/work-01\n  ▄▀▀      ▀▀▄\n\n────────────────────────────────────────────────────────────────────────────────────────────────────\n> Read notes.txt in this folder and tell me its second line in one short sentence.\n\n● Explored 1 file (notes.txt) (ctrl+o to expand)\n\n  The second line of notes.txt:2 is beta.\n\n────────────────────────────────────────────────────────────────────────────────────────────────────\n> Do three things in this folder: run ls -la, append the line delta to notes.txt, then create hello.py that prints hi and run it with python3. Answer in two short sentences.\n\n○ Thought for 3.2s (Initial plan is to execute three operations. First, list directory contents. Then append data to a specific file, ensuring the append operation is correctly configured. Finally...)\n● Ran (ls -la)\n● Edited 2 files (notes.txt, hello.py)\n● Ran (python3 hello.py) (ctrl+o to expand)\n\n  I ran ls -la (which showed only notes.txt initially) and appended delta to notes.txt. I also created hello.py and ran it with python3, which printed hi.\n\n────────────────────────────────────────────────────────────────────────────────────────────────────\n> Create the file ask.txt containing the single word hello.\n\n● Edited 1 file (ask.txt) (ctrl+o to expand)\n\nCreate file\n────────────────────────────────────────────────────────────────────────────────────────────────────\n\n/tmp/demo/agy-sample/work-01/ask.txt  +1\n  1  +  hello\n\nAllow creation of this file?\n> 1. Yes, allow creation\n  2. No, deny creation\n\n  ↑/↓ Navigate · f full diff\nesc to cancel                                                                Gemini 4 Hydrogen · low\n",
+   "mac": {
+    "kind": "agyAsk",
+    "question": "Allow creation of this file?",
+    "context": {
+     "type": "file",
+     "name": "/tmp/demo/agy-sample/work-01/ask.txt"
+    },
+    "options": [
+     {
+      "key": "1",
+      "label": "Yes, allow creation",
+      "keys": [
+       "1"
+      ],
+      "marked": true,
+      "lasting": false
+     },
+     {
+      "key": "2",
+      "label": "No, deny creation",
+      "keys": [
+       "2"
+      ],
+      "marked": false,
+      "lasting": false
+     }
+    ],
+    "body": [
+     "Create file",
+     "",
+     "/tmp/demo/agy-sample/work-01/ask.txt  +1",
+     "  1  +  hello",
+     ""
+    ],
+    "drawnOptions": [
+     "  1. Yes, allow creation",
+     "  2. No, deny creation"
+    ]
+   }
+  },
+  {
+   "name": "create-file-ask-width-119",
+   "text": "      ▄▀▀▄        Antigravity CLI 1.5.13\n     ▀▀▀▀▀▀       someone.x@example.test (Google AI Pro)\n    ▀▀▀▀▀▀▀▀      Gemini 4 Hydrogen (Low)\n   ▄▀▀    ▀▀▄     /tmp/demo/agy-sample/work-01\n  ▄▀▀      ▀▀▄\n\n───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n> Read notes.txt in this folder and tell me its second line in one short sentence.\n\n● Explored 1 file (notes.txt) (ctrl+o to expand)\n\n  The second line of notes.txt:2 is beta.\n\n───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n> Do three things in this folder: run ls -la, append the line delta to notes.txt, then create hello.py that prints hi and run it with python3. Answer in two short sentences.\n\n○ Thought for 3.2s (Initial plan is to execute three operations. First, list directory contents. Then append data to a specific file, ensuring the append operation is correctly configured. Finally...)\n● Ran (ls -la)\n● Edited 2 files (notes.txt, hello.py)\n● Ran (python3 hello.py) (ctrl+o to expand)\n\n  I ran ls -la (which showed only notes.txt initially) and appended delta to notes.txt. I also created hello.py and ran it with python3, which printed hi.\n\n───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n> Create the file ask.txt containing the single word hello.\n\n● Edited 1 file (ask.txt) (ctrl+o to expand)\n\nCreate file\n───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n\n/tmp/demo/agy-sample/work-01/ask.txt  +1\n  1  +  hello\n\nAllow creation of this file?\n> 1. Yes, allow creation\n  2. No, deny creation\n\n  ↑/↓ Navigate · f full diff\nesc to cancel                                                                                   Gemini 4 Hydrogen · low\n",
+   "mac": {
+    "kind": "agyAsk",
+    "question": "Allow creation of this file?",
+    "context": {
+     "type": "file",
+     "name": "/tmp/demo/agy-sample/work-01/ask.txt"
+    },
+    "options": [
+     {
+      "key": "1",
+      "label": "Yes, allow creation",
+      "keys": [
+       "1"
+      ],
+      "marked": true,
+      "lasting": false
+     },
+     {
+      "key": "2",
+      "label": "No, deny creation",
+      "keys": [
+       "2"
+      ],
+      "marked": false,
+      "lasting": false
+     }
+    ],
+    "body": [
+     "Create file",
+     "",
+     "/tmp/demo/agy-sample/work-01/ask.txt  +1",
+     "  1  +  hello",
+     ""
+    ],
+    "drawnOptions": [
+     "  1. Yes, allow creation",
+     "  2. No, deny creation"
+    ]
+   }
+  },
+  {
+   "name": "create-file-ask-width-160",
+   "text": "      ▄▀▀▄        Antigravity CLI 1.5.13\n     ▀▀▀▀▀▀       someone.x@example.test (Google AI Pro)\n    ▀▀▀▀▀▀▀▀      Gemini 4 Hydrogen (Low)\n   ▄▀▀    ▀▀▄     /tmp/demo/agy-sample/work-01\n  ▄▀▀      ▀▀▄\n\n────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n> Read notes.txt in this folder and tell me its second line in one short sentence.\n\n● Explored 1 file (notes.txt) (ctrl+o to expand)\n\n  The second line of notes.txt:2 is beta.\n\n────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n> Do three things in this folder: run ls -la, append the line delta to notes.txt, then create hello.py that prints hi and run it with python3. Answer in two short sentences.\n\n○ Thought for 3.2s (Initial plan is to execute three operations. First, list directory contents. Then append data to a specific file, ensuring the append operation is correctly configured. Finally...)\n● Ran (ls -la)\n● Edited 2 files (notes.txt, hello.py)\n● Ran (python3 hello.py) (ctrl+o to expand)\n\n  I ran ls -la (which showed only notes.txt initially) and appended delta to notes.txt. I also created hello.py and ran it with python3, which printed hi.\n\n────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n> Create the file ask.txt containing the single word hello.\n\n● Edited 1 file (ask.txt) (ctrl+o to expand)\n\nCreate file\n────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n\n/tmp/demo/agy-sample/work-01/ask.txt  +1\n  1  +  hello\n\nAllow creation of this file?\n> 1. Yes, allow creation\n  2. No, deny creation\n\n  ↑/↓ Navigate · f full diff\nesc to cancel                                                                                                                            Gemini 4 Hydrogen · low\n",
+   "mac": {
+    "kind": "agyAsk",
+    "question": "Allow creation of this file?",
+    "context": {
+     "type": "file",
+     "name": "/tmp/demo/agy-sample/work-01/ask.txt"
+    },
+    "options": [
+     {
+      "key": "1",
+      "label": "Yes, allow creation",
+      "keys": [
+       "1"
+      ],
+      "marked": true,
+      "lasting": false
+     },
+     {
+      "key": "2",
+      "label": "No, deny creation",
+      "keys": [
+       "2"
+      ],
+      "marked": false,
+      "lasting": false
+     }
+    ],
+    "body": [
+     "Create file",
+     "",
+     "/tmp/demo/agy-sample/work-01/ask.txt  +1",
+     "  1  +  hello",
+     ""
+    ],
+    "drawnOptions": [
+     "  1. Yes, allow creation",
+     "  2. No, deny creation"
+    ]
+   }
+  },
+  {
+   "name": "create-file-ask-width-200",
+   "text": "      ▄▀▀▄        Antigravity CLI 1.5.13\n     ▀▀▀▀▀▀       someone.x@example.test (Google AI Pro)\n    ▀▀▀▀▀▀▀▀      Gemini 4 Hydrogen (Low)\n   ▄▀▀    ▀▀▄     /tmp/demo/agy-sample/work-01\n  ▄▀▀      ▀▀▄\n\n────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n> Read notes.txt in this folder and tell me its second line in one short sentence.\n\n● Explored 1 file (notes.txt) (ctrl+o to expand)\n\n  The second line of notes.txt:2 is beta.\n\n────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n> Do three things in this folder: run ls -la, append the line delta to notes.txt, then create hello.py that prints hi and run it with python3. Answer in two short sentences.\n\n○ Thought for 3.2s (Initial plan is to execute three operations. First, list directory contents. Then append data to a specific file, ensuring the append operation is correctly configured. Finally...)\n● Ran (ls -la)\n● Edited 2 files (notes.txt, hello.py)\n● Ran (python3 hello.py) (ctrl+o to expand)\n\n  I ran ls -la (which showed only notes.txt initially) and appended delta to notes.txt. I also created hello.py and ran it with python3, which printed hi.\n\n────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n> Create the file ask.txt containing the single word hello.\n\n● Edited 1 file (ask.txt) (ctrl+o to expand)\n\nCreate file\n────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n\n/tmp/demo/agy-sample/work-01/ask.txt  +1\n  1  +  hello\n\nAllow creation of this file?\n> 1. Yes, allow creation\n  2. No, deny creation\n\n  ↑/↓ Navigate · f full diff\nesc to cancel                                                                                                                                                                    Gemini 4 Hydrogen · low\n",
+   "mac": {
+    "kind": "agyAsk",
+    "question": "Allow creation of this file?",
+    "context": {
+     "type": "file",
+     "name": "/tmp/demo/agy-sample/work-01/ask.txt"
+    },
+    "options": [
+     {
+      "key": "1",
+      "label": "Yes, allow creation",
+      "keys": [
+       "1"
+      ],
+      "marked": true,
+      "lasting": false
+     },
+     {
+      "key": "2",
+      "label": "No, deny creation",
+      "keys": [
+       "2"
+      ],
+      "marked": false,
+      "lasting": false
+     }
+    ],
+    "body": [
+     "Create file",
+     "",
+     "/tmp/demo/agy-sample/work-01/ask.txt  +1",
+     "  1  +  hello",
+     ""
+    ],
+    "drawnOptions": [
+     "  1. Yes, allow creation",
+     "  2. No, deny creation"
+    ]
+   }
+  },
+  {
+   "name": "create-file-ask-no-footer",
+   "text": "      ▄▀▀▄        Antigravity CLI 1.5.13\n     ▀▀▀▀▀▀       someone.x@example.test (Google AI Pro)\n    ▀▀▀▀▀▀▀▀      Gemini 4 Hydrogen (Low)\n   ▄▀▀    ▀▀▄     /tmp/demo/agy-sample/work-01\n  ▄▀▀      ▀▀▄\n\n────────────────────────────────────────────────────────────\n> Read notes.txt in this folder and tell me its second line in one short sentence.\n\n● Explored 1 file (notes.txt) (ctrl+o to expand)\n\n  The second line of notes.txt:2 is beta.\n\n────────────────────────────────────────────────────────────\n> Do three things in this folder: run ls -la, append the line delta to notes.txt, then create hello.py that prints hi and run it with python3. Answer in two short sentences.\n\n○ Thought for 3.2s (Initial plan is to execute three operations. First, list directory contents. Then append data to a specific file, ensuring the append operation is correctly configured. Finally...)\n● Ran (ls -la)\n● Edited 2 files (notes.txt, hello.py)\n● Ran (python3 hello.py) (ctrl+o to expand)\n\n  I ran ls -la (which showed only notes.txt initially) and appended delta to notes.txt. I also created hello.py and ran it with python3, which printed hi.\n\n────────────────────────────────────────────────────────────\n> Create the file ask.txt containing the single word hello.\n\n● Edited 1 file (ask.txt) (ctrl+o to expand)\n\nCreate file\n─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n\n/tmp/demo/agy-sample/work-01/ask.txt  +1\n  1  +  hello\n\nAllow creation of this file?\n> 1. Yes, allow creation\n  2. No, deny creation\n\nesc to cancel                                                                                                                                                                     Gemini 4 Hydrogen · low\n",
+   "mac": null
+  },
+  {
+   "name": "create-file-ask-no-marker",
+   "text": "      ▄▀▀▄        Antigravity CLI 1.5.13\n     ▀▀▀▀▀▀       someone.x@example.test (Google AI Pro)\n    ▀▀▀▀▀▀▀▀      Gemini 4 Hydrogen (Low)\n   ▄▀▀    ▀▀▄     /tmp/demo/agy-sample/work-01\n  ▄▀▀      ▀▀▄\n\n────────────────────────────────────────────────────────────\n  Read notes.txt in this folder and tell me its second line in one short sentence.\n\n● Explored 1 file (notes.txt) (ctrl+o to expand)\n\n  The second line of notes.txt:2 is beta.\n\n────────────────────────────────────────────────────────────\n  Do three things in this folder: run ls -la, append the line delta to notes.txt, then create hello.py that prints hi and run it with python3. Answer in two short sentences.\n\n○ Thought for 3.2s (Initial plan is to execute three operations. First, list directory contents. Then append data to a specific file, ensuring the append operation is correctly configured. Finally...)\n● Ran (ls -la)\n● Edited 2 files (notes.txt, hello.py)\n● Ran (python3 hello.py) (ctrl+o to expand)\n\n  I ran ls -la (which showed only notes.txt initially) and appended delta to notes.txt. I also created hello.py and ran it with python3, which printed hi.\n\n────────────────────────────────────────────────────────────\n  Create the file ask.txt containing the single word hello.\n\n● Edited 1 file (ask.txt) (ctrl+o to expand)\n\nCreate file\n─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n\n/tmp/demo/agy-sample/work-01/ask.txt  +1\n  1  +  hello\n\nAllow creation of this file?\n  1. Yes, allow creation\n  2. No, deny creation\n\n  ↑/↓ Navigate · f full diff\nesc to cancel                                                                                                                                                                     Gemini 4 Hydrogen · low\n",
+   "mac": null
+  },
+  {
+   "name": "create-file-ask-two-markers",
+   "text": "      ▄▀▀▄        Antigravity CLI 1.5.13\n     ▀▀▀▀▀▀       someone.x@example.test (Google AI Pro)\n    ▀▀▀▀▀▀▀▀      Gemini 4 Hydrogen (Low)\n   ▄▀▀    ▀▀▄     /tmp/demo/agy-sample/work-01\n  ▄▀▀      ▀▀▄\n\n────────────────────────────────────────────────────────────\n> Read notes.txt in this folder and tell me its second line in one short sentence.\n\n● Explored 1 file (notes.txt) (ctrl+o to expand)\n\n  The second line of notes.txt:2 is beta.\n\n────────────────────────────────────────────────────────────\n> Do three things in this folder: run ls -la, append the line delta to notes.txt, then create hello.py that prints hi and run it with python3. Answer in two short sentences.\n\n○ Thought for 3.2s (Initial plan is to execute three operations. First, list directory contents. Then append data to a specific file, ensuring the append operation is correctly configured. Finally...)\n● Ran (ls -la)\n● Edited 2 files (notes.txt, hello.py)\n● Ran (python3 hello.py) (ctrl+o to expand)\n\n  I ran ls -la (which showed only notes.txt initially) and appended delta to notes.txt. I also created hello.py and ran it with python3, which printed hi.\n\n────────────────────────────────────────────────────────────\n> Create the file ask.txt containing the single word hello.\n\n● Edited 1 file (ask.txt) (ctrl+o to expand)\n\nCreate file\n─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n\n/tmp/demo/agy-sample/work-01/ask.txt  +1\n  1  +  hello\n\nAllow creation of this file?\n> 1. Yes, allow creation\n> 2. No, deny creation\n\n  ↑/↓ Navigate · f full diff\nesc to cancel                                                                                                                                                                     Gemini 4 Hydrogen · low\n",
+   "mac": null
+  },
+  {
+   "name": "create-file-ask-idle-after",
+   "text": "      ▄▀▀▄        Antigravity CLI 1.5.13\n     ▀▀▀▀▀▀       someone.x@example.test (Google AI Pro)\n    ▀▀▀▀▀▀▀▀      Gemini 4 Hydrogen (Low)\n   ▄▀▀    ▀▀▄     /tmp/demo/agy-sample/work-01\n  ▄▀▀      ▀▀▄\n\n────────────────────────────────────────────────────────────\n> Read notes.txt in this folder and tell me its second line in one short sentence.\n\n● Explored 1 file (notes.txt) (ctrl+o to expand)\n\n  The second line of notes.txt:2 is beta.\n\n────────────────────────────────────────────────────────────\n> Do three things in this folder: run ls -la, append the line delta to notes.txt, then create hello.py that prints hi and run it with python3. Answer in two short sentences.\n\n○ Thought for 3.2s (Initial plan is to execute three operations. First, list directory contents. Then append data to a specific file, ensuring the append operation is correctly configured. Finally...)\n● Ran (ls -la)\n● Edited 2 files (notes.txt, hello.py)\n● Ran (python3 hello.py) (ctrl+o to expand)\n\n  I ran ls -la (which showed only notes.txt initially) and appended delta to notes.txt. I also created hello.py and ran it with python3, which printed hi.\n\n────────────────────────────────────────────────────────────\n> Create the file ask.txt containing the single word hello.\n\n● Edited 1 file (ask.txt) (ctrl+o to expand)\n\nCreate file\n─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n\n/tmp/demo/agy-sample/work-01/ask.txt  +1\n  1  +  hello\n\nAllow creation of this file?\n> 1. Yes, allow creation\n  2. No, deny creation\n\n  ↑/↓ Navigate · f full diff\nesc to cancel                                                                                                                                                                     Gemini 4 Hydrogen · low\n\n────\n> \n────\n? for shortcuts          auto · Gemini 4 Hydrogen · low\n",
+   "mac": null
+  },
+  {
+   "name": "create-file-ask-bare-cancel",
+   "text": "      ▄▀▀▄        Antigravity CLI 1.5.13\n     ▀▀▀▀▀▀       someone.x@example.test (Google AI Pro)\n    ▀▀▀▀▀▀▀▀      Gemini 4 Hydrogen (Low)\n   ▄▀▀    ▀▀▄     /tmp/demo/agy-sample/work-01\n  ▄▀▀      ▀▀▄\n\n────────────────────────────────────────────────────────────\n> Read notes.txt in this folder and tell me its second line in one short sentence.\n\n● Explored 1 file (notes.txt) (ctrl+o to expand)\n\n  The second line of notes.txt:2 is beta.\n\n────────────────────────────────────────────────────────────\n> Do three things in this folder: run ls -la, append the line delta to notes.txt, then create hello.py that prints hi and run it with python3. Answer in two short sentences.\n\n○ Thought for 3.2s (Initial plan is to execute three operations. First, list directory contents. Then append data to a specific file, ensuring the append operation is correctly configured. Finally...)\n● Ran (ls -la)\n● Edited 2 files (notes.txt, hello.py)\n● Ran (python3 hello.py) (ctrl+o to expand)\n\n  I ran ls -la (which showed only notes.txt initially) and appended delta to notes.txt. I also created hello.py and ran it with python3, which printed hi.\n\n────────────────────────────────────────────────────────────\n> Create the file ask.txt containing the single word hello.\n\n● Edited 1 file (ask.txt) (ctrl+o to expand)\n\nCreate file\n─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n\n/tmp/demo/agy-sample/work-01/ask.txt  +1\n  1  +  hello\n\nAllow creation of this file?\n> 1. Yes, allow creation\n  2. No, deny creation\n\n  ↑/↓ Navigate · f full diff\nesc to cancel\n",
+   "mac": {
+    "kind": "agyAsk",
+    "question": "Allow creation of this file?",
+    "context": {
+     "type": "file",
+     "name": "/tmp/demo/agy-sample/work-01/ask.txt"
+    },
+    "options": [
+     {
+      "key": "1",
+      "label": "Yes, allow creation",
+      "keys": [
+       "1"
+      ],
+      "marked": true,
+      "lasting": false
+     },
+     {
+      "key": "2",
+      "label": "No, deny creation",
+      "keys": [
+       "2"
+      ],
+      "marked": false,
+      "lasting": false
+     }
+    ],
+    "body": [
+     "Create file",
+     "",
+     "/tmp/demo/agy-sample/work-01/ask.txt  +1",
+     "  1  +  hello",
+     ""
+    ],
+    "drawnOptions": [
+     "  1. Yes, allow creation",
+     "  2. No, deny creation"
+    ]
+   }
+  },
+  {
+   "name": "create-file-ask-bare-no-footer",
+   "text": "      ▄▀▀▄        Antigravity CLI 1.5.13\n     ▀▀▀▀▀▀       someone.x@example.test (Google AI Pro)\n    ▀▀▀▀▀▀▀▀      Gemini 4 Hydrogen (Low)\n   ▄▀▀    ▀▀▄     /tmp/demo/agy-sample/work-01\n  ▄▀▀      ▀▀▄\n\n────────────────────────────────────────────────────────────\n> Read notes.txt in this folder and tell me its second line in one short sentence.\n\n● Explored 1 file (notes.txt) (ctrl+o to expand)\n\n  The second line of notes.txt:2 is beta.\n\n────────────────────────────────────────────────────────────\n> Do three things in this folder: run ls -la, append the line delta to notes.txt, then create hello.py that prints hi and run it with python3. Answer in two short sentences.\n\n○ Thought for 3.2s (Initial plan is to execute three operations. First, list directory contents. Then append data to a specific file, ensuring the append operation is correctly configured. Finally...)\n● Ran (ls -la)\n● Edited 2 files (notes.txt, hello.py)\n● Ran (python3 hello.py) (ctrl+o to expand)\n\n  I ran ls -la (which showed only notes.txt initially) and appended delta to notes.txt. I also created hello.py and ran it with python3, which printed hi.\n\n────────────────────────────────────────────────────────────\n> Create the file ask.txt containing the single word hello.\n\n● Edited 1 file (ask.txt) (ctrl+o to expand)\n\nCreate file\n─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n\n/tmp/demo/agy-sample/work-01/ask.txt  +1\n  1  +  hello\n\nAllow creation of this file?\n> 1. Yes, allow creation\n  2. No, deny creation\n\nesc to cancel\n",
+   "mac": null
+  },
+  {
+   "name": "create-file-ask-body-edge-blank",
+   "text": "      ▄▀▀▄        Antigravity CLI 1.5.13\n     ▀▀▀▀▀▀       someone.x@example.test (Google AI Pro)\n    ▀▀▀▀▀▀▀▀      Gemini 4 Hydrogen (Low)\n   ▄▀▀    ▀▀▄     /tmp/demo/agy-sample/work-01\n  ▄▀▀      ▀▀▄\n\n────────────────────────────────────────────────────────────\n> Read notes.txt in this folder and tell me its second line in one short sentence.\n\n● Explored 1 file (notes.txt) (ctrl+o to expand)\n\n  The second line of notes.txt:2 is beta.\n\n────────────────────────────────────────────────────────────\n> Do three things in this folder: run ls -la, append the line delta to notes.txt, then create hello.py that prints hi and run it with python3. Answer in two short sentences.\n\n○ Thought for 3.2s (Initial plan is to execute three operations. First, list directory contents. Then append data to a specific file, ensuring the append operation is correctly configured. Finally...)\n● Ran (ls -la)\n● Edited 2 files (notes.txt, hello.py)\n● Ran (python3 hello.py) (ctrl+o to expand)\n\n  I ran ls -la (which showed only notes.txt initially) and appended delta to notes.txt. I also created hello.py and ran it with python3, which printed hi.\n\n────────────────────────────────────────────────────────────\n> Create the file ask.txt containing the single word hello.\n\n● Edited 1 file (ask.txt) (ctrl+o to expand)\n\nCreate file\n─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n\n/tmp/demo/agy-sample/work-01/ask.txt  +1\n  1  +  hello\n\n   \nAllow creation of this file?\n> 1. Yes, allow creation\n  2. No, deny creation\n\n  ↑/↓ Navigate · f full diff\nesc to cancel                                                                                                                                                                     Gemini 4 Hydrogen · low\n",
+   "mac": {
+    "kind": "agyAsk",
+    "question": "Allow creation of this file?",
+    "context": {
+     "type": "file",
+     "name": "/tmp/demo/agy-sample/work-01/ask.txt"
+    },
+    "options": [
+     {
+      "key": "1",
+      "label": "Yes, allow creation",
+      "keys": [
+       "1"
+      ],
+      "marked": true,
+      "lasting": false
+     },
+     {
+      "key": "2",
+      "label": "No, deny creation",
+      "keys": [
+       "2"
+      ],
+      "marked": false,
+      "lasting": false
+     }
+    ],
+    "body": [
+     "Create file",
+     "",
+     "/tmp/demo/agy-sample/work-01/ask.txt  +1",
+     "  1  +  hello",
+     "",
+     "   "
+    ],
+    "drawnOptions": [
+     "  1. Yes, allow creation",
+     "  2. No, deny creation"
+    ]
+   }
+  },
+  {
+   "name": "create-file-ask-option-trailing",
+   "text": "      ▄▀▀▄        Antigravity CLI 1.5.13\n     ▀▀▀▀▀▀       someone.x@example.test (Google AI Pro)\n    ▀▀▀▀▀▀▀▀      Gemini 4 Hydrogen (Low)\n   ▄▀▀    ▀▀▄     /tmp/demo/agy-sample/work-01\n  ▄▀▀      ▀▀▄\n\n────────────────────────────────────────────────────────────\n> Read notes.txt in this folder and tell me its second line in one short sentence.\n\n● Explored 1 file (notes.txt) (ctrl+o to expand)\n\n  The second line of notes.txt:2 is beta.\n\n────────────────────────────────────────────────────────────\n> Do three things in this folder: run ls -la, append the line delta to notes.txt, then create hello.py that prints hi and run it with python3. Answer in two short sentences.\n\n○ Thought for 3.2s (Initial plan is to execute three operations. First, list directory contents. Then append data to a specific file, ensuring the append operation is correctly configured. Finally...)\n● Ran (ls -la)\n● Edited 2 files (notes.txt, hello.py)\n● Ran (python3 hello.py) (ctrl+o to expand)\n\n  I ran ls -la (which showed only notes.txt initially) and appended delta to notes.txt. I also created hello.py and ran it with python3, which printed hi.\n\n────────────────────────────────────────────────────────────\n> Create the file ask.txt containing the single word hello.\n\n● Edited 1 file (ask.txt) (ctrl+o to expand)\n\nCreate file\n─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n\n/tmp/demo/agy-sample/work-01/ask.txt  +1\n  1  +  hello\n\nAllow creation of this file?\n> 1. Yes, allow creation \n  2. No, deny creation\n\n  ↑/↓ Navigate · f full diff\nesc to cancel                                                                                                                                                                     Gemini 4 Hydrogen · low\n",
+   "mac": {
+    "kind": "agyAsk",
+    "question": "Allow creation of this file?",
+    "context": {
+     "type": "file",
+     "name": "/tmp/demo/agy-sample/work-01/ask.txt"
+    },
+    "options": [
+     {
+      "key": "1",
+      "label": "Yes, allow creation",
+      "keys": [
+       "1"
+      ],
+      "marked": true,
+      "lasting": false
+     },
+     {
+      "key": "2",
+      "label": "No, deny creation",
+      "keys": [
+       "2"
+      ],
+      "marked": false,
+      "lasting": false
+     }
+    ],
+    "body": [
+     "Create file",
+     "",
+     "/tmp/demo/agy-sample/work-01/ask.txt  +1",
+     "  1  +  hello",
+     ""
+    ],
+    "drawnOptions": [
+     "  1. Yes, allow creation ",
+     "  2. No, deny creation"
+    ]
+   }
+  },
+  {
+   "name": "edit-file-ask",
+   "text": "\n────────────────────────────────────────────────────────────\n> Do three things in this folder: run ls -la, append the line delta to notes.txt, then create hello.py that prints hi and run it with python3. Answer in two short sentences.\n\n○ Thought for 3.2s (Initial plan is to execute three operations. First, list directory contents. Then append data to a specific file, ensuring the append operation is correctly configured. Finally...)\n● Ran (ls -la)\n● Edited 2 files (notes.txt, hello.py)\n● Ran (python3 hello.py) (ctrl+o to expand)\n\n  I ran ls -la (which showed only notes.txt initially) and appended delta to notes.txt. I also created hello.py and ran it with python3, which printed hi.\n\n────────────────────────────────────────────────────────────\n> Create the file ask.txt containing the single word hello.\n\n● Edited 1 file (ask.txt) (ctrl+o to expand)\n\n────────────────────────────────────────────────────────────\n> Run the shell command: date\n\n● Ran (date) (ctrl+o to expand)\n\n────────────────────────────────────────────────────────────\n> Change the first line of notes.txt from alpha to ALPHA.\n\n● Edited 1 file (notes.txt) (ctrl+o to expand)\n\nPending edit\n─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n\n/tmp/demo/agy-sample/work-01/notes.txt  +1 -1\n  1  -  alpha\n  1  +  ALPHA\n\n  shift+tab to auto-approve file edits\nAccept this file edit?\n> 1. Yes, accept this change\n  2. No, reject this change\n\n  ↑/↓ Navigate · f full diff\nesc to cancel                                                                                                                                                                     Gemini 4 Hydrogen · low\n",
+   "mac": {
+    "kind": "agyAsk",
+    "question": "Accept this file edit?",
+    "context": {
+     "type": "diff",
+     "added": 1,
+     "removed": 1
+    },
+    "options": [
+     {
+      "key": "1",
+      "label": "Yes, accept this change",
+      "keys": [
+       "1"
+      ],
+      "marked": true,
+      "lasting": false
+     },
+     {
+      "key": "2",
+      "label": "No, reject this change",
+      "keys": [
+       "2"
+      ],
+      "marked": false,
+      "lasting": false
+     }
+    ],
+    "body": [
+     "Pending edit",
+     "",
+     "/tmp/demo/agy-sample/work-01/notes.txt  +1 -1",
+     "  1  -  alpha",
+     "  1  +  ALPHA",
+     "",
+     "  shift+tab to auto-approve file edits"
+    ],
+    "drawnOptions": [
+     "  1. Yes, accept this change",
+     "  2. No, reject this change"
+    ]
+   }
+  },
+  {
+   "name": "edit-file-ask-width-60",
+   "text": "\n────────────────────────────────────────────────────────────\n> Do three things in this folder: run ls -la, append the line delta to notes.txt, then create hello.py that prints hi and run it with python3. Answer in two short sentences.\n\n○ Thought for 3.2s (Initial plan is to execute three operations. First, list directory contents. Then append data to a specific file, ensuring the append operation is correctly configured. Finally...)\n● Ran (ls -la)\n● Edited 2 files (notes.txt, hello.py)\n● Ran (python3 hello.py) (ctrl+o to expand)\n\n  I ran ls -la (which showed only notes.txt initially) and appended delta to notes.txt. I also created hello.py and ran it with python3, which printed hi.\n\n────────────────────────────────────────────────────────────\n> Create the file ask.txt containing the single word hello.\n\n● Edited 1 file (ask.txt) (ctrl+o to expand)\n\n────────────────────────────────────────────────────────────\n> Run the shell command: date\n\n● Ran (date) (ctrl+o to expand)\n\n────────────────────────────────────────────────────────────\n> Change the first line of notes.txt from alpha to ALPHA.\n\n● Edited 1 file (notes.txt) (ctrl+o to expand)\n\nPending edit\n────────────────────────────────────────────────────────────\n\n/tmp/demo/agy-sample/work-01/notes.txt  +1 -1\n  1  -  alpha\n  1  +  ALPHA\n\n  shift+tab to auto-approve file edits\nAccept this file edit?\n> 1. Yes, accept this change\n  2. No, reject this change\n\n  ↑/↓ Navigate · f full diff\nesc to cancel                        Gemini 4 Hydrogen · low\n",
+   "mac": {
+    "kind": "agyAsk",
+    "question": "Accept this file edit?",
+    "context": {
+     "type": "diff",
+     "added": 1,
+     "removed": 1
+    },
+    "options": [
+     {
+      "key": "1",
+      "label": "Yes, accept this change",
+      "keys": [
+       "1"
+      ],
+      "marked": true,
+      "lasting": false
+     },
+     {
+      "key": "2",
+      "label": "No, reject this change",
+      "keys": [
+       "2"
+      ],
+      "marked": false,
+      "lasting": false
+     }
+    ],
+    "body": [
+     "Pending edit",
+     "",
+     "/tmp/demo/agy-sample/work-01/notes.txt  +1 -1",
+     "  1  -  alpha",
+     "  1  +  ALPHA",
+     "",
+     "  shift+tab to auto-approve file edits"
+    ],
+    "drawnOptions": [
+     "  1. Yes, accept this change",
+     "  2. No, reject this change"
+    ]
+   }
+  },
+  {
+   "name": "edit-file-ask-width-80",
+   "text": "\n────────────────────────────────────────────────────────────────────────────────\n> Do three things in this folder: run ls -la, append the line delta to notes.txt, then create hello.py that prints hi and run it with python3. Answer in two short sentences.\n\n○ Thought for 3.2s (Initial plan is to execute three operations. First, list directory contents. Then append data to a specific file, ensuring the append operation is correctly configured. Finally...)\n● Ran (ls -la)\n● Edited 2 files (notes.txt, hello.py)\n● Ran (python3 hello.py) (ctrl+o to expand)\n\n  I ran ls -la (which showed only notes.txt initially) and appended delta to notes.txt. I also created hello.py and ran it with python3, which printed hi.\n\n────────────────────────────────────────────────────────────────────────────────\n> Create the file ask.txt containing the single word hello.\n\n● Edited 1 file (ask.txt) (ctrl+o to expand)\n\n────────────────────────────────────────────────────────────────────────────────\n> Run the shell command: date\n\n● Ran (date) (ctrl+o to expand)\n\n────────────────────────────────────────────────────────────────────────────────\n> Change the first line of notes.txt from alpha to ALPHA.\n\n● Edited 1 file (notes.txt) (ctrl+o to expand)\n\nPending edit\n────────────────────────────────────────────────────────────────────────────────\n\n/tmp/demo/agy-sample/work-01/notes.txt  +1 -1\n  1  -  alpha\n  1  +  ALPHA\n\n  shift+tab to auto-approve file edits\nAccept this file edit?\n> 1. Yes, accept this change\n  2. No, reject this change\n\n  ↑/↓ Navigate · f full diff\nesc to cancel                                            Gemini 4 Hydrogen · low\n",
+   "mac": {
+    "kind": "agyAsk",
+    "question": "Accept this file edit?",
+    "context": {
+     "type": "diff",
+     "added": 1,
+     "removed": 1
+    },
+    "options": [
+     {
+      "key": "1",
+      "label": "Yes, accept this change",
+      "keys": [
+       "1"
+      ],
+      "marked": true,
+      "lasting": false
+     },
+     {
+      "key": "2",
+      "label": "No, reject this change",
+      "keys": [
+       "2"
+      ],
+      "marked": false,
+      "lasting": false
+     }
+    ],
+    "body": [
+     "Pending edit",
+     "",
+     "/tmp/demo/agy-sample/work-01/notes.txt  +1 -1",
+     "  1  -  alpha",
+     "  1  +  ALPHA",
+     "",
+     "  shift+tab to auto-approve file edits"
+    ],
+    "drawnOptions": [
+     "  1. Yes, accept this change",
+     "  2. No, reject this change"
+    ]
+   }
+  },
+  {
+   "name": "edit-file-ask-width-100",
+   "text": "\n────────────────────────────────────────────────────────────────────────────────────────────────────\n> Do three things in this folder: run ls -la, append the line delta to notes.txt, then create hello.py that prints hi and run it with python3. Answer in two short sentences.\n\n○ Thought for 3.2s (Initial plan is to execute three operations. First, list directory contents. Then append data to a specific file, ensuring the append operation is correctly configured. Finally...)\n● Ran (ls -la)\n● Edited 2 files (notes.txt, hello.py)\n● Ran (python3 hello.py) (ctrl+o to expand)\n\n  I ran ls -la (which showed only notes.txt initially) and appended delta to notes.txt. I also created hello.py and ran it with python3, which printed hi.\n\n────────────────────────────────────────────────────────────────────────────────────────────────────\n> Create the file ask.txt containing the single word hello.\n\n● Edited 1 file (ask.txt) (ctrl+o to expand)\n\n────────────────────────────────────────────────────────────────────────────────────────────────────\n> Run the shell command: date\n\n● Ran (date) (ctrl+o to expand)\n\n────────────────────────────────────────────────────────────────────────────────────────────────────\n> Change the first line of notes.txt from alpha to ALPHA.\n\n● Edited 1 file (notes.txt) (ctrl+o to expand)\n\nPending edit\n────────────────────────────────────────────────────────────────────────────────────────────────────\n\n/tmp/demo/agy-sample/work-01/notes.txt  +1 -1\n  1  -  alpha\n  1  +  ALPHA\n\n  shift+tab to auto-approve file edits\nAccept this file edit?\n> 1. Yes, accept this change\n  2. No, reject this change\n\n  ↑/↓ Navigate · f full diff\nesc to cancel                                                                Gemini 4 Hydrogen · low\n",
+   "mac": {
+    "kind": "agyAsk",
+    "question": "Accept this file edit?",
+    "context": {
+     "type": "diff",
+     "added": 1,
+     "removed": 1
+    },
+    "options": [
+     {
+      "key": "1",
+      "label": "Yes, accept this change",
+      "keys": [
+       "1"
+      ],
+      "marked": true,
+      "lasting": false
+     },
+     {
+      "key": "2",
+      "label": "No, reject this change",
+      "keys": [
+       "2"
+      ],
+      "marked": false,
+      "lasting": false
+     }
+    ],
+    "body": [
+     "Pending edit",
+     "",
+     "/tmp/demo/agy-sample/work-01/notes.txt  +1 -1",
+     "  1  -  alpha",
+     "  1  +  ALPHA",
+     "",
+     "  shift+tab to auto-approve file edits"
+    ],
+    "drawnOptions": [
+     "  1. Yes, accept this change",
+     "  2. No, reject this change"
+    ]
+   }
+  },
+  {
+   "name": "edit-file-ask-width-119",
+   "text": "\n───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n> Do three things in this folder: run ls -la, append the line delta to notes.txt, then create hello.py that prints hi and run it with python3. Answer in two short sentences.\n\n○ Thought for 3.2s (Initial plan is to execute three operations. First, list directory contents. Then append data to a specific file, ensuring the append operation is correctly configured. Finally...)\n● Ran (ls -la)\n● Edited 2 files (notes.txt, hello.py)\n● Ran (python3 hello.py) (ctrl+o to expand)\n\n  I ran ls -la (which showed only notes.txt initially) and appended delta to notes.txt. I also created hello.py and ran it with python3, which printed hi.\n\n───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n> Create the file ask.txt containing the single word hello.\n\n● Edited 1 file (ask.txt) (ctrl+o to expand)\n\n───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n> Run the shell command: date\n\n● Ran (date) (ctrl+o to expand)\n\n───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n> Change the first line of notes.txt from alpha to ALPHA.\n\n● Edited 1 file (notes.txt) (ctrl+o to expand)\n\nPending edit\n───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n\n/tmp/demo/agy-sample/work-01/notes.txt  +1 -1\n  1  -  alpha\n  1  +  ALPHA\n\n  shift+tab to auto-approve file edits\nAccept this file edit?\n> 1. Yes, accept this change\n  2. No, reject this change\n\n  ↑/↓ Navigate · f full diff\nesc to cancel                                                                                   Gemini 4 Hydrogen · low\n",
+   "mac": {
+    "kind": "agyAsk",
+    "question": "Accept this file edit?",
+    "context": {
+     "type": "diff",
+     "added": 1,
+     "removed": 1
+    },
+    "options": [
+     {
+      "key": "1",
+      "label": "Yes, accept this change",
+      "keys": [
+       "1"
+      ],
+      "marked": true,
+      "lasting": false
+     },
+     {
+      "key": "2",
+      "label": "No, reject this change",
+      "keys": [
+       "2"
+      ],
+      "marked": false,
+      "lasting": false
+     }
+    ],
+    "body": [
+     "Pending edit",
+     "",
+     "/tmp/demo/agy-sample/work-01/notes.txt  +1 -1",
+     "  1  -  alpha",
+     "  1  +  ALPHA",
+     "",
+     "  shift+tab to auto-approve file edits"
+    ],
+    "drawnOptions": [
+     "  1. Yes, accept this change",
+     "  2. No, reject this change"
+    ]
+   }
+  },
+  {
+   "name": "edit-file-ask-width-160",
+   "text": "\n────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n> Do three things in this folder: run ls -la, append the line delta to notes.txt, then create hello.py that prints hi and run it with python3. Answer in two short sentences.\n\n○ Thought for 3.2s (Initial plan is to execute three operations. First, list directory contents. Then append data to a specific file, ensuring the append operation is correctly configured. Finally...)\n● Ran (ls -la)\n● Edited 2 files (notes.txt, hello.py)\n● Ran (python3 hello.py) (ctrl+o to expand)\n\n  I ran ls -la (which showed only notes.txt initially) and appended delta to notes.txt. I also created hello.py and ran it with python3, which printed hi.\n\n────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n> Create the file ask.txt containing the single word hello.\n\n● Edited 1 file (ask.txt) (ctrl+o to expand)\n\n────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n> Run the shell command: date\n\n● Ran (date) (ctrl+o to expand)\n\n────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n> Change the first line of notes.txt from alpha to ALPHA.\n\n● Edited 1 file (notes.txt) (ctrl+o to expand)\n\nPending edit\n────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n\n/tmp/demo/agy-sample/work-01/notes.txt  +1 -1\n  1  -  alpha\n  1  +  ALPHA\n\n  shift+tab to auto-approve file edits\nAccept this file edit?\n> 1. Yes, accept this change\n  2. No, reject this change\n\n  ↑/↓ Navigate · f full diff\nesc to cancel                                                                                                                            Gemini 4 Hydrogen · low\n",
+   "mac": {
+    "kind": "agyAsk",
+    "question": "Accept this file edit?",
+    "context": {
+     "type": "diff",
+     "added": 1,
+     "removed": 1
+    },
+    "options": [
+     {
+      "key": "1",
+      "label": "Yes, accept this change",
+      "keys": [
+       "1"
+      ],
+      "marked": true,
+      "lasting": false
+     },
+     {
+      "key": "2",
+      "label": "No, reject this change",
+      "keys": [
+       "2"
+      ],
+      "marked": false,
+      "lasting": false
+     }
+    ],
+    "body": [
+     "Pending edit",
+     "",
+     "/tmp/demo/agy-sample/work-01/notes.txt  +1 -1",
+     "  1  -  alpha",
+     "  1  +  ALPHA",
+     "",
+     "  shift+tab to auto-approve file edits"
+    ],
+    "drawnOptions": [
+     "  1. Yes, accept this change",
+     "  2. No, reject this change"
+    ]
+   }
+  },
+  {
+   "name": "edit-file-ask-width-200",
+   "text": "\n────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n> Do three things in this folder: run ls -la, append the line delta to notes.txt, then create hello.py that prints hi and run it with python3. Answer in two short sentences.\n\n○ Thought for 3.2s (Initial plan is to execute three operations. First, list directory contents. Then append data to a specific file, ensuring the append operation is correctly configured. Finally...)\n● Ran (ls -la)\n● Edited 2 files (notes.txt, hello.py)\n● Ran (python3 hello.py) (ctrl+o to expand)\n\n  I ran ls -la (which showed only notes.txt initially) and appended delta to notes.txt. I also created hello.py and ran it with python3, which printed hi.\n\n────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n> Create the file ask.txt containing the single word hello.\n\n● Edited 1 file (ask.txt) (ctrl+o to expand)\n\n────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n> Run the shell command: date\n\n● Ran (date) (ctrl+o to expand)\n\n────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n> Change the first line of notes.txt from alpha to ALPHA.\n\n● Edited 1 file (notes.txt) (ctrl+o to expand)\n\nPending edit\n────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n\n/tmp/demo/agy-sample/work-01/notes.txt  +1 -1\n  1  -  alpha\n  1  +  ALPHA\n\n  shift+tab to auto-approve file edits\nAccept this file edit?\n> 1. Yes, accept this change\n  2. No, reject this change\n\n  ↑/↓ Navigate · f full diff\nesc to cancel                                                                                                                                                                    Gemini 4 Hydrogen · low\n",
+   "mac": {
+    "kind": "agyAsk",
+    "question": "Accept this file edit?",
+    "context": {
+     "type": "diff",
+     "added": 1,
+     "removed": 1
+    },
+    "options": [
+     {
+      "key": "1",
+      "label": "Yes, accept this change",
+      "keys": [
+       "1"
+      ],
+      "marked": true,
+      "lasting": false
+     },
+     {
+      "key": "2",
+      "label": "No, reject this change",
+      "keys": [
+       "2"
+      ],
+      "marked": false,
+      "lasting": false
+     }
+    ],
+    "body": [
+     "Pending edit",
+     "",
+     "/tmp/demo/agy-sample/work-01/notes.txt  +1 -1",
+     "  1  -  alpha",
+     "  1  +  ALPHA",
+     "",
+     "  shift+tab to auto-approve file edits"
+    ],
+    "drawnOptions": [
+     "  1. Yes, accept this change",
+     "  2. No, reject this change"
+    ]
+   }
+  },
+  {
+   "name": "edit-file-ask-no-footer",
+   "text": "\n────────────────────────────────────────────────────────────\n> Do three things in this folder: run ls -la, append the line delta to notes.txt, then create hello.py that prints hi and run it with python3. Answer in two short sentences.\n\n○ Thought for 3.2s (Initial plan is to execute three operations. First, list directory contents. Then append data to a specific file, ensuring the append operation is correctly configured. Finally...)\n● Ran (ls -la)\n● Edited 2 files (notes.txt, hello.py)\n● Ran (python3 hello.py) (ctrl+o to expand)\n\n  I ran ls -la (which showed only notes.txt initially) and appended delta to notes.txt. I also created hello.py and ran it with python3, which printed hi.\n\n────────────────────────────────────────────────────────────\n> Create the file ask.txt containing the single word hello.\n\n● Edited 1 file (ask.txt) (ctrl+o to expand)\n\n────────────────────────────────────────────────────────────\n> Run the shell command: date\n\n● Ran (date) (ctrl+o to expand)\n\n────────────────────────────────────────────────────────────\n> Change the first line of notes.txt from alpha to ALPHA.\n\n● Edited 1 file (notes.txt) (ctrl+o to expand)\n\nPending edit\n─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n\n/tmp/demo/agy-sample/work-01/notes.txt  +1 -1\n  1  -  alpha\n  1  +  ALPHA\n\n  shift+tab to auto-approve file edits\nAccept this file edit?\n> 1. Yes, accept this change\n  2. No, reject this change\n\nesc to cancel                                                                                                                                                                     Gemini 4 Hydrogen · low\n",
+   "mac": null
+  },
+  {
+   "name": "edit-file-ask-no-marker",
+   "text": "\n────────────────────────────────────────────────────────────\n  Do three things in this folder: run ls -la, append the line delta to notes.txt, then create hello.py that prints hi and run it with python3. Answer in two short sentences.\n\n○ Thought for 3.2s (Initial plan is to execute three operations. First, list directory contents. Then append data to a specific file, ensuring the append operation is correctly configured. Finally...)\n● Ran (ls -la)\n● Edited 2 files (notes.txt, hello.py)\n● Ran (python3 hello.py) (ctrl+o to expand)\n\n  I ran ls -la (which showed only notes.txt initially) and appended delta to notes.txt. I also created hello.py and ran it with python3, which printed hi.\n\n────────────────────────────────────────────────────────────\n  Create the file ask.txt containing the single word hello.\n\n● Edited 1 file (ask.txt) (ctrl+o to expand)\n\n────────────────────────────────────────────────────────────\n  Run the shell command: date\n\n● Ran (date) (ctrl+o to expand)\n\n────────────────────────────────────────────────────────────\n  Change the first line of notes.txt from alpha to ALPHA.\n\n● Edited 1 file (notes.txt) (ctrl+o to expand)\n\nPending edit\n─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n\n/tmp/demo/agy-sample/work-01/notes.txt  +1 -1\n  1  -  alpha\n  1  +  ALPHA\n\n  shift+tab to auto-approve file edits\nAccept this file edit?\n  1. Yes, accept this change\n  2. No, reject this change\n\n  ↑/↓ Navigate · f full diff\nesc to cancel                                                                                                                                                                     Gemini 4 Hydrogen · low\n",
+   "mac": null
+  },
+  {
+   "name": "edit-file-ask-two-markers",
+   "text": "\n────────────────────────────────────────────────────────────\n> Do three things in this folder: run ls -la, append the line delta to notes.txt, then create hello.py that prints hi and run it with python3. Answer in two short sentences.\n\n○ Thought for 3.2s (Initial plan is to execute three operations. First, list directory contents. Then append data to a specific file, ensuring the append operation is correctly configured. Finally...)\n● Ran (ls -la)\n● Edited 2 files (notes.txt, hello.py)\n● Ran (python3 hello.py) (ctrl+o to expand)\n\n  I ran ls -la (which showed only notes.txt initially) and appended delta to notes.txt. I also created hello.py and ran it with python3, which printed hi.\n\n────────────────────────────────────────────────────────────\n> Create the file ask.txt containing the single word hello.\n\n● Edited 1 file (ask.txt) (ctrl+o to expand)\n\n────────────────────────────────────────────────────────────\n> Run the shell command: date\n\n● Ran (date) (ctrl+o to expand)\n\n────────────────────────────────────────────────────────────\n> Change the first line of notes.txt from alpha to ALPHA.\n\n● Edited 1 file (notes.txt) (ctrl+o to expand)\n\nPending edit\n─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n\n/tmp/demo/agy-sample/work-01/notes.txt  +1 -1\n  1  -  alpha\n  1  +  ALPHA\n\n  shift+tab to auto-approve file edits\nAccept this file edit?\n> 1. Yes, accept this change\n> 2. No, reject this change\n\n  ↑/↓ Navigate · f full diff\nesc to cancel                                                                                                                                                                     Gemini 4 Hydrogen · low\n",
+   "mac": null
+  },
+  {
+   "name": "edit-file-ask-idle-after",
+   "text": "\n────────────────────────────────────────────────────────────\n> Do three things in this folder: run ls -la, append the line delta to notes.txt, then create hello.py that prints hi and run it with python3. Answer in two short sentences.\n\n○ Thought for 3.2s (Initial plan is to execute three operations. First, list directory contents. Then append data to a specific file, ensuring the append operation is correctly configured. Finally...)\n● Ran (ls -la)\n● Edited 2 files (notes.txt, hello.py)\n● Ran (python3 hello.py) (ctrl+o to expand)\n\n  I ran ls -la (which showed only notes.txt initially) and appended delta to notes.txt. I also created hello.py and ran it with python3, which printed hi.\n\n────────────────────────────────────────────────────────────\n> Create the file ask.txt containing the single word hello.\n\n● Edited 1 file (ask.txt) (ctrl+o to expand)\n\n────────────────────────────────────────────────────────────\n> Run the shell command: date\n\n● Ran (date) (ctrl+o to expand)\n\n────────────────────────────────────────────────────────────\n> Change the first line of notes.txt from alpha to ALPHA.\n\n● Edited 1 file (notes.txt) (ctrl+o to expand)\n\nPending edit\n─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n\n/tmp/demo/agy-sample/work-01/notes.txt  +1 -1\n  1  -  alpha\n  1  +  ALPHA\n\n  shift+tab to auto-approve file edits\nAccept this file edit?\n> 1. Yes, accept this change\n  2. No, reject this change\n\n  ↑/↓ Navigate · f full diff\nesc to cancel                                                                                                                                                                     Gemini 4 Hydrogen · low\n\n────\n> \n────\n? for shortcuts          auto · Gemini 4 Hydrogen · low\n",
+   "mac": null
+  },
+  {
+   "name": "edit-file-ask-bare-cancel",
+   "text": "\n────────────────────────────────────────────────────────────\n> Do three things in this folder: run ls -la, append the line delta to notes.txt, then create hello.py that prints hi and run it with python3. Answer in two short sentences.\n\n○ Thought for 3.2s (Initial plan is to execute three operations. First, list directory contents. Then append data to a specific file, ensuring the append operation is correctly configured. Finally...)\n● Ran (ls -la)\n● Edited 2 files (notes.txt, hello.py)\n● Ran (python3 hello.py) (ctrl+o to expand)\n\n  I ran ls -la (which showed only notes.txt initially) and appended delta to notes.txt. I also created hello.py and ran it with python3, which printed hi.\n\n────────────────────────────────────────────────────────────\n> Create the file ask.txt containing the single word hello.\n\n● Edited 1 file (ask.txt) (ctrl+o to expand)\n\n────────────────────────────────────────────────────────────\n> Run the shell command: date\n\n● Ran (date) (ctrl+o to expand)\n\n────────────────────────────────────────────────────────────\n> Change the first line of notes.txt from alpha to ALPHA.\n\n● Edited 1 file (notes.txt) (ctrl+o to expand)\n\nPending edit\n─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n\n/tmp/demo/agy-sample/work-01/notes.txt  +1 -1\n  1  -  alpha\n  1  +  ALPHA\n\n  shift+tab to auto-approve file edits\nAccept this file edit?\n> 1. Yes, accept this change\n  2. No, reject this change\n\n  ↑/↓ Navigate · f full diff\nesc to cancel\n",
+   "mac": {
+    "kind": "agyAsk",
+    "question": "Accept this file edit?",
+    "context": {
+     "type": "diff",
+     "added": 1,
+     "removed": 1
+    },
+    "options": [
+     {
+      "key": "1",
+      "label": "Yes, accept this change",
+      "keys": [
+       "1"
+      ],
+      "marked": true,
+      "lasting": false
+     },
+     {
+      "key": "2",
+      "label": "No, reject this change",
+      "keys": [
+       "2"
+      ],
+      "marked": false,
+      "lasting": false
+     }
+    ],
+    "body": [
+     "Pending edit",
+     "",
+     "/tmp/demo/agy-sample/work-01/notes.txt  +1 -1",
+     "  1  -  alpha",
+     "  1  +  ALPHA",
+     "",
+     "  shift+tab to auto-approve file edits"
+    ],
+    "drawnOptions": [
+     "  1. Yes, accept this change",
+     "  2. No, reject this change"
+    ]
+   }
+  },
+  {
+   "name": "edit-file-ask-bare-no-footer",
+   "text": "\n────────────────────────────────────────────────────────────\n> Do three things in this folder: run ls -la, append the line delta to notes.txt, then create hello.py that prints hi and run it with python3. Answer in two short sentences.\n\n○ Thought for 3.2s (Initial plan is to execute three operations. First, list directory contents. Then append data to a specific file, ensuring the append operation is correctly configured. Finally...)\n● Ran (ls -la)\n● Edited 2 files (notes.txt, hello.py)\n● Ran (python3 hello.py) (ctrl+o to expand)\n\n  I ran ls -la (which showed only notes.txt initially) and appended delta to notes.txt. I also created hello.py and ran it with python3, which printed hi.\n\n────────────────────────────────────────────────────────────\n> Create the file ask.txt containing the single word hello.\n\n● Edited 1 file (ask.txt) (ctrl+o to expand)\n\n────────────────────────────────────────────────────────────\n> Run the shell command: date\n\n● Ran (date) (ctrl+o to expand)\n\n────────────────────────────────────────────────────────────\n> Change the first line of notes.txt from alpha to ALPHA.\n\n● Edited 1 file (notes.txt) (ctrl+o to expand)\n\nPending edit\n─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n\n/tmp/demo/agy-sample/work-01/notes.txt  +1 -1\n  1  -  alpha\n  1  +  ALPHA\n\n  shift+tab to auto-approve file edits\nAccept this file edit?\n> 1. Yes, accept this change\n  2. No, reject this change\n\nesc to cancel\n",
+   "mac": null
+  },
+  {
+   "name": "edit-file-ask-body-edge-blank",
+   "text": "\n────────────────────────────────────────────────────────────\n> Do three things in this folder: run ls -la, append the line delta to notes.txt, then create hello.py that prints hi and run it with python3. Answer in two short sentences.\n\n○ Thought for 3.2s (Initial plan is to execute three operations. First, list directory contents. Then append data to a specific file, ensuring the append operation is correctly configured. Finally...)\n● Ran (ls -la)\n● Edited 2 files (notes.txt, hello.py)\n● Ran (python3 hello.py) (ctrl+o to expand)\n\n  I ran ls -la (which showed only notes.txt initially) and appended delta to notes.txt. I also created hello.py and ran it with python3, which printed hi.\n\n────────────────────────────────────────────────────────────\n> Create the file ask.txt containing the single word hello.\n\n● Edited 1 file (ask.txt) (ctrl+o to expand)\n\n────────────────────────────────────────────────────────────\n> Run the shell command: date\n\n● Ran (date) (ctrl+o to expand)\n\n────────────────────────────────────────────────────────────\n> Change the first line of notes.txt from alpha to ALPHA.\n\n● Edited 1 file (notes.txt) (ctrl+o to expand)\n\nPending edit\n─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n\n/tmp/demo/agy-sample/work-01/notes.txt  +1 -1\n  1  -  alpha\n  1  +  ALPHA\n\n  shift+tab to auto-approve file edits\n   \nAccept this file edit?\n> 1. Yes, accept this change\n  2. No, reject this change\n\n  ↑/↓ Navigate · f full diff\nesc to cancel                                                                                                                                                                     Gemini 4 Hydrogen · low\n",
+   "mac": {
+    "kind": "agyAsk",
+    "question": "Accept this file edit?",
+    "context": {
+     "type": "diff",
+     "added": 1,
+     "removed": 1
+    },
+    "options": [
+     {
+      "key": "1",
+      "label": "Yes, accept this change",
+      "keys": [
+       "1"
+      ],
+      "marked": true,
+      "lasting": false
+     },
+     {
+      "key": "2",
+      "label": "No, reject this change",
+      "keys": [
+       "2"
+      ],
+      "marked": false,
+      "lasting": false
+     }
+    ],
+    "body": [
+     "Pending edit",
+     "",
+     "/tmp/demo/agy-sample/work-01/notes.txt  +1 -1",
+     "  1  -  alpha",
+     "  1  +  ALPHA",
+     "",
+     "  shift+tab to auto-approve file edits",
+     "   "
+    ],
+    "drawnOptions": [
+     "  1. Yes, accept this change",
+     "  2. No, reject this change"
+    ]
+   }
+  },
+  {
+   "name": "edit-file-ask-option-trailing",
+   "text": "\n────────────────────────────────────────────────────────────\n> Do three things in this folder: run ls -la, append the line delta to notes.txt, then create hello.py that prints hi and run it with python3. Answer in two short sentences.\n\n○ Thought for 3.2s (Initial plan is to execute three operations. First, list directory contents. Then append data to a specific file, ensuring the append operation is correctly configured. Finally...)\n● Ran (ls -la)\n● Edited 2 files (notes.txt, hello.py)\n● Ran (python3 hello.py) (ctrl+o to expand)\n\n  I ran ls -la (which showed only notes.txt initially) and appended delta to notes.txt. I also created hello.py and ran it with python3, which printed hi.\n\n────────────────────────────────────────────────────────────\n> Create the file ask.txt containing the single word hello.\n\n● Edited 1 file (ask.txt) (ctrl+o to expand)\n\n────────────────────────────────────────────────────────────\n> Run the shell command: date\n\n● Ran (date) (ctrl+o to expand)\n\n────────────────────────────────────────────────────────────\n> Change the first line of notes.txt from alpha to ALPHA.\n\n● Edited 1 file (notes.txt) (ctrl+o to expand)\n\nPending edit\n─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n\n/tmp/demo/agy-sample/work-01/notes.txt  +1 -1\n  1  -  alpha\n  1  +  ALPHA\n\n  shift+tab to auto-approve file edits\nAccept this file edit?\n> 1. Yes, accept this change \n  2. No, reject this change\n\n  ↑/↓ Navigate · f full diff\nesc to cancel                                                                                                                                                                     Gemini 4 Hydrogen · low\n",
+   "mac": {
+    "kind": "agyAsk",
+    "question": "Accept this file edit?",
+    "context": {
+     "type": "diff",
+     "added": 1,
+     "removed": 1
+    },
+    "options": [
+     {
+      "key": "1",
+      "label": "Yes, accept this change",
+      "keys": [
+       "1"
+      ],
+      "marked": true,
+      "lasting": false
+     },
+     {
+      "key": "2",
+      "label": "No, reject this change",
+      "keys": [
+       "2"
+      ],
+      "marked": false,
+      "lasting": false
+     }
+    ],
+    "body": [
+     "Pending edit",
+     "",
+     "/tmp/demo/agy-sample/work-01/notes.txt  +1 -1",
+     "  1  -  alpha",
+     "  1  +  ALPHA",
+     "",
+     "  shift+tab to auto-approve file edits"
+    ],
+    "drawnOptions": [
+     "  1. Yes, accept this change ",
+     "  2. No, reject this change"
+    ]
+   }
+  },
+  {
+   "name": "trust-trailing",
+   "text": "Accessing workspace:\n\n/tmp/demo/agy-sample/work-012 \n\nDo you trust the contents of this project?\n\nAntigravity CLI requires permission to read, edit, and execute files here.\n\n> Yes, I trust this folder\n  No, exit\n\n  ↑/↓ Navigate · enter Confirm\n                                                                                         auto · Gemini 4 Hydrogen · low\n",
+   "mac": null
+  },
+  {
+   "name": "trust-leading",
+   "text": "Accessing workspace:\n\n /tmp/demo/agy-sample/work-012\n\nDo you trust the contents of this project?\n\nAntigravity CLI requires permission to read, edit, and execute files here.\n\n> Yes, I trust this folder\n  No, exit\n\n  ↑/↓ Navigate · enter Confirm\n                                                                                         auto · Gemini 4 Hydrogen · low\n",
+   "mac": null
+  },
+  {
+   "name": "trust-nbsp",
+   "text": "Accessing workspace:\n\n/tmp/demo/agy-sample/work-012 \n\nDo you trust the contents of this project?\n\nAntigravity CLI requires permission to read, edit, and execute files here.\n\n> Yes, I trust this folder\n  No, exit\n\n  ↑/↓ Navigate · enter Confirm\n                                                                                         auto · Gemini 4 Hydrogen · low\n",
+   "mac": null
+  },
+  {
+   "name": "trust-short-wrap",
+   "text": "Accessing workspace:\n\n/tmp/demo/my\nfolder\n\nDo you trust the contents of this project?\n\nAntigravity CLI requires permission to read, edit, and execute files here.\n\n> Yes, I trust this folder\n  No, exit\n\n  ↑/↓ Navigate · enter Confirm\n                                                                                         auto · Gemini 4 Hydrogen · low\n",
+   "mac": null
+  },
+  {
+   "name": "trust-interior-wrap",
+   "text": "Accessing workspace:\n\n/tmp/demo/my folder\nchild\n\nDo you trust the contents of this project?\n\nAntigravity CLI requires permission to read, edit, and execute files here.\n\n> Yes, I trust this folder\n  No, exit\n\n  ↑/↓ Navigate · enter Confirm\n                                                                                         auto · Gemini 4 Hydrogen · low\n",
+   "mac": null
+  },
+  {
+   "name": "trust-long-60-106",
+   "text": "Accessing workspace:\n\n/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxz\n\nDo you trust the contents of this project?\n\nAntigravity CLI requires permission to read, edit, and\nexecute files here.\n\n> Yes, I trust this folder\n  No, exit\n\n  ↑/↓ Navigate · enter Confirm\n                              auto · Gemini 4 Hydrogen · low\n",
+   "mac": null
+  },
+  {
+   "name": "trust-short-edge-60-106",
+   "text": "Accessing workspace:\n\n/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxz\n\nDo you trust the contents of this project?\n\nAntigravity CLI requires permission to read, edit, and\nexecute files here.\n\n> Yes, I trust this folder\n  No, exit\n\n  ↑/↓ Navigate · enter Confirm\n                              auto · Gemini 4 Hydrogen · low\n",
+   "mac": null
+  },
+  {
+   "name": "trust-long-60-356",
+   "text": "Accessing workspace:\n\n/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxz\n\nDo you trust the contents of this project?\n\nAntigravity CLI requires permission to read, edit, and\nexecute files here.\n\n> Yes, I trust this folder\n  No, exit\n\n  ↑/↓ Navigate · enter Confirm\n                              auto · Gemini 4 Hydrogen · low\n",
+   "mac": null
+  },
+  {
+   "name": "trust-short-edge-60-356",
+   "text": "Accessing workspace:\n\n/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxz\n\nDo you trust the contents of this project?\n\nAntigravity CLI requires permission to read, edit, and\nexecute files here.\n\n> Yes, I trust this folder\n  No, exit\n\n  ↑/↓ Navigate · enter Confirm\n                              auto · Gemini 4 Hydrogen · low\n",
+   "mac": null
+  },
+  {
+   "name": "trust-long-60-135",
+   "text": "Accessing workspace:\n\n/tmp/my folder/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxx\n\nDo you trust the contents of this project?\n\nAntigravity CLI requires permission to read, edit, and\nexecute files here.\n\n> Yes, I trust this folder\n  No, exit\n\n  ↑/↓ Navigate · enter Confirm\n                              auto · Gemini 4 Hydrogen · low\n",
+   "mac": null
+  },
+  {
+   "name": "trust-short-edge-60-135",
+   "text": "Accessing workspace:\n\n/tmp/my folder/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxx\n\nDo you trust the contents of this project?\n\nAntigravity CLI requires permission to read, edit, and\nexecute files here.\n\n> Yes, I trust this folder\n  No, exit\n\n  ↑/↓ Navigate · enter Confirm\n                              auto · Gemini 4 Hydrogen · low\n",
+   "mac": null
+  },
+  {
+   "name": "trust-long-80-106",
+   "text": "Accessing workspace:\n\n/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxz\n\nDo you trust the contents of this project?\n\nAntigravity CLI requires permission to read, edit, and execute files here.\n\n> Yes, I trust this folder\n  No, exit\n\n  ↑/↓ Navigate · enter Confirm\n                                                  auto · Gemini 4 Hydrogen · low\n",
+   "mac": {
+    "kind": "agyTrust",
+    "question": "Do you trust the contents of this project?",
+    "context": {
+     "type": "file",
+     "name": "/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxz"
+    },
+    "options": [
+     {
+      "key": "1",
+      "label": "Yes, I trust this folder",
+      "keys": [
+       "Enter"
+      ],
+      "marked": true,
+      "lasting": false
+     },
+     {
+      "key": "2",
+      "label": "No, exit",
+      "keys": [
+       "Down",
+       "Enter"
+      ],
+      "marked": false,
+      "lasting": false
+     }
+    ],
+    "body": [
+     "Accessing workspace:",
+     "/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+     "xxxxxxxxxxxxxxxxxxxxxxxxxz",
+     "Antigravity CLI requires permission to read, edit, and execute files here."
+    ],
+    "drawnOptions": [
+     "Yes, I trust this folder",
+     "No, exit"
+    ]
+   }
+  },
+  {
+   "name": "trust-short-edge-80-106",
+   "text": "Accessing workspace:\n\n/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxz\n\nDo you trust the contents of this project?\n\nAntigravity CLI requires permission to read, edit, and execute files here.\n\n> Yes, I trust this folder\n  No, exit\n\n  ↑/↓ Navigate · enter Confirm\n                                                  auto · Gemini 4 Hydrogen · low\n",
+   "mac": null
+  },
+  {
+   "name": "trust-long-80-356",
+   "text": "Accessing workspace:\n\n/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxz\n\nDo you trust the contents of this project?\n\nAntigravity CLI requires permission to read, edit, and execute files here.\n\n> Yes, I trust this folder\n  No, exit\n\n  ↑/↓ Navigate · enter Confirm\n                                                  auto · Gemini 4 Hydrogen · low\n",
+   "mac": null
+  },
+  {
+   "name": "trust-short-edge-80-356",
+   "text": "Accessing workspace:\n\n/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxz\n\nDo you trust the contents of this project?\n\nAntigravity CLI requires permission to read, edit, and execute files here.\n\n> Yes, I trust this folder\n  No, exit\n\n  ↑/↓ Navigate · enter Confirm\n                                                  auto · Gemini 4 Hydrogen · low\n",
+   "mac": null
+  },
+  {
+   "name": "trust-long-80-135",
+   "text": "Accessing workspace:\n\n/tmp/my folder/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n\nDo you trust the contents of this project?\n\nAntigravity CLI requires permission to read, edit, and execute files here.\n\n> Yes, I trust this folder\n  No, exit\n\n  ↑/↓ Navigate · enter Confirm\n                                                  auto · Gemini 4 Hydrogen · low\n",
+   "mac": {
+    "kind": "agyTrust",
+    "question": "Do you trust the contents of this project?",
+    "context": {
+     "type": "file",
+     "name": "/tmp/my folder/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    },
+    "options": [
+     {
+      "key": "1",
+      "label": "Yes, I trust this folder",
+      "keys": [
+       "Enter"
+      ],
+      "marked": true,
+      "lasting": false
+     },
+     {
+      "key": "2",
+      "label": "No, exit",
+      "keys": [
+       "Down",
+       "Enter"
+      ],
+      "marked": false,
+      "lasting": false
+     }
+    ],
+    "body": [
+     "Accessing workspace:",
+     "/tmp/my folder/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+     "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+     "Antigravity CLI requires permission to read, edit, and execute files here."
+    ],
+    "drawnOptions": [
+     "Yes, I trust this folder",
+     "No, exit"
+    ]
+   }
+  },
+  {
+   "name": "trust-short-edge-80-135",
+   "text": "Accessing workspace:\n\n/tmp/my folder/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n\nDo you trust the contents of this project?\n\nAntigravity CLI requires permission to read, edit, and execute files here.\n\n> Yes, I trust this folder\n  No, exit\n\n  ↑/↓ Navigate · enter Confirm\n                                                  auto · Gemini 4 Hydrogen · low\n",
+   "mac": null
+  },
+  {
+   "name": "trust-long-100-106",
+   "text": "Accessing workspace:\n\n/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxz\n\nDo you trust the contents of this project?\n\nAntigravity CLI requires permission to read, edit, and execute files here.\n\n> Yes, I trust this folder\n  No, exit\n\n  ↑/↓ Navigate · enter Confirm\n                                                                      auto · Gemini 4 Hydrogen · low\n",
+   "mac": {
+    "kind": "agyTrust",
+    "question": "Do you trust the contents of this project?",
+    "context": {
+     "type": "file",
+     "name": "/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxz"
+    },
+    "options": [
+     {
+      "key": "1",
+      "label": "Yes, I trust this folder",
+      "keys": [
+       "Enter"
+      ],
+      "marked": true,
+      "lasting": false
+     },
+     {
+      "key": "2",
+      "label": "No, exit",
+      "keys": [
+       "Down",
+       "Enter"
+      ],
+      "marked": false,
+      "lasting": false
+     }
+    ],
+    "body": [
+     "Accessing workspace:",
+     "/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+     "xxxxxz",
+     "Antigravity CLI requires permission to read, edit, and execute files here."
+    ],
+    "drawnOptions": [
+     "Yes, I trust this folder",
+     "No, exit"
+    ]
+   }
+  },
+  {
+   "name": "trust-short-edge-100-106",
+   "text": "Accessing workspace:\n\n/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxz\n\nDo you trust the contents of this project?\n\nAntigravity CLI requires permission to read, edit, and execute files here.\n\n> Yes, I trust this folder\n  No, exit\n\n  ↑/↓ Navigate · enter Confirm\n                                                                      auto · Gemini 4 Hydrogen · low\n",
+   "mac": null
+  },
+  {
+   "name": "trust-long-100-356",
+   "text": "Accessing workspace:\n\n/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxz\n\nDo you trust the contents of this project?\n\nAntigravity CLI requires permission to read, edit, and execute files here.\n\n> Yes, I trust this folder\n  No, exit\n\n  ↑/↓ Navigate · enter Confirm\n                                                                      auto · Gemini 4 Hydrogen · low\n",
+   "mac": {
+    "kind": "agyTrust",
+    "question": "Do you trust the contents of this project?",
+    "context": {
+     "type": "file",
+     "name": "/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxz"
+    },
+    "options": [
+     {
+      "key": "1",
+      "label": "Yes, I trust this folder",
+      "keys": [
+       "Enter"
+      ],
+      "marked": true,
+      "lasting": false
+     },
+     {
+      "key": "2",
+      "label": "No, exit",
+      "keys": [
+       "Down",
+       "Enter"
+      ],
+      "marked": false,
+      "lasting": false
+     }
+    ],
+    "body": [
+     "Accessing workspace:",
+     "/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+     "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+     "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+     "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxz",
+     "Antigravity CLI requires permission to read, edit, and execute files here."
+    ],
+    "drawnOptions": [
+     "Yes, I trust this folder",
+     "No, exit"
+    ]
+   }
+  },
+  {
+   "name": "trust-short-edge-100-356",
+   "text": "Accessing workspace:\n\n/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxz\n\nDo you trust the contents of this project?\n\nAntigravity CLI requires permission to read, edit, and execute files here.\n\n> Yes, I trust this folder\n  No, exit\n\n  ↑/↓ Navigate · enter Confirm\n                                                                      auto · Gemini 4 Hydrogen · low\n",
+   "mac": null
+  },
+  {
+   "name": "trust-long-100-135",
+   "text": "Accessing workspace:\n\n/tmp/my folder/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n\nDo you trust the contents of this project?\n\nAntigravity CLI requires permission to read, edit, and execute files here.\n\n> Yes, I trust this folder\n  No, exit\n\n  ↑/↓ Navigate · enter Confirm\n                                                                      auto · Gemini 4 Hydrogen · low\n",
+   "mac": {
+    "kind": "agyTrust",
+    "question": "Do you trust the contents of this project?",
+    "context": {
+     "type": "file",
+     "name": "/tmp/my folder/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    },
+    "options": [
+     {
+      "key": "1",
+      "label": "Yes, I trust this folder",
+      "keys": [
+       "Enter"
+      ],
+      "marked": true,
+      "lasting": false
+     },
+     {
+      "key": "2",
+      "label": "No, exit",
+      "keys": [
+       "Down",
+       "Enter"
+      ],
+      "marked": false,
+      "lasting": false
+     }
+    ],
+    "body": [
+     "Accessing workspace:",
+     "/tmp/my folder/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+     "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+     "Antigravity CLI requires permission to read, edit, and execute files here."
+    ],
+    "drawnOptions": [
+     "Yes, I trust this folder",
+     "No, exit"
+    ]
+   }
+  },
+  {
+   "name": "trust-short-edge-100-135",
+   "text": "Accessing workspace:\n\n/tmp/my folder/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n\nDo you trust the contents of this project?\n\nAntigravity CLI requires permission to read, edit, and execute files here.\n\n> Yes, I trust this folder\n  No, exit\n\n  ↑/↓ Navigate · enter Confirm\n                                                                      auto · Gemini 4 Hydrogen · low\n",
+   "mac": null
+  },
+  {
+   "name": "trust-long-119-106",
+   "text": "Accessing workspace:\n\n/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxz\n\nDo you trust the contents of this project?\n\nAntigravity CLI requires permission to read, edit, and execute files here.\n\n> Yes, I trust this folder\n  No, exit\n\n  ↑/↓ Navigate · enter Confirm\n                                                                                         auto · Gemini 4 Hydrogen · low\n",
+   "mac": {
+    "kind": "agyTrust",
+    "question": "Do you trust the contents of this project?",
+    "context": {
+     "type": "file",
+     "name": "/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxz"
+    },
+    "options": [
+     {
+      "key": "1",
+      "label": "Yes, I trust this folder",
+      "keys": [
+       "Enter"
+      ],
+      "marked": true,
+      "lasting": false
+     },
+     {
+      "key": "2",
+      "label": "No, exit",
+      "keys": [
+       "Down",
+       "Enter"
+      ],
+      "marked": false,
+      "lasting": false
+     }
+    ],
+    "body": [
+     "Accessing workspace:",
+     "/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxz",
+     "Antigravity CLI requires permission to read, edit, and execute files here."
+    ],
+    "drawnOptions": [
+     "Yes, I trust this folder",
+     "No, exit"
+    ]
+   }
+  },
+  {
+   "name": "trust-long-119-356",
+   "text": "Accessing workspace:\n\n/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxz\n\nDo you trust the contents of this project?\n\nAntigravity CLI requires permission to read, edit, and execute files here.\n\n> Yes, I trust this folder\n  No, exit\n\n  ↑/↓ Navigate · enter Confirm\n                                                                                         auto · Gemini 4 Hydrogen · low\n",
+   "mac": {
+    "kind": "agyTrust",
+    "question": "Do you trust the contents of this project?",
+    "context": {
+     "type": "file",
+     "name": "/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxz"
+    },
+    "options": [
+     {
+      "key": "1",
+      "label": "Yes, I trust this folder",
+      "keys": [
+       "Enter"
+      ],
+      "marked": true,
+      "lasting": false
+     },
+     {
+      "key": "2",
+      "label": "No, exit",
+      "keys": [
+       "Down",
+       "Enter"
+      ],
+      "marked": false,
+      "lasting": false
+     }
+    ],
+    "body": [
+     "Accessing workspace:",
+     "/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+     "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+     "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxz",
+     "Antigravity CLI requires permission to read, edit, and execute files here."
+    ],
+    "drawnOptions": [
+     "Yes, I trust this folder",
+     "No, exit"
+    ]
+   }
+  },
+  {
+   "name": "trust-short-edge-119-356",
+   "text": "Accessing workspace:\n\n/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxz\n\nDo you trust the contents of this project?\n\nAntigravity CLI requires permission to read, edit, and execute files here.\n\n> Yes, I trust this folder\n  No, exit\n\n  ↑/↓ Navigate · enter Confirm\n                                                                                         auto · Gemini 4 Hydrogen · low\n",
+   "mac": null
+  },
+  {
+   "name": "trust-long-119-135",
+   "text": "Accessing workspace:\n\n/tmp/my folder/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxx\n\nDo you trust the contents of this project?\n\nAntigravity CLI requires permission to read, edit, and execute files here.\n\n> Yes, I trust this folder\n  No, exit\n\n  ↑/↓ Navigate · enter Confirm\n                                                                                         auto · Gemini 4 Hydrogen · low\n",
+   "mac": {
+    "kind": "agyTrust",
+    "question": "Do you trust the contents of this project?",
+    "context": {
+     "type": "file",
+     "name": "/tmp/my folder/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    },
+    "options": [
+     {
+      "key": "1",
+      "label": "Yes, I trust this folder",
+      "keys": [
+       "Enter"
+      ],
+      "marked": true,
+      "lasting": false
+     },
+     {
+      "key": "2",
+      "label": "No, exit",
+      "keys": [
+       "Down",
+       "Enter"
+      ],
+      "marked": false,
+      "lasting": false
+     }
+    ],
+    "body": [
+     "Accessing workspace:",
+     "/tmp/my folder/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+     "xxxxxxxxxxxxxxxx",
+     "Antigravity CLI requires permission to read, edit, and execute files here."
+    ],
+    "drawnOptions": [
+     "Yes, I trust this folder",
+     "No, exit"
+    ]
+   }
+  },
+  {
+   "name": "trust-short-edge-119-135",
+   "text": "Accessing workspace:\n\n/tmp/my folder/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxx\n\nDo you trust the contents of this project?\n\nAntigravity CLI requires permission to read, edit, and execute files here.\n\n> Yes, I trust this folder\n  No, exit\n\n  ↑/↓ Navigate · enter Confirm\n                                                                                         auto · Gemini 4 Hydrogen · low\n",
+   "mac": null
+  },
+  {
+   "name": "trust-long-160-106",
+   "text": "Accessing workspace:\n\n/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxz\n\nDo you trust the contents of this project?\n\nAntigravity CLI requires permission to read, edit, and execute files here.\n\n> Yes, I trust this folder\n  No, exit\n\n  ↑/↓ Navigate · enter Confirm\n                                                                                                                                  auto · Gemini 4 Hydrogen · low\n",
+   "mac": {
+    "kind": "agyTrust",
+    "question": "Do you trust the contents of this project?",
+    "context": {
+     "type": "file",
+     "name": "/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxz"
+    },
+    "options": [
+     {
+      "key": "1",
+      "label": "Yes, I trust this folder",
+      "keys": [
+       "Enter"
+      ],
+      "marked": true,
+      "lasting": false
+     },
+     {
+      "key": "2",
+      "label": "No, exit",
+      "keys": [
+       "Down",
+       "Enter"
+      ],
+      "marked": false,
+      "lasting": false
+     }
+    ],
+    "body": [
+     "Accessing workspace:",
+     "/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxz",
+     "Antigravity CLI requires permission to read, edit, and execute files here."
+    ],
+    "drawnOptions": [
+     "Yes, I trust this folder",
+     "No, exit"
+    ]
+   }
+  },
+  {
+   "name": "trust-long-160-356",
+   "text": "Accessing workspace:\n\n/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxz\n\nDo you trust the contents of this project?\n\nAntigravity CLI requires permission to read, edit, and execute files here.\n\n> Yes, I trust this folder\n  No, exit\n\n  ↑/↓ Navigate · enter Confirm\n                                                                                                                                  auto · Gemini 4 Hydrogen · low\n",
+   "mac": {
+    "kind": "agyTrust",
+    "question": "Do you trust the contents of this project?",
+    "context": {
+     "type": "file",
+     "name": "/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxz"
+    },
+    "options": [
+     {
+      "key": "1",
+      "label": "Yes, I trust this folder",
+      "keys": [
+       "Enter"
+      ],
+      "marked": true,
+      "lasting": false
+     },
+     {
+      "key": "2",
+      "label": "No, exit",
+      "keys": [
+       "Down",
+       "Enter"
+      ],
+      "marked": false,
+      "lasting": false
+     }
+    ],
+    "body": [
+     "Accessing workspace:",
+     "/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+     "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+     "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxz",
+     "Antigravity CLI requires permission to read, edit, and execute files here."
+    ],
+    "drawnOptions": [
+     "Yes, I trust this folder",
+     "No, exit"
+    ]
+   }
+  },
+  {
+   "name": "trust-short-edge-160-356",
+   "text": "Accessing workspace:\n\n/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxz\n\nDo you trust the contents of this project?\n\nAntigravity CLI requires permission to read, edit, and execute files here.\n\n> Yes, I trust this folder\n  No, exit\n\n  ↑/↓ Navigate · enter Confirm\n                                                                                                                                  auto · Gemini 4 Hydrogen · low\n",
+   "mac": null
+  },
+  {
+   "name": "trust-long-160-135",
+   "text": "Accessing workspace:\n\n/tmp/my folder/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n\nDo you trust the contents of this project?\n\nAntigravity CLI requires permission to read, edit, and execute files here.\n\n> Yes, I trust this folder\n  No, exit\n\n  ↑/↓ Navigate · enter Confirm\n                                                                                                                                  auto · Gemini 4 Hydrogen · low\n",
+   "mac": {
+    "kind": "agyTrust",
+    "question": "Do you trust the contents of this project?",
+    "context": {
+     "type": "file",
+     "name": "/tmp/my folder/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    },
+    "options": [
+     {
+      "key": "1",
+      "label": "Yes, I trust this folder",
+      "keys": [
+       "Enter"
+      ],
+      "marked": true,
+      "lasting": false
+     },
+     {
+      "key": "2",
+      "label": "No, exit",
+      "keys": [
+       "Down",
+       "Enter"
+      ],
+      "marked": false,
+      "lasting": false
+     }
+    ],
+    "body": [
+     "Accessing workspace:",
+     "/tmp/my folder/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+     "Antigravity CLI requires permission to read, edit, and execute files here."
+    ],
+    "drawnOptions": [
+     "Yes, I trust this folder",
+     "No, exit"
+    ]
+   }
+  },
+  {
+   "name": "trust-long-200-106",
+   "text": "Accessing workspace:\n\n/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxz\n\nDo you trust the contents of this project?\n\nAntigravity CLI requires permission to read, edit, and execute files here.\n\n> Yes, I trust this folder\n  No, exit\n\n  ↑/↓ Navigate · enter Confirm\n                                                                                                                                                                          auto · Gemini 4 Hydrogen · low\n",
+   "mac": {
+    "kind": "agyTrust",
+    "question": "Do you trust the contents of this project?",
+    "context": {
+     "type": "file",
+     "name": "/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxz"
+    },
+    "options": [
+     {
+      "key": "1",
+      "label": "Yes, I trust this folder",
+      "keys": [
+       "Enter"
+      ],
+      "marked": true,
+      "lasting": false
+     },
+     {
+      "key": "2",
+      "label": "No, exit",
+      "keys": [
+       "Down",
+       "Enter"
+      ],
+      "marked": false,
+      "lasting": false
+     }
+    ],
+    "body": [
+     "Accessing workspace:",
+     "/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxz",
+     "Antigravity CLI requires permission to read, edit, and execute files here."
+    ],
+    "drawnOptions": [
+     "Yes, I trust this folder",
+     "No, exit"
+    ]
+   }
+  },
+  {
+   "name": "trust-long-200-356",
+   "text": "Accessing workspace:\n\n/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxz\n\nDo you trust the contents of this project?\n\nAntigravity CLI requires permission to read, edit, and execute files here.\n\n> Yes, I trust this folder\n  No, exit\n\n  ↑/↓ Navigate · enter Confirm\n                                                                                                                                                                          auto · Gemini 4 Hydrogen · low\n",
+   "mac": {
+    "kind": "agyTrust",
+    "question": "Do you trust the contents of this project?",
+    "context": {
+     "type": "file",
+     "name": "/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxz"
+    },
+    "options": [
+     {
+      "key": "1",
+      "label": "Yes, I trust this folder",
+      "keys": [
+       "Enter"
+      ],
+      "marked": true,
+      "lasting": false
+     },
+     {
+      "key": "2",
+      "label": "No, exit",
+      "keys": [
+       "Down",
+       "Enter"
+      ],
+      "marked": false,
+      "lasting": false
+     }
+    ],
+    "body": [
+     "Accessing workspace:",
+     "/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+     "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxz",
+     "Antigravity CLI requires permission to read, edit, and execute files here."
+    ],
+    "drawnOptions": [
+     "Yes, I trust this folder",
+     "No, exit"
+    ]
+   }
+  },
+  {
+   "name": "trust-short-edge-200-356",
+   "text": "Accessing workspace:\n\n/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxz\n\nDo you trust the contents of this project?\n\nAntigravity CLI requires permission to read, edit, and execute files here.\n\n> Yes, I trust this folder\n  No, exit\n\n  ↑/↓ Navigate · enter Confirm\n                                                                                                                                                                          auto · Gemini 4 Hydrogen · low\n",
+   "mac": null
+  },
+  {
+   "name": "trust-long-200-135",
+   "text": "Accessing workspace:\n\n/tmp/my folder/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n\nDo you trust the contents of this project?\n\nAntigravity CLI requires permission to read, edit, and execute files here.\n\n> Yes, I trust this folder\n  No, exit\n\n  ↑/↓ Navigate · enter Confirm\n                                                                                                                                                                          auto · Gemini 4 Hydrogen · low\n",
+   "mac": {
+    "kind": "agyTrust",
+    "question": "Do you trust the contents of this project?",
+    "context": {
+     "type": "file",
+     "name": "/tmp/my folder/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    },
+    "options": [
+     {
+      "key": "1",
+      "label": "Yes, I trust this folder",
+      "keys": [
+       "Enter"
+      ],
+      "marked": true,
+      "lasting": false
+     },
+     {
+      "key": "2",
+      "label": "No, exit",
+      "keys": [
+       "Down",
+       "Enter"
+      ],
+      "marked": false,
+      "lasting": false
+     }
+    ],
+    "body": [
+     "Accessing workspace:",
+     "/tmp/my folder/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+     "Antigravity CLI requires permission to read, edit, and execute files here."
+    ],
+    "drawnOptions": [
+     "Yes, I trust this folder",
+     "No, exit"
+    ]
+   }
+  },
+  {
+   "name": "command-whitespace-blank",
+   "text": "> Read notes.txt in this folder and tell me its second line in one short sentence.\n\n● Explored 1 file (notes.txt) (ctrl+o to expand)\n\n  The second line of notes.txt:2 is beta.\n\n────────────────────────────────────────────────────────────\n> Do three things in this folder: run ls -la, append the line delta to notes.txt, then create hello.py that prints hi and run it with python3. Answer in two short sentences.\n\n○ Thought for 3.2s (Initial plan is to execute three operations. First, list directory contents. Then append data to a specific file, ensuring the append operation is correctly configured. Finally...)\n● Ran (ls -la)\n● Edited 2 files (notes.txt, hello.py)\n● Ran (python3 hello.py) (ctrl+o to expand)\n\n  I ran ls -la (which showed only notes.txt initially) and appended delta to notes.txt. I also created hello.py and ran it with python3, which printed hi.\n\n────────────────────────────────────────────────────────────\n> Create the file ask.txt containing the single word hello.\n\n● Edited 1 file (ask.txt) (ctrl+o to expand)\n\n────────────────────────────────────────────────────────────\n> Run the shell command: date\n\n● Ran (date) (ctrl+o to expand)\n\nCommand\n─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n\nRequesting permission for:\n   printf '%s' 'one\n   \n   two'\n\nRun this command?\n> 1. Yes, run command\n  2. Yes, and always allow in this conversation for commands that start with 'date'\n  3. Yes, and always allow for commands that start with 'date' (Persist to settings.json)\n  4. No, cancel\n\n  ↑/↓ Navigate · tab Amend · ctrl+g edit/expand command\nesc to cancel                                                                                                                                                                     Gemini 4 Hydrogen · low\n",
+   "mac": {
+    "kind": "agyAsk",
+    "question": "Run this command?",
+    "context": {
+     "type": "command",
+     "text": "printf '%s' 'one\n\ntwo'"
+    },
+    "options": [
+     {
+      "key": "1",
+      "label": "Yes, run command",
+      "keys": [
+       "1"
+      ],
+      "marked": true,
+      "lasting": false
+     },
+     {
+      "key": "2",
+      "label": "Yes, and always allow in this conversation for commands that start with 'date'",
+      "keys": [
+       "2"
+      ],
+      "marked": false,
+      "lasting": true
+     },
+     {
+      "key": "3",
+      "label": "Yes, and always allow for commands that start with 'date' (Persist to settings.json)",
+      "keys": [
+       "3"
+      ],
+      "marked": false,
+      "lasting": true
+     },
+     {
+      "key": "4",
+      "label": "No, cancel",
+      "keys": [
+       "4"
+      ],
+      "marked": false,
+      "lasting": false
+     }
+    ],
+    "body": [
+     "Command",
+     "",
+     "Requesting permission for:",
+     "   printf '%s' 'one",
+     "   ",
+     "   two'",
+     ""
+    ],
+    "drawnOptions": [
+     "  1. Yes, run command",
+     "  2. Yes, and always allow in this conversation for commands that start with 'date'",
+     "  3. Yes, and always allow for commands that start with 'date' (Persist to settings.json)",
+     "  4. No, cancel"
+    ]
+   }
+  },
+  {
+   "name": "command-whitespace-joined",
+   "text": "> Read notes.txt in this folder and tell me its second line in one short sentence.\n\n● Explored 1 file (notes.txt) (ctrl+o to expand)\n\n  The second line of notes.txt:2 is beta.\n\n────────────────────────────────────────────────────────────\n> Do three things in this folder: run ls -la, append the line delta to notes.txt, then create hello.py that prints hi and run it with python3. Answer in two short sentences.\n\n○ Thought for 3.2s (Initial plan is to execute three operations. First, list directory contents. Then append data to a specific file, ensuring the append operation is correctly configured. Finally...)\n● Ran (ls -la)\n● Edited 2 files (notes.txt, hello.py)\n● Ran (python3 hello.py) (ctrl+o to expand)\n\n  I ran ls -la (which showed only notes.txt initially) and appended delta to notes.txt. I also created hello.py and ran it with python3, which printed hi.\n\n────────────────────────────────────────────────────────────\n> Create the file ask.txt containing the single word hello.\n\n● Edited 1 file (ask.txt) (ctrl+o to expand)\n\n────────────────────────────────────────────────────────────\n> Run the shell command: date\n\n● Ran (date) (ctrl+o to expand)\n\nCommand\n─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n\nRequesting permission for:\n   printf '%s' 'one\n   two'\n\nRun this command?\n> 1. Yes, run command\n  2. Yes, and always allow in this conversation for commands that start with 'date'\n  3. Yes, and always allow for commands that start with 'date' (Persist to settings.json)\n  4. No, cancel\n\n  ↑/↓ Navigate · tab Amend · ctrl+g edit/expand command\nesc to cancel                                                                                                                                                                     Gemini 4 Hydrogen · low\n",
+   "mac": {
+    "kind": "agyAsk",
+    "question": "Run this command?",
+    "context": {
+     "type": "command",
+     "text": "printf '%s' 'one\ntwo'"
+    },
+    "options": [
+     {
+      "key": "1",
+      "label": "Yes, run command",
+      "keys": [
+       "1"
+      ],
+      "marked": true,
+      "lasting": false
+     },
+     {
+      "key": "2",
+      "label": "Yes, and always allow in this conversation for commands that start with 'date'",
+      "keys": [
+       "2"
+      ],
+      "marked": false,
+      "lasting": true
+     },
+     {
+      "key": "3",
+      "label": "Yes, and always allow for commands that start with 'date' (Persist to settings.json)",
+      "keys": [
+       "3"
+      ],
+      "marked": false,
+      "lasting": true
+     },
+     {
+      "key": "4",
+      "label": "No, cancel",
+      "keys": [
+       "4"
+      ],
+      "marked": false,
+      "lasting": false
+     }
+    ],
+    "body": [
+     "Command",
+     "",
+     "Requesting permission for:",
+     "   printf '%s' 'one",
+     "   two'",
+     ""
+    ],
+    "drawnOptions": [
+     "  1. Yes, run command",
+     "  2. Yes, and always allow in this conversation for commands that start with 'date'",
+     "  3. Yes, and always allow for commands that start with 'date' (Persist to settings.json)",
+     "  4. No, cancel"
+    ]
+   }
+  },
+  {
+   "name": "command-whitespace-spaces",
+   "text": "> Read notes.txt in this folder and tell me its second line in one short sentence.\n\n● Explored 1 file (notes.txt) (ctrl+o to expand)\n\n  The second line of notes.txt:2 is beta.\n\n────────────────────────────────────────────────────────────\n> Do three things in this folder: run ls -la, append the line delta to notes.txt, then create hello.py that prints hi and run it with python3. Answer in two short sentences.\n\n○ Thought for 3.2s (Initial plan is to execute three operations. First, list directory contents. Then append data to a specific file, ensuring the append operation is correctly configured. Finally...)\n● Ran (ls -la)\n● Edited 2 files (notes.txt, hello.py)\n● Ran (python3 hello.py) (ctrl+o to expand)\n\n  I ran ls -la (which showed only notes.txt initially) and appended delta to notes.txt. I also created hello.py and ran it with python3, which printed hi.\n\n────────────────────────────────────────────────────────────\n> Create the file ask.txt containing the single word hello.\n\n● Edited 1 file (ask.txt) (ctrl+o to expand)\n\n────────────────────────────────────────────────────────────\n> Run the shell command: date\n\n● Ran (date) (ctrl+o to expand)\n\nCommand\n─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n\nRequesting permission for:\n   date  \n\nRun this command?\n> 1. Yes, run command\n  2. Yes, and always allow in this conversation for commands that start with 'date'\n  3. Yes, and always allow for commands that start with 'date' (Persist to settings.json)\n  4. No, cancel\n\n  ↑/↓ Navigate · tab Amend · ctrl+g edit/expand command\nesc to cancel                                                                                                                                                                     Gemini 4 Hydrogen · low\n",
+   "mac": {
+    "kind": "agyAsk",
+    "question": "Run this command?",
+    "context": {
+     "type": "command",
+     "text": "date"
+    },
+    "options": [
+     {
+      "key": "1",
+      "label": "Yes, run command",
+      "keys": [
+       "1"
+      ],
+      "marked": true,
+      "lasting": false
+     },
+     {
+      "key": "2",
+      "label": "Yes, and always allow in this conversation for commands that start with 'date'",
+      "keys": [
+       "2"
+      ],
+      "marked": false,
+      "lasting": true
+     },
+     {
+      "key": "3",
+      "label": "Yes, and always allow for commands that start with 'date' (Persist to settings.json)",
+      "keys": [
+       "3"
+      ],
+      "marked": false,
+      "lasting": true
+     },
+     {
+      "key": "4",
+      "label": "No, cancel",
+      "keys": [
+       "4"
+      ],
+      "marked": false,
+      "lasting": false
+     }
+    ],
+    "body": [
+     "Command",
+     "",
+     "Requesting permission for:",
+     "   date  ",
+     ""
+    ],
+    "drawnOptions": [
+     "  1. Yes, run command",
+     "  2. Yes, and always allow in this conversation for commands that start with 'date'",
+     "  3. Yes, and always allow for commands that start with 'date' (Persist to settings.json)",
+     "  4. No, cancel"
+    ]
+   }
+  },
+  {
+   "name": "command-whitespace-nbsp",
+   "text": "> Read notes.txt in this folder and tell me its second line in one short sentence.\n\n● Explored 1 file (notes.txt) (ctrl+o to expand)\n\n  The second line of notes.txt:2 is beta.\n\n────────────────────────────────────────────────────────────\n> Do three things in this folder: run ls -la, append the line delta to notes.txt, then create hello.py that prints hi and run it with python3. Answer in two short sentences.\n\n○ Thought for 3.2s (Initial plan is to execute three operations. First, list directory contents. Then append data to a specific file, ensuring the append operation is correctly configured. Finally...)\n● Ran (ls -la)\n● Edited 2 files (notes.txt, hello.py)\n● Ran (python3 hello.py) (ctrl+o to expand)\n\n  I ran ls -la (which showed only notes.txt initially) and appended delta to notes.txt. I also created hello.py and ran it with python3, which printed hi.\n\n────────────────────────────────────────────────────────────\n> Create the file ask.txt containing the single word hello.\n\n● Edited 1 file (ask.txt) (ctrl+o to expand)\n\n────────────────────────────────────────────────────────────\n> Run the shell command: date\n\n● Ran (date) (ctrl+o to expand)\n\nCommand\n─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n\nRequesting permission for:\n   da te\n\nRun this command?\n> 1. Yes, run command\n  2. Yes, and always allow in this conversation for commands that start with 'date'\n  3. Yes, and always allow for commands that start with 'date' (Persist to settings.json)\n  4. No, cancel\n\n  ↑/↓ Navigate · tab Amend · ctrl+g edit/expand command\nesc to cancel                                                                                                                                                                     Gemini 4 Hydrogen · low\n",
+   "mac": {
+    "kind": "agyAsk",
+    "question": "Run this command?",
+    "context": {
+     "type": "command",
+     "text": "da te"
+    },
+    "options": [
+     {
+      "key": "1",
+      "label": "Yes, run command",
+      "keys": [
+       "1"
+      ],
+      "marked": true,
+      "lasting": false
+     },
+     {
+      "key": "2",
+      "label": "Yes, and always allow in this conversation for commands that start with 'date'",
+      "keys": [
+       "2"
+      ],
+      "marked": false,
+      "lasting": true
+     },
+     {
+      "key": "3",
+      "label": "Yes, and always allow for commands that start with 'date' (Persist to settings.json)",
+      "keys": [
+       "3"
+      ],
+      "marked": false,
+      "lasting": true
+     },
+     {
+      "key": "4",
+      "label": "No, cancel",
+      "keys": [
+       "4"
+      ],
+      "marked": false,
+      "lasting": false
+     }
+    ],
+    "body": [
+     "Command",
+     "",
+     "Requesting permission for:",
+     "   da te",
+     ""
+    ],
+    "drawnOptions": [
+     "  1. Yes, run command",
+     "  2. Yes, and always allow in this conversation for commands that start with 'date'",
+     "  3. Yes, and always allow for commands that start with 'date' (Persist to settings.json)",
+     "  4. No, cancel"
+    ]
+   }
+  }
+ ]
+}

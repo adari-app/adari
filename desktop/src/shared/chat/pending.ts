@@ -44,14 +44,36 @@
 //   message it settled into is hidden. The backstop (PendingBackstop): idle or
 //   done for 5 s with no queue on Claude's screen, a bubble still waiting turns
 //   "Not sent"; one tap puts its text back in the box.
+// - A Claude Code send is shown sent by Claude's own record, not by its
+//   screen: the composer empties at the Return, and a bubble main's check
+//   could not prove waits until the bound (sendProofBoundMs) before it says
+//   so (`unconfirmed`, with Show the terminal and Put back); one seen still in
+//   Claude's box after its one corrective Return says that (`inBox`). Neither
+//   is put back nor typed again by the app; both still settle by the match.
+// - A picture message past its Return (`typed`) is kept by main in drafts.json
+//   until the transcript settles it, Put back or Dismiss (`kept`; released
+//   then, onReleased), with where its session's transcript stood (its
+//   baseline's last item, a line id of Claude Code's own, onHistory). A page
+//   reload or an app start brings it back as its bubble (`restore`), never into
+//   the composer. It settles only by its own message: one of its own session
+//   placed after that item; an identical one before it, or in another
+//   session, never settles it nor releases its copy. One kept with no such
+//   item settles by nothing but Put back or Dismiss (or, once its record
+//   proved it, into its session's newest unclaimed message of its text). One
+//   the record proved (`proved`) is never turned Not sent by the screen
+//   backstop. A new session in its pane turns every unproved one "could not
+//   confirm" at once, still in the box included, its destination kept: the new
+//   session never settles it. A receipt that comes after its bubble settled
+//   releases its copy and ends its check at once.
 // - The attachments count too. The same number in all, and every path the
 //   transcript names is one you sent, as many times; its images with no path
 //   (inline, or an [Image #N] marker) stand for the rest only then.
 
 import type { SessionTopology } from "../../main/herdr/wire";
+import type { UnprovedSend } from "../drafts";
 import { agentKind, agentSession, runsAgent } from "../send-binding";
 import { interruptedThen, unwrapPasted } from "./claude-parser";
-import { backstopMs } from "../claude-screen";
+import { backstopMs, sendProofBoundMs } from "../claude-screen";
 import { ChatAttachmentText } from "./tools";
 import type { ChatTimeline, ChatUserMessage } from "./model";
 
@@ -68,8 +90,14 @@ export const clockSlackSeconds = 120;
  * `notSent`, the backstop's: never seen, the agent idle with nothing queued; a tap puts it back in the box.
  * `terminalOnly`: Herdr took it for a pane with no session named, so no
  * transcript can confirm it; it is never turned Not sent and never put back (a second send would send it twice).
+ * `unconfirmed`: a picture message to Claude Code whose keys and Return went, and that neither the check after it,
+ * Claude Code's record nor the transcript showed by the bound (sendProofBoundMs): it says so, with Show the
+ * terminal and Put back (only on that press). It still settles when the transcript shows it.
+ * `inBox`: the check saw it still in Claude Code's box after its one corrective Return: the terminal holds it,
+ * unsent; it says so with Show the terminal, and is never put back on the app's word (that would make two copies).
+ * It settles when the transcript shows it (a Return pressed in the terminal).
  */
-export type PendingState = "sending" | "sent" | "notSent" | "terminalOnly";
+export type PendingState = "sending" | "sent" | "notSent" | "terminalOnly" | "unconfirmed" | "inBox";
 
 /** The pane's terminal and agent session a bubble belongs to. */
 export interface PaneScope {
@@ -103,6 +131,26 @@ export interface PendingMessage {
    * from which pane Chat follows): the first live transcript after it may already hold it (adoptedMatch).
    */
   readonly noTranscript?: true;
+  /** Main keeps it in drafts.json under this id until the transcript settles it, Put back or Dismiss. */
+  readonly kept?: string;
+  /** Main's check after its Return (the receipt's id), ended when the bubble settles. */
+  readonly check?: string;
+  /** Past its Return with main's check still pending: a candidate for Esc's take-back while Claude works. */
+  readonly checking?: true;
+  /** Claude Code's record showed it: the screen backstop never turns it Not sent. */
+  readonly proved?: true;
+  /** Brought back from drafts.json after a reload or a start: the first live transcript that holds it settles it. */
+  readonly restored?: true;
+}
+
+/** What a bubble's end tells main: its kept copy (drafts.json) and its check, when it had them. */
+export type ReleasedSend = Pick<PendingMessage, "id" | "kept" | "check">;
+
+/** `item` with no check pending any more (it left sending). */
+function withoutChecking(item: PendingMessage): PendingMessage {
+  if (item.checking !== true) return item;
+  const { checking: _checking, ...rest } = item;
+  return rest;
 }
 
 /** What the chat held at (or first after) the send: only messages after it may be the match. */
@@ -185,6 +233,8 @@ export const sendingLabelAfterMs = 1_500;
 export function pendingLabel(message: PendingMessage, agentWorking: boolean, nowMs: number): string {
   if (message.state === "notSent") return notSentLabel;
   if (message.state === "terminalOnly") return terminalOnlyLabel;
+  if (message.state === "unconfirmed") return notConfirmedLabel;
+  if (message.state === "inBox") return inBoxLabel;
   // No late label of its own; the backstop turns it "Not sent".
   if (agentWorking) return "Queued";
   if (message.state === "sending") return nowMs - message.sentAtMs >= sendingLabelAfterMs ? "Sending…" : "";
@@ -220,8 +270,17 @@ export const notSentLabel = "Not sent \u00B7 tap to put it back in the box";
 /** A send Herdr took for a pane with no session named. */
 export const terminalOnlyLabel = "Sent to the terminal. Chat cannot show the reply without a session.";
 
-/** Bubbles that stand at their place in time (never below anything newer): Not sent, and sent with no session. */
-const placedStates: ReadonlySet<PendingState> = new Set<PendingState>(["notSent", "terminalOnly"]);
+/** A picture message nothing proved by the bound (its actions: Show the terminal, Put back). */
+export const notConfirmedLabel = "Adari could not confirm Claude Code got this.";
+
+/** Still in Claude Code's box after the one corrective Return (its action: Show the terminal). */
+export const inBoxLabel = "Still in Claude Code's box in the terminal, not sent.";
+
+/**
+ * Bubbles that stand at their place in time (never below anything newer): Not sent, sent with no session, not
+ * confirmed, and still in the terminal's box.
+ */
+const placedStates: ReadonlySet<PendingState> = new Set<PendingState>(["notSent", "terminalOnly", "unconfirmed", "inBox"]);
 
 /** Your message's text for containment: the interrupt line off, as Chat shows it. */
 function containedText(text: string): string {
@@ -356,6 +415,10 @@ export function pendingScopes(hosts: readonly ScopeHost[], held: ReadonlyMap<str
 }
 
 const emptyIDs: ReadonlySet<string> = new Set();
+/** The texts an Esc brought back kept per pane (as many as a take-back asks for). */
+const takeBackKept = 8;
+/** Settled bubbles remembered for a receipt still on its way (its ids are released at once). */
+const settledIdsKept = 64;
 
 export class PendingMessages {
   private items: PendingMessage[] = [];
@@ -367,8 +430,24 @@ export class PendingMessages {
   private readonly takenBack = new Map<string, ReadonlySet<string>>();
   /** Per pane, the texts (by match) whose latest send already came back to the box. */
   private readonly back = new Map<string, Set<string>>();
+  /**
+   * Per pane, the texts (by match) an Esc brought back to the box, newest last (a new send of the same words keeps
+   * them): a start of one may stay in Claude Code's box and join the next prompt.
+   */
+  private readonly returned = new Map<string, string[]>();
   /** Per bubble, its baseline once known. */
   private readonly baselines = new Map<string, Baseline>();
+  /**
+   * Bubbles whose baseline came back from drafts.json (restore): only a timeline that holds its anchor can settle
+   * them (none other tells their own message from history).
+   */
+  private readonly anchored = new Set<string>();
+  /** Kept copies whose history main was told (onHistory), once each. */
+  private readonly historyTold = new Set<string>();
+  /** Told each kept copy's history once its bubble has a baseline. */
+  private readonly histories = new Set<(kept: string, anchor: string | null) => void>();
+  /** The newest bubbles the transcript settled (a receipt after that releases its ids at once), oldest first. */
+  private readonly settledIds: string[] = [];
   /** The pane Chat follows now, its last live timeline, and the pane's terminal and session as the snapshots had them then. */
   private following: { readonly key: string; readonly timeline: ChatTimeline; readonly scope: PaneScope | null } | null = null;
   /** Each agent pane's terminal and session by the latest snapshots (reconcile). */
@@ -378,6 +457,10 @@ export class PendingMessages {
   private readonly listeners = new Set<() => void>();
   /** Told the id of each send that failed (a stop armed for it goes). */
   private readonly failures = new Set<(id: string) => void>();
+  /** Told each bubble with a kept copy or a check that settled, was put back, dismissed or taken back. */
+  private readonly releases = new Set<(item: ReleasedSend) => void>();
+  /** Kept copies released here: a later word of main's about one never brings its bubble back. */
+  private readonly released = new Set<string>();
   private serial = 0;
   private readonly cache = new Map<string, readonly PendingMessage[]>();
 
@@ -390,6 +473,42 @@ export class PendingMessages {
   onFailed(listener: (id: string) => void): () => void {
     this.failures.add(listener);
     return () => this.failures.delete(listener);
+  }
+
+  /**
+   * `listener` is told each bubble with a kept copy or a check that the transcript settled, or that was put back,
+   * dismissed or taken back (main releases its kept copy and stops its check). A pane gone tells nothing: main moves
+   * its kept copy to Kept drafts itself.
+   */
+  onReleased(listener: (item: ReleasedSend) => void): () => void {
+    this.releases.add(listener);
+    return () => this.releases.delete(listener);
+  }
+
+  /**
+   * `listener` is told, once per kept copy, where its session's transcript stood when it went: its bubble's baseline's
+   * last item (null: the transcript held nothing), once the bubble has a baseline and its copy an id.
+   */
+  onHistory(listener: (kept: string, anchor: string | null) => void): () => void {
+    this.histories.add(listener);
+    return () => this.histories.delete(listener);
+  }
+
+  /** Tells main where `item`'s transcript stood, once, when it has both a kept copy and a baseline (not a restored one). */
+  private tellHistory(item: PendingMessage): void {
+    if (item.kept === undefined || item.restored === true || this.historyTold.has(item.kept)) return;
+    const baseline = this.baselines.get(item.id);
+    if (baseline === undefined) return;
+    this.historyTold.add(item.kept);
+    for (const listener of this.histories) listener(item.kept, baseline.anchor);
+  }
+
+  private release(items: readonly ReleasedSend[]): void {
+    for (const item of items) {
+      if (item.kept === undefined && item.check === undefined) continue;
+      if (item.kept !== undefined) this.released.add(item.kept);
+      for (const listener of this.releases) listener({ id: item.id, kept: item.kept, check: item.check });
+    }
   }
 
   /** The pane's bubbles, oldest first; the same array until they change. */
@@ -449,8 +568,155 @@ export class PendingMessages {
   delivered(id: string): void {
     const index = this.items.findIndex((item) => item.id === id);
     if (index < 0) return;
-    this.items = this.items.map((item) => (item.id === id ? { ...item, state: item.noSession === true ? "terminalOnly" : "sent" } : item));
+    this.items = this.items.map((item) => (item.id === id ? withoutChecking({ ...item, state: item.noSession === true ? "terminalOnly" : "sent" }) : item));
     this.changed();
+  }
+
+  /**
+   * Herdr took a picture message and main's check runs on (`check`), its copy kept in drafts.json (`kept`): the
+   * bubble, still sending, is past its Return (a candidate for Esc's take-back while Claude works).
+   */
+  typed(id: string, follow: { readonly check?: string | null; readonly kept?: string | null }): void {
+    const check = follow.check ?? undefined;
+    const kept = follow.kept ?? undefined;
+    if (!this.items.some((item) => item.id === id && item.state === "sending")) {
+      // The transcript settled it before its receipt came: its copy and its check are retired at once, so nothing is
+      // left to come back on a reload. A bubble gone another way (Put back, Dismiss, a take-back) is left as it was.
+      if (this.settledIds.includes(id) && !this.items.some((item) => item.id === id)) {
+        this.release([{ id, ...(kept === undefined ? {} : { kept }), ...(check === undefined ? {} : { check }) }]);
+      }
+      return;
+    }
+    this.items = this.items.map((item) =>
+      item.id === id
+        ? {
+            ...item,
+            checking: true as const,
+            ...(follow.check === undefined || follow.check === null ? {} : { check: follow.check }),
+            ...(follow.kept === undefined || follow.kept === null ? {} : { kept: follow.kept }),
+          }
+        : item,
+    );
+    const typed = this.items.find((item) => item.id === id);
+    if (typed !== undefined) this.tellHistory(typed);
+    this.changed();
+  }
+
+  /**
+   * Main's check after a picture message's Return answered, at once or late (only while its bubble is still here):
+   * `taken` (Claude Code's record proved it; for a pane with no session, its screen) is delivered and keeps that
+   * proof (`proved`: the screen backstop never turns it Not sent), from sending, could not confirm or still in the box;
+   * `stillInBox` turns a bubble sending or could-not-confirm `inBox`; `unknown` changes nothing (the bound turns it).
+   */
+  checked(id: string, outcome: "taken" | "unknown" | "stillInBox"): void {
+    const item = this.items.find((candidate) => candidate.id === id);
+    if (item === undefined) return;
+    if (outcome === "taken") {
+      if (item.state !== "sending" && item.state !== "unconfirmed" && item.state !== "inBox") return;
+      this.items = this.items.map((candidate) =>
+        candidate.id === id
+          ? withoutChecking({ ...candidate, state: candidate.noSession === true ? "terminalOnly" : "sent", ...(candidate.noSession === true ? {} : { proved: true as const }) })
+          : candidate,
+      );
+      this.changed();
+      return;
+    }
+    if (outcome === "stillInBox" && (item.state === "sending" || item.state === "unconfirmed")) {
+      this.items = this.items.map((candidate) => (candidate.id === id ? withoutChecking({ ...candidate, state: "inBox" }) : candidate));
+      this.changed();
+    }
+  }
+
+  /** The bound passed with nothing showing it: a bubble still sending says Adari could not confirm it. */
+  unconfirmed(id: string): void {
+    this.turn(id, "unconfirmed");
+  }
+
+  /** A bubble still sending turns `state`. */
+  private turn(id: string, state: PendingState): void {
+    if (!this.items.some((item) => item.id === id && item.state === "sending")) return;
+    this.items = this.items.map((item) => (item.id === id ? withoutChecking({ ...item, state }) : item));
+    this.changed();
+  }
+
+  /**
+   * Dismiss on a bubble Adari could not confirm, or one still in the terminal's box: it goes, nothing put back and
+   * nothing sent (its kept copy released). False when there is no such bubble.
+   */
+  dismiss(id: string): boolean {
+    const bubble = this.items.find((item) => item.id === id && (item.state === "unconfirmed" || item.state === "inBox"));
+    if (bubble === undefined) return false;
+    this.baselines.delete(id);
+    this.items = this.items.filter((item) => item.id !== id);
+    this.release([bubble]);
+    this.changed();
+    return true;
+  }
+
+  /**
+   * The messages main kept from their Return (drafts.json `unproved`), after a page reload or an app start: each not
+   * shown yet and not released comes back as its bubble, never into the composer: `sent` (proved) when Claude Code's
+   * record showed it, `inBox` when main's check saw it still in Claude's box, `sending` while its check may still
+   * answer and the bound (sendProofBoundMs from its Return) has not passed, else `unconfirmed`. Its session and
+   * where its transcript stood (`history`) are its baseline: only its own session's message after that item settles
+   * it (one kept with none settles by nothing the transcript shows, unless proved). One sent with no session named
+   * keeps that rule (noSession: only a message provably after it). A bubble already shown takes main's newer word
+   * only (checked); with `add` false no bubble is added. The ids of the restored bubbles still sending and when their
+   * bound passes.
+   */
+  restore(entries: readonly UnprovedSend[], nowMs: number, add = true): { readonly id: string; readonly boundAt: number }[] {
+    const pending: { id: string; boundAt: number }[] = [];
+    let added = false;
+    for (const entry of entries) {
+      if (this.released.has(entry.id)) continue;
+      const shown = this.items.find((item) => item.kept === entry.id);
+      if (shown !== undefined) {
+        if (entry.outcome !== "checking") this.checked(shown.id, entry.outcome);
+        continue;
+      }
+      if (!add) continue;
+      const boundAt = entry.sentAt + sendProofBoundMs;
+      const noSession = entry.session === null;
+      const state: PendingState =
+        entry.outcome === "taken"
+          ? noSession
+            ? "terminalOnly"
+            : "sent"
+          : entry.outcome === "stillInBox"
+            ? "inBox"
+            : entry.outcome === "checking" && nowMs < boundAt
+              ? "sending"
+              : "unconfirmed";
+      this.serial += 1;
+      const id = `pending-${this.serial}`;
+      const key = `${entry.hostId}/${entry.paneId}`;
+      if (entry.history !== undefined) {
+        this.baselines.set(id, { before: emptyIDs, anchor: entry.history.anchor });
+        this.anchored.add(id);
+      }
+      this.items = [
+        ...this.items,
+        {
+          id,
+          key,
+          text: entry.text,
+          match: matchText(entry.text),
+          attachments: sentAttachments(entry.text),
+          sentAtMs: entry.sentAt,
+          state,
+          scope: { terminalID: entry.terminalID, session: entry.session },
+          kept: entry.id,
+          restored: true,
+          ...(noSession ? { noSession: true as const } : {}),
+          ...(state === "sent" ? { proved: true as const } : {}),
+          ...(state === "sending" ? { checking: true as const } : {}),
+        },
+      ];
+      added = true;
+      if (state === "sending") pending.push({ id, boundAt });
+    }
+    if (added) this.changed();
+    return pending;
   }
 
   /** It was not sent: no bubble (the box keeps the text and says why). */
@@ -481,8 +747,12 @@ export class PendingMessages {
       if (this.following?.key === key) this.following = null;
       return;
     }
-    this.following = { key, timeline, scope: this.scopes.get(key) ?? null };
-    const waiting = this.items.filter((item) => item.key === key);
+    const shownScope = this.scopes.get(key) ?? null;
+    this.following = { key, timeline, scope: shownScope };
+    // A kept message waits only on its own session: a timeline of another (or, for one brought back, of a session not
+    // known yet) is no baseline and no match for it. One brought back with its history is matched only by a timeline
+    // that still holds its anchor.
+    const waiting = this.items.filter((item) => item.key === key && !this.blindTo(item, shownScope, timeline));
     if (waiting.length === 0) return;
     let claimed = this.claimed.get(key);
     const matched = new Set<string>();
@@ -495,6 +765,7 @@ export class PendingMessages {
       if (baseline === undefined) {
         // A send made with no session, or into a transcript not written yet, and the first live transcript
         // already holds it: it settles into that message (one bubble, no note) instead of taking it as its baseline.
+        // One brought back with no history takes no baseline either: nothing tells its message from history.
         const adopted = this.adoptedMatch(item, timeline, (id) => (claimed?.has(id) ?? false) || [...landed.values()].includes(id));
         if (adopted !== null) {
           if (claimed === undefined) {
@@ -506,8 +777,10 @@ export class PendingMessages {
           landed.set(item.id, adopted);
           continue;
         }
+        if (item.restored === true && item.noSession !== true) continue;
         this.baselines.set(item.id, baselineOf(timeline));
         fresh.add(item.id);
+        this.tellHistory(item);
         continue;
       }
       const found = messagesAfter(timeline, baseline).find(
@@ -560,6 +833,13 @@ export class PendingMessages {
           text = `${text.slice(0, at)}\u0000${text.slice(at + match.length)}`;
           count += 1;
         }
+        // What is left is a start of a message an Esc brought back (whole rows of it its clear did not reach,
+        // joined to the next prompt in Claude's box): it counts as a part.
+        const rest = text.split("\u0000").join(" ").replace(/\s+/g, " ").trim();
+        if (rest !== "" && (this.returned.get(key) ?? []).some((back) => back === rest || back.startsWith(`${rest} `))) {
+          text = "";
+          count += 1;
+        }
         if (text.split("\u0000").join("").replace(/\s/g, "") !== "" || count < (stripped ? 1 : 2)) continue;
         if (claimed === undefined) {
           claimed = new Set();
@@ -580,9 +860,31 @@ export class PendingMessages {
     }
     this.settled.set(key, log.slice(-16));
     this.settleStopped(waiting, matched, landed, timeline);
-    for (const id of matched) this.baselines.delete(id);
+    for (const id of matched) {
+      this.baselines.delete(id);
+      this.anchored.delete(id);
+      this.settledIds.push(id);
+    }
+    this.settledIds.splice(0, Math.max(0, this.settledIds.length - settledIdsKept));
+    const settled = this.items.filter((item) => matched.has(item.id));
     this.items = this.items.filter((item) => !matched.has(item.id));
+    this.release(settled);
     this.changed();
+  }
+
+  /**
+   * `item` is not this timeline's to settle: a kept message whose session is not the one shown (its destination is
+   * kept through a session change), one brought back while the shown session is not known yet, or one brought back
+   * with its history whose anchor this timeline does not hold.
+   */
+  private blindTo(item: PendingMessage, shown: PaneScope | null, timeline: ChatTimeline): boolean {
+    if (item.kept === undefined && item.restored !== true) return false;
+    if (item.scope !== null && shown !== null && scopeChanged(item.scope, shown)) return true;
+    if (item.restored !== true) return false;
+    if (shown === null || (item.scope !== null && item.scope.session !== null && shown.session !== item.scope.session)) return true;
+    if (!this.anchored.has(item.id)) return false;
+    const anchor = this.baselines.get(item.id)?.anchor ?? null;
+    return anchor !== null && !timeline.turns.some((turn) => turn.items.some((one) => one.value.id === anchor));
   }
 
   /**
@@ -604,6 +906,16 @@ export class PendingMessages {
    * so this first live transcript holds no history from before it. One older than the slack is never taken.
    */
   private adoptedMatch(item: PendingMessage, timeline: ChatTimeline, taken: (id: string) => boolean): string | null {
+    // Brought back with no history but proved by Claude Code's record (a line of its session after its Return): it
+    // settles into its session's newest message of its text not taken by another bubble (the session is checked by
+    // blindTo). Not proved: nothing tells it from history, so nothing settles it.
+    if (item.restored === true && item.noSession !== true) {
+      if (item.proved !== true) return null;
+      const newest = userMessages(timeline).findLast(
+        (message) => !taken(message.id) && matchText(message.text) === item.match && attachmentsMatch(item.attachments, shownAttachments(message)),
+      );
+      return newest?.id ?? null;
+    }
     const unwritten = item.noTranscript === true;
     if (item.noSession !== true && item.state !== "terminalOnly" && !unwritten) return null;
     const now = this.following?.key === item.key ? this.following.scope : null;
@@ -639,10 +951,12 @@ export class PendingMessages {
   takeBack(key: string, text: string): boolean {
     const match = matchText(text);
     this.markBack(key, match);
+    if (match !== "") this.returned.set(key, [...(this.returned.get(key) ?? []).filter((back) => back !== match), match].slice(-takeBackKept));
     const bubble = this.items.findLast((item) => item.key === key && item.match === match);
     if (bubble !== undefined) {
       this.baselines.delete(bubble.id);
       this.items = this.items.filter((item) => item.id !== bubble.id);
+      this.release([bubble]);
       this.changed();
       return true;
     }
@@ -683,6 +997,8 @@ export class PendingMessages {
     let changed = false;
     this.items = this.items.map((item) => {
       if (item.key !== key || item.state !== "sent") return item;
+      // Claude Code's record proved it went: the screen never says otherwise.
+      if (item.proved === true) return item;
       if (sentByMs !== null && item.sentAtMs > sentByMs) return item;
       if (this.awaitingTranscript(item, nowMs)) return item;
       changed = true;
@@ -707,13 +1023,17 @@ export class PendingMessages {
     return changed;
   }
 
-  /** A tap on a "Not sent" bubble: it goes, its text returned for the box (null: no such bubble). */
+  /**
+   * A tap on a "Not sent" bubble, or Put back on one Adari could not confirm: it goes, its text returned for the
+   * box (null: no such bubble).
+   */
   takeNotSent(id: string): string | null {
-    const bubble = this.items.find((item) => item.id === id && item.state === "notSent");
+    const bubble = this.items.find((item) => item.id === id && (item.state === "notSent" || item.state === "unconfirmed"));
     if (bubble === undefined) return null;
     this.markBack(bubble.key, bubble.match);
     this.baselines.delete(id);
     this.items = this.items.filter((item) => item.id !== id);
+    this.release([bubble]);
     this.changed();
     return bubble.text;
   }
@@ -766,8 +1086,23 @@ export class PendingMessages {
         continue;
       }
       if (item.scope !== null && scopeChanged(item.scope, now)) {
+        // A picture message nothing proved yet, still in the box included: the old session's record can no longer
+        // prove it, and the box it was seen in was the old session's, so it says Adari could not confirm it at once
+        // (Show the terminal, Put back, Dismiss). Its destination stays the session it went to: the new one never
+        // settles it (blindTo) nor releases its copy; its baseline stays for a return of that session.
+        if (item.kept !== undefined && item.proved !== true && item.state !== "notSent") {
+          if (item.state === "unconfirmed" && item.checking !== true) {
+            next.push(item);
+            continue;
+          }
+          changed = true;
+          next.push(withoutChecking({ ...item, state: "unconfirmed" }));
+          continue;
+        }
         changed = true;
         this.baselines.delete(item.id);
+        // One the record proved went to the old session: its kept copy goes with the bubble.
+        if (item.kept !== undefined) this.release([item]);
         this.dropped.set(item.key, (this.dropped.get(item.key) ?? 0) + 1);
         continue;
       }
@@ -800,10 +1135,15 @@ export class PendingMessages {
   /** Drops everything (tests start from here). */
   clear(): void {
     this.items = [];
+    this.released.clear();
+    this.anchored.clear();
+    this.historyTold.clear();
+    this.settledIds.length = 0;
     this.claimed.clear();
     this.settled.clear();
     this.takenBack.clear();
     this.back.clear();
+    this.returned.clear();
     this.baselines.clear();
     this.dropped.clear();
     this.scopes.clear();
@@ -844,7 +1184,8 @@ export class PendingBackstop {
    */
   watch(key: string, status: string, queued: () => Promise<boolean | null>, noSession = false): void {
     const settled = status === "idle" || status === "done";
-    const waiting = this.store.forPane(key).filter((item) => item.state === "sent");
+    // A bubble Claude Code's record proved is never the backstop's: no timer, no screen read for it.
+    const waiting = this.store.forPane(key).filter((item) => item.state === "sent" && item.proved !== true);
     if (waiting.length === 0) {
       this.stop(key);
       return;

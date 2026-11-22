@@ -16,7 +16,8 @@
 //   address), Edit… and Remove… or This Mac's "Built in" in the actions column;
 //   Add and Edit open the sidebar's own dialog (AddHostDialog), Remove asks
 //   first and calls the same removeHost. Under each connected machine, one line
-//   of Herdr's agent integrations ("Codex: not installed · Install"), read again as the page opens.
+//   of Herdr's agent integrations ("Codex: not installed · Install"), read again as the page opens; after the
+//   machines, Install Herdr's integrations when I start an agent (on by default, kept by the main process).
 // - Chat: Send presses Return (the composer reads it); Start commands, each
 //   machine's command per agent kind, editable: Return or leaving the field
 //   saves it into ~/.adari/agents.json on the machine (the main process:
@@ -66,10 +67,15 @@ import {
   startCommandSaveRefusal,
   startCommandsDisplayPath,
   typedStart,
+  updateCommandFor,
+  updateCommandKey,
+  updateCommandSaveRefusal,
   type AgentStartCommands,
   type EditableStartKind,
 } from "../../shared/start-commands";
 import { agentUpdateWords, updateLineKinds } from "../../shared/update-mark";
+import { agentUpdateTexts, isUpdateCommandKind, updateCliName, updateKinds, updateWorkspace } from "../../shared/agent-update";
+import { AgentUpdateButton } from "../components/agent-update";
 import { automaticFoot, automaticLabel, lastCheckLine, offLine, offReasonText, updateStatusLine, type UpdateView } from "../../shared/updates";
 import { defaultTerminalFontSize, maximumTerminalFontSize, minimumTerminalFontSize, type ViewCommand } from "../../shared/view-commands";
 import { CloseIcon, ExternalIcon, PlusIcon } from "../icons";
@@ -79,9 +85,10 @@ import { startCommandsStore } from "../components/resume";
 import { UpdateMark } from "../components/UpdateMark";
 import { handoffStore } from "../handoff/handoff-state";
 import { ChatEarlyBadge } from "../components/agent-kind";
-import { IntegrationsLine, settingsIntegrationItems } from "../components/integrations";
+import { IntegrationsLine, settingsIntegrationItems, useAutoInstall } from "../components/integrations";
+import { autoInstallTexts } from "../../shared/integrations";
 import { uploadsStore } from "./uploads-store";
-import { defaultNotifySettings, notifyTexts, type NotifySettings } from "../../shared/needs-notify";
+import { defaultNotifySettings, isNotifyDelivery, notifyTexts, type NotifyDelivery, type NotifySettings } from "../../shared/needs-notify";
 
 /** An agent pane whose CLI has an update (HostView.updateReady), as the sidebar names it. */
 export interface UpdateReadyPane {
@@ -91,6 +98,8 @@ export interface UpdateReadyPane {
   readonly place: string;
   /** Its agent kind ("claude", "codex"); absent: Claude Code (the only one before). */
   readonly kind?: string | null;
+  /** Its workspace (an Update's shell tab goes in the first marked agent's); absent: not known. */
+  readonly workspaceId?: string | null;
 }
 
 export interface SettingsPageProps {
@@ -116,6 +125,8 @@ export interface SettingsPageProps {
   readonly update?: UpdateView | null;
   /** The pill's Download and Restart (Restart asks first, in the main process). */
   onUpdateAction?(action: "download" | "install"): void;
+  /** The pane in view under the page (an Update's shell tab goes in its workspace when no agent of the CLI is marked). */
+  readonly inView?: { readonly hostId: string; readonly workspaceId: string } | null;
 }
 
 /** A confirmation over the page: Delete now on a machine, or Remove a machine. */
@@ -273,23 +284,40 @@ function Switch({ on, label, onChange, data }: { on: boolean; label: string; onC
  * Settings › Notifications: the three switches as the main process keeps them (read as the section opens; a
  * switch shows its new place at once and the main process's answer after), Send a test notification and its outcome,
  * and the line that macOS decides. The menu bar switch is the Mac's only (there is no menu bar item elsewhere).
+ * On the Mac that line is a row with Open Notification Settings (main opens macOS's Notifications pane, an address
+ * the page never sends), and, when the last notification failed (macOS did not show it), the line that macOS is not
+ * showing Adari's notifications; read as the section opens and after each test, gone once one shows.
  */
 export function NotificationsSection({ bridge, mac }: { readonly bridge: HerdrDesktopBridge; readonly mac: boolean }) {
   const [kept, setKept] = useState<NotifySettings | null>(null);
   const [tested, setTested] = useState<string | null>(null);
   const [testing, setTesting] = useState(false);
-  useEffect(() => {
-    let live = true;
-    void bridge.notifySettings?.().then(
+  const [delivery, setDelivery] = useState<NotifyDelivery | null>(null);
+  const live = useRef(true);
+  const readDelivery = (): void => {
+    void bridge.notifyDelivery?.().then(
       (value) => {
-        if (live) setKept(value);
+        if (live.current) setDelivery(isNotifyDelivery(value) ? value : null);
       },
       () => undefined,
     );
+  };
+  useEffect(() => {
+    live.current = true;
+    void bridge.notifySettings?.().then(
+      (value) => {
+        if (live.current) setKept(value);
+      },
+      () => undefined,
+    );
+    if (mac) readDelivery();
     return () => {
-      live = false;
+      live.current = false;
     };
-  }, [bridge]);
+    // readDelivery is this render's; it reads the same bridge.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bridge, mac]);
+  const off = mac && delivery?.outcome === "failed";
   const now = kept ?? defaultNotifySettings;
   const change =
     (key: keyof NotifySettings) =>
@@ -310,7 +338,7 @@ export function NotificationsSection({ bridge, mac }: { readonly bridge: HerdrDe
       {row("test", {
         title: notifyTexts.testTitle,
         help: notifyTexts.testHelp,
-        status: tested,
+        status: tested === notifyTexts.offLine ? <span className="set-bad" data-notify-off="">{tested}</span> : tested,
         data: { "data-notify-test": "" },
         control: (
           <button
@@ -321,15 +349,32 @@ export function NotificationsSection({ bridge, mac }: { readonly bridge: HerdrDe
               void bridge
                 .testNotification?.()
                 .then(setTested, () => setTested(notifyTexts.testFailed))
-                .finally(() => setTesting(false));
+                .finally(() => {
+                  setTesting(false);
+                  if (mac) readDelivery();
+                });
             }}
           >
             {notifyTexts.test}
           </button>
         ),
       })}
+      {mac
+        ? row("system", {
+            title: "System Settings",
+            help: notifyTexts.macLine,
+            // The test row already says it after a failed test: said once.
+            status: off && tested !== notifyTexts.offLine ? <span className="set-bad" data-notify-off="">{notifyTexts.offLine}</span> : null,
+            data: { "data-notify-system": "" },
+            control: (
+              <button className="btn sm" disabled={typeof bridge.openNotificationSettings !== "function"} onClick={() => bridge.openNotificationSettings?.()} data-notify-open-settings="">
+                {notifyTexts.openSettings}
+              </button>
+            ),
+          })
+        : null}
     </div>,
-    { foot: mac ? notifyTexts.macLine : notifyTexts.otherLine },
+    { foot: mac ? null : notifyTexts.otherLine },
   );
 }
 
@@ -421,6 +466,8 @@ export function SettingsPage(props: SettingsPageProps) {
   }, []);
   const mac = info.platform === "darwin";
   const [confirm, setConfirm] = useState<Confirm | null>(null);
+  // The kinds whose Add update command was clicked (their fields open; nothing is saved by the click).
+  const [addedKinds, setAddedKinds] = useState<ReadonlySet<string>>(new Set());
   // A check asked for here: its outcome in words and when it came back (a later check's line replaces it).
   const [checked, setChecked] = useState<{ readonly text: string; readonly at: number } | null>(null);
   const [checking, setChecking] = useState(false);
@@ -432,7 +479,9 @@ export function SettingsPage(props: SettingsPageProps) {
   const [licensesNote, setLicensesNote] = useState<string | null>(null);
   const pressesReturn = useSyncExternalStore(composerSettings.subscribe, composerSettings.sendPressesReturn);
   useUploadCounts(bridge, hosts, shownSection === "uploads" ? shownSection : null);
-  const startCommands = useStartCommands(bridge, hosts, shownSection === "chat");
+  // Chat's start commands, and Updates' update commands (the same file).
+  const startCommands = useStartCommands(bridge, hosts, shownSection === "chat" || shownSection === "updates");
+  const [autoInstall, setAutoInstall] = useAutoInstall(bridge);
   const nav = useRef<HTMLElement>(null);
   const confirmButton = useRef<HTMLButtonElement>(null);
 
@@ -523,6 +572,13 @@ export function SettingsPage(props: SettingsPageProps) {
             ),
         });
       })}
+      {/* New agent's install in front of its start, for every machine (on by default; kept by the main process). */}
+      {row("auto-install", {
+        title: autoInstallTexts.title,
+        help: autoInstallTexts.help,
+        data: { "data-integration-auto": "" },
+        control: <Switch on={autoInstall} label={autoInstallTexts.title} data={{ "data-integration-auto-switch": "" }} onChange={setAutoInstall} />,
+      })}
     </div>,
     {
       action: (
@@ -551,14 +607,22 @@ export function SettingsPage(props: SettingsPageProps) {
       return next;
     });
 
-  /** Saves the field's draft (Return, or leaving the field): nothing when unchanged; refused here when the reader would refuse it. */
-  const commitStart = (host: HostView, entry: EditableStartKind): void => {
-    const key = fieldKey(host.id, entry.kind);
-    const draft = drafts.get(key);
-    if (draft === undefined) return;
-    const commands = startCommands.read.get(host.id);
-    const command = draft.trim();
-    const current = commands === undefined ? "" : (commandFor(commands, entry.kind) ?? "");
+  /**
+   * Saves `command` into one key of the machine's start-commands file (`key`: a field's key), unless it is what the
+   * file has (`current`): refused here by `refuse` (the reader's own check), else `send` (the main process's save);
+   * what the save answered becomes the machine's start commands in the window. `draft`: the field's text it came from
+   * (cleared after the save unless typed on since).
+   */
+  const saveField = (
+    host: HostView,
+    key: string,
+    command: string,
+    draft: string,
+    current: string,
+    refuse: (command: string) => string | null,
+    send: ((hostId: string, command: string) => Promise<AgentStartCommands>) | null,
+    savedLine: string,
+  ): void => {
     if (command === current) {
       setDraft(key, null);
       return;
@@ -566,17 +630,17 @@ export function SettingsPage(props: SettingsPageProps) {
     // Return, then leaving the field: one save.
     const running = saves.get(key);
     if (running?.kind === "saving" && running.command === command) return;
-    const refusal = startCommandSaveRefusal(command);
+    const refusal = refuse(command);
     if (refusal !== null) {
       setSave(key, { kind: "failed", text: `Not saved: ${refusal}` });
       return;
     }
-    if (typeof bridge.saveStartCommand !== "function") {
+    if (send === null) {
       setSave(key, { kind: "failed", text: "Not saved: this build cannot save start commands." });
       return;
     }
     setSave(key, { kind: "saving", command });
-    void bridge.saveStartCommand(host.id, entry.kind, command).then(
+    void send(host.id, command).then(
       (saved) => {
         if (!isAgentStartCommands(saved)) {
           setSave(key, { kind: "failed", text: "Not saved: the answer was not start commands." });
@@ -591,10 +655,22 @@ export function SettingsPage(props: SettingsPageProps) {
           next.delete(key);
           return next;
         });
-        setSave(key, { kind: "saved", text: savedText(entry, command) });
+        setSave(key, { kind: "saved", text: savedLine });
       },
       (failure: unknown) => setSave(key, { kind: "failed", text: `Not saved: ${reason(failure)}` }),
     );
+  };
+
+  /** Saves the field's draft (Return, or leaving the field): nothing when unchanged; refused here when the reader would refuse it. */
+  const commitStart = (host: HostView, entry: EditableStartKind): void => {
+    const key = fieldKey(host.id, entry.kind);
+    const draft = drafts.get(key);
+    if (draft === undefined) return;
+    const commands = startCommands.read.get(host.id);
+    const command = draft.trim();
+    const current = commands === undefined ? "" : (commandFor(commands, entry.kind) ?? "");
+    const send = typeof bridge.saveStartCommand === "function" ? (hostId: string, text: string) => bridge.saveStartCommand!(hostId, entry.kind, text) : null;
+    saveField(host, key, command, draft, current, startCommandSaveRefusal, send, savedText(entry, command));
   };
 
   const startField = (host: HostView, entry: EditableStartKind, commands: AgentStartCommands | undefined, editable: boolean) => {
@@ -659,6 +735,121 @@ export function SettingsPage(props: SettingsPageProps) {
             }
           }}
         />
+      ),
+    });
+  };
+
+  /** A CLI's update command on a machine: Return or leaving the field saves it (`<kind>.update`). */
+  const commitUpdate = (host: HostView, kind: string, taken: string | null = null): void => {
+    const key = fieldKey(host.id, updateCommandKey(kind));
+    const draft = taken ?? drafts.get(key);
+    if (draft === undefined) return;
+    const commands = startCommands.read.get(host.id);
+    const command = draft.trim();
+    const current = commands === undefined ? "" : (updateCommandFor(commands, kind) ?? "");
+    const send = typeof bridge.saveUpdateCommand === "function" ? (hostId: string, text: string) => bridge.saveUpdateCommand!(hostId, kind, text) : null;
+    saveField(host, key, command, draft, current, updateCommandSaveRefusal, send, agentUpdateTexts.saved(command));
+  };
+
+  /**
+   * One machine's row under a CLI in Agent CLIs: its update command (editable while the machine's file was
+   * read), the command the CLI's own notice named there as a suggestion with Use this (one click saves it; nothing is
+   * taken by itself), and Update while a command is saved.
+   */
+  const updateField = (host: HostView, kind: string, marked: readonly UpdateReadyPane[]) => {
+    const key = fieldKey(host.id, updateCommandKey(kind));
+    const commands = startCommands.read.get(host.id);
+    const editable = startFileNote(host, commands) === null;
+    const draft = drafts.get(key);
+    const saved = commands === undefined ? null : updateCommandFor(commands, kind);
+    const value = draft ?? saved ?? "";
+    const refusal = draft === undefined ? null : updateCommandSaveRefusal(draft.trim());
+    const save = saves.get(key) ?? null;
+    const cli = updateCliName(kind);
+    const suggestion = host.updateSuggestions?.[kind] ?? null;
+    const offered = suggestion !== null && suggestion !== saved && editable ? suggestion : null;
+    // Its marked agents first, then any agent of the kind on the machine (not archived), else the one in view.
+    const workspaceId = updateWorkspace(
+      [
+        ...marked.filter((pane) => pane.hostId === host.id).map((pane) => ({ workspaceId: pane.workspaceId ?? null })),
+        ...(host.topology?.agents ?? []).filter((agent) => (agent.agent ?? "").toLowerCase() === kind && agent.archived === undefined).map((agent) => ({ workspaceId: agent.workspaceID ?? null })),
+      ],
+      props.inView?.hostId === host.id ? props.inView.workspaceId : null,
+    );
+    const line =
+      refusal !== null ? (
+        <span className="set-bad">{refusal}</span>
+      ) : save?.kind === "saving" ? (
+        "Saving…"
+      ) : save?.kind === "failed" ? (
+        <span className="set-bad">{save.text}</span>
+      ) : save?.kind === "saved" ? (
+        <span className="set-good">{save.text}</span>
+      ) : draft !== undefined && draft.trim() !== (saved ?? "") ? (
+        agentUpdateTexts.unsaved
+      ) : editable ? null : (
+        startFileNote(host, commands)
+      );
+    return row(`update-${host.id}-${kind}`, {
+      title: host.name,
+      status:
+        line === null && offered === null ? null : (
+          <>
+            {line === null ? null : <span data-update-command-status="">{line}</span>}
+            {offered === null ? null : (
+              <span className="set-sugg" data-update-suggestion={kind}>
+                {agentUpdateTexts.suggestion(cli)} <span className="mono">{offered}</span>
+                <button className="set-int-b" data-update-suggestion-take="" onClick={() => commitUpdate(host, kind, offered)}>
+                  {agentUpdateTexts.take}
+                </button>
+              </span>
+            )}
+          </>
+        ),
+      data: { "data-update-command": `${host.id}/${kind}` },
+      control: (
+        <span className="set-upd-cmd">
+          <input
+            className={refusal !== null ? "inp mono set-in bad" : "inp mono set-in"}
+            data-update-command-input={`${host.id}/${kind}`}
+            aria-label={`${cli} update command on ${host.name}`}
+            aria-invalid={refusal !== null}
+            placeholder="None"
+            value={value}
+            disabled={!editable}
+            spellCheck={false}
+            autoCapitalize="off"
+            autoCorrect="off"
+            autoComplete="off"
+            onChange={(event) => {
+              setDraft(key, event.target.value);
+              if (save?.kind !== "saving") setSave(key, null);
+            }}
+            onBlur={() => commitUpdate(host, kind)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" && !event.nativeEvent.isComposing) {
+                event.preventDefault();
+                commitUpdate(host, kind);
+              } else if (event.key === "Escape" && draft !== undefined) {
+                event.preventDefault();
+                event.stopPropagation();
+                setDraft(key, null);
+                setSave(key, null);
+              }
+            }}
+          />
+          {saved === null || draft !== undefined || host.state !== "connected" ? null : (
+            <AgentUpdateButton
+              bridge={bridge}
+              host={host}
+              kind={kind}
+              command={saved}
+              workspaceId={workspaceId}
+              onOpened={props.onOpenPane}
+              onCommands={(hostId, commands) => startCommands.set(hostId, commands)}
+            />
+          )}
+        </span>
       ),
     });
   };
@@ -830,6 +1021,47 @@ export function SettingsPage(props: SettingsPageProps) {
   };
   const coveredNames = coveredKinds.map((kind) => agentUpdateWords[kind]!.cli);
   const uncovered = editableStartKinds.filter((entry) => !updateLineKinds.has(entry.kind)).map((entry) => entry.name);
+  // Every other kind a machine's start-command table lists (never Shell, never Claude Code), in a plain list with
+  // no mark: a kind with an update command saved on a machine (or Add update command clicked) shows each machine's
+  // field; any other is one line with Add update command.
+  const otherKinds: string[] = [];
+  for (const host of hosts) {
+    for (const kind of updateKinds(startCommands.read.get(host.id) ?? null)) {
+      if (!updateLineKinds.has(kind) && !otherKinds.includes(kind)) otherKinds.push(kind);
+    }
+  }
+  const otherHosts = (kind: string): HostView[] => hosts.filter((host) => updateKinds(startCommands.read.get(host.id) ?? null).includes(kind));
+  const otherUpdates =
+    otherKinds.length === 0 ? null : (
+      <div className="set-group" key="others" data-update-others="">
+        {row("others", { className: "set-row-head", title: agentUpdateTexts.othersTitle, help: agentUpdateTexts.othersHelp })}
+        {otherKinds.flatMap((kind) => {
+          const name = updateCliName(kind);
+          const machines = otherHosts(kind);
+          const saved = machines.some((host) => {
+            const commands = startCommands.read.get(host.id);
+            return commands !== undefined && updateCommandFor(commands, kind) !== null;
+          });
+          if (!saved && !addedKinds.has(kind)) {
+            return [
+              row(`other-${kind}`, {
+                title: name,
+                data: { "data-update-other": kind },
+                control: (
+                  <button className="btn sm" data-update-add={kind} onClick={() => setAddedKinds((now) => new Set([...now, kind]))}>
+                    {agentUpdateTexts.add}
+                  </button>
+                ),
+              }),
+            ];
+          }
+          return [
+            row(`other-${kind}`, { title: name, help: agentUpdateTexts.help(name), data: { "data-update-other": kind, "data-update-command-help": kind } }),
+            ...machines.map((host) => updateField(host, kind, [])),
+          ];
+        })}
+      </div>
+    );
 
   const updatesPage = (
     <>
@@ -888,6 +1120,15 @@ export function SettingsPage(props: SettingsPageProps) {
                     ),
                   control: <span className="set-v faint">{panes.length === 0 ? "None now" : panes.length === 1 ? "1 agent" : `${panes.length} agents`}</span>,
                 })}
+                {/* Claude Code updates itself (one line, no command); a CLI updated by a command has one per machine. */}
+                {kind === "claude"
+                  ? row("self", { title: "Updates", help: agentUpdateTexts.claude, data: { "data-update-self": kind } })
+                  : isUpdateCommandKind(kind)
+                    ? [
+                        row("update-help", { title: agentUpdateTexts.field, help: agentUpdateTexts.help(words.cli), data: { "data-update-command-help": kind } }),
+                        ...hosts.map((host) => updateField(host, kind, panes)),
+                      ]
+                    : null}
                 {panes.map((pane) => (
                   <button className="set-upd" key={`${pane.hostId}/${pane.paneId}`} onClick={() => props.onOpenPane(pane.hostId, pane.paneId)} title={`Open ${pane.name}`}>
                     <UpdateMark kind={kind} />
@@ -899,8 +1140,9 @@ export function SettingsPage(props: SettingsPageProps) {
               </div>
             );
           })}
+          {otherUpdates}
         </div>,
-        { foot: uncovered.length === 0 ? null : `Not listed: ${uncovered.join(" and ")}. ${uncovered.length === 1 ? "It prints" : "They print"} no update notice Adari can read.` },
+        { foot: uncovered.length === 0 ? null : agentUpdateTexts.unmarked(uncovered) },
       )}
     </>
   );

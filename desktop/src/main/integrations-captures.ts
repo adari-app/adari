@@ -7,6 +7,13 @@
 // Settings › Machines with the Mac mini's integration line (161); a send to the
 // no-session Codex pane, its bubble "Sent to the terminal" (162). Each step
 // puts the pane and the integrations back after its picture.
+//
+// Captures 280-282 (last in the list): New agent starting
+// Codex on the Mac mini with Herdr's Codex integration not installed there, the
+// install first and its one line in the notice (280); Settings › Machines'
+// switch (281); the Atelier Codex pane's Chat with no session while the Mac
+// mini's list was not read (the demo's Herdr refuses integration.list): the
+// not-read sentence and Retry (282).
 
 import type { CaptureStep } from "./capture";
 import type { CommandBody } from "./app-commands";
@@ -18,6 +25,8 @@ export const integrationsPaneId = "w5:pH";
 export interface IntegrationsChange {
   readonly noSession: boolean;
   readonly states: Readonly<Record<string, string>>;
+  /** The demo's Herdr refuses integration.list, so the machine's list is not read (282). */
+  readonly listRefused?: boolean;
 }
 
 const chatMeasure = `(() => {
@@ -114,6 +123,107 @@ export function integrationsCaptureSteps(ids: { macMini: string }, change: (host
       settleMs: 7_000,
       measure: chatMeasure,
       before: put({ noSession: true, states: {} }),
+      afterCapture: back,
+    },
+  ];
+}
+
+/** Esc on every open dialog until none is left, and the notice before dismissed as the user's click would. */
+const closeDialogs = `(async () => {
+  document.querySelector(".app-toast")?.click();
+  for (let i = 0; i < 6 && document.querySelector(".dlg") !== null; i += 1) {
+    document.querySelector(".dlg").dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }));
+    await new Promise((done) => setTimeout(done, 120));
+  }
+  return document.querySelector(".dlg") === null;
+})()`;
+
+/** In the open New agent dialog: the kind clicked, then Start. */
+function startKind(kind: string): string {
+  return `(async () => {
+    const wait = (ms) => new Promise((done) => setTimeout(done, ms));
+    for (let tries = 0; tries < 60 && document.querySelector(".dlg.na") === null; tries += 1) await wait(50);
+    const choice = document.querySelector('.dlg.na .na-kind[data-kind=${JSON.stringify(kind)}]');
+    if (choice === null) return false;
+    choice.click();
+    await wait(250);
+    document.querySelector(".dlg.na .df .btn.pri")?.click();
+    return true;
+  })()`;
+}
+
+const newAgentMeasure = `(() => {
+  const text = (element) => (element?.textContent ?? "").replace(/\\s+/g, " ").trim();
+  return {
+    window: { width: window.innerWidth, height: window.innerHeight },
+    toast: text(document.querySelector(".app-toast")) || null,
+    dialog: document.querySelector(".dlg") === null ? null : text(document.querySelector(".dlg .df .note")),
+    emDash: document.body.innerText.includes("\\u2014"),
+  };
+})()`;
+
+const switchMeasure = `(() => {
+  const text = (element) => (element?.textContent ?? "").replace(/\\s+/g, " ").trim();
+  const row = document.querySelector("[data-integration-auto]");
+  const control = row?.querySelector("[data-integration-auto-switch]");
+  return {
+    window: { width: window.innerWidth, height: window.innerHeight },
+    row: text(row) || null,
+    on: control?.getAttribute("aria-checked") ?? null,
+    emDash: document.querySelector(".settings-page")?.innerText.includes("\\u2014") ?? null,
+  };
+})()`;
+
+const unreadMeasure = `(() => {
+  const text = (element) => (element?.textContent ?? "").replace(/\\s+/g, " ").trim();
+  return {
+    window: { width: window.innerWidth, height: window.innerHeight },
+    empty: text(document.querySelector(".chat-empty")) || null,
+    unread: text(document.querySelector(".chat-int-unread .chat-int-note")) || null,
+    retry: text(document.querySelector("[data-integrations-retry]")) || null,
+    integration: text(document.querySelector(".chat-int-line")) || null,
+    emDash: document.body.innerText.includes("\\u2014"),
+  };
+})()`;
+
+export function autoInstallCaptureSteps(ids: { macMini: string }, change: (hostId: string, paneId: string, what: IntegrationsChange | null) => Promise<void>): CaptureStep[] {
+  const put = (what: IntegrationsChange) => () => change(ids.macMini, integrationsPaneId, what);
+  const back = () => change(ids.macMini, integrationsPaneId, null);
+  return [
+    {
+      name: "280-int-auto-new-agent",
+      what: "New agent (Codex, New tab) on the Mac mini with Herdr's Codex integration not installed there and Settings' switch on: one integration.install { target: codex } to the demo's Herdr before agent.start, and the notice leads with Installed Herdr's Codex integration on Mac mini.",
+      commands: [
+        { type: "settings", open: false },
+        { type: "open-new-agent", hostId: ids.macMini, workspaceId: "w7" },
+      ],
+      page: [startKind("codex")],
+      settleMs: 3_500,
+      measure: newAgentMeasure,
+      before: put({ noSession: false, states: { codex: "not_installed" } }),
+      afterCapture: back,
+    },
+    {
+      name: "281-int-auto-switch",
+      what: "Settings › Machines: under the machines, the switch Install Herdr's integrations when I start an agent, on by default, with its line saying what it does",
+      commands: [{ type: "settings", open: true, section: "machines" }],
+      page: [closeDialogs, `(() => { document.querySelector("[data-integration-auto]")?.scrollIntoView({ block: "center" }); return true; })()`],
+      settleMs: 2_000,
+      measure: switchMeasure,
+    },
+    {
+      name: "282-int-unread-retry",
+      what: "The Atelier Codex pane's Chat on the Mac mini with no session named while Herdr's integration list was not read on this connection (the demo's Herdr refused integration.list): today's no-session line, then Adari could not read Herdr's integrations on Mac mini, so it cannot tell whether this agent's integration is installed., with Retry",
+      commands: [
+        { type: "settings", open: false },
+        { type: "set-mode", mode: "projects" },
+        { type: "set-host-folded", hostId: ids.macMini, folded: false },
+        { type: "select-pane", hostId: ids.macMini, paneId: integrationsPaneId },
+        { type: "set-tab", tab: "chat" },
+      ],
+      settleMs: 2_500,
+      measure: unreadMeasure,
+      before: put({ noSession: true, states: {}, listRefused: true }),
       afterCapture: back,
     },
   ];

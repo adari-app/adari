@@ -11,6 +11,7 @@ import { notSentLabel, notSentWhileWorkingMs, pendingLabel, placePending, Pendin
 import { putBackInBox } from "../src/renderer/chat/esc-back";
 import { json, session, shown, timelineOf } from "./support/chat-lines";
 import { beforeGlued, claudeReply, claudeUser, escMs, escTimes, firstPending, gluedLines, gluedText, secondPending } from "./support/esc-queue-lines";
+import { blankLineMessages } from "./support/blank-lines";
 
 const key = "host/w1:p1";
 
@@ -223,5 +224,33 @@ describe("the stale bubble", () => {
     // Before turn 1: after the 22:35 message's turn, before the newer ones, not at the end.
     expect([...places.placed.keys()]).toEqual([1]);
     expect(places.placed.get(1)!.map((item) => item.text)).toEqual(["a text nothing matches"]);
+  });
+});
+
+// MARK: - the joined case after an Esc's leftover
+
+describe("a start of a message Esc brought back, joined to the next one", () => {
+  for (const [shape, text] of blankLineMessages) {
+    it(`${shape}: the next message's bubble settles into the joined message (never Queued for good)`, () => {
+      const store = new PendingMessages();
+      store.observe(key, timelineOf(beforeGlued.slice(0, 2)).timeline);
+      store.delivered(store.add(key, text, escMs(escTimes.stop) - 2_000));
+      // Esc: Claude Code put it back and Chat took it back; its first row stayed in Claude's box.
+      expect(store.takeBack(key, text)).toBe(true);
+      store.delivered(store.add(key, "the next message", escMs(escTimes.u1) - 150));
+      // Herdr typed the next message after that row: Claude got them as one.
+      const joined = [...beforeGlued.slice(0, 3), claudeUser("J1", "P", "first linethe next message", escTimes.u1, { promptSource: "typed" })];
+      store.observe(key, timelineOf(joined).timeline);
+      expect(store.forPane(key)).toEqual([]);
+    });
+  }
+
+  it("a joined message whose rest is not a start of a message Esc brought back: the bubble waits as before", () => {
+    const store = new PendingMessages();
+    store.observe(key, timelineOf(beforeGlued.slice(0, 2)).timeline);
+    store.delivered(store.add(key, "the next message", escMs(escTimes.u1) - 150));
+    const joined = [...beforeGlued.slice(0, 3), claudeUser("J1", "P", "first linethe next message", escTimes.u1, { promptSource: "typed" })];
+    store.observe(key, timelineOf(joined).timeline);
+    expect(store.forPane(key).map((item) => item.text)).toEqual(["the next message"]);
   });
 });

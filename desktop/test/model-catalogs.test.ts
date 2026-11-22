@@ -30,7 +30,8 @@ import {
   type ListRun,
   type StoredCatalog,
 } from "../src/main/model-catalogs";
-import { claudeFallback, claudeInitializeLine, listCommand, type CatalogAgent, type CatalogView, type ListCommand } from "../src/shared/model-catalog";
+import { agyBuiltIn, claudeFallback, claudeInitializeLine, listCommand, type CatalogAgent, type CatalogView, type ListCommand } from "../src/shared/model-catalog";
+import { startFlags } from "../src/shared/model-choices";
 import { scratch as scratchRoot } from "./support/this-mac-fake";
 
 // The test scratch folder (HERDR_TEST_SCRATCH), one folder per run.
@@ -222,10 +223,54 @@ describe("the catalog service", () => {
     expect(s.runner.runs).toHaveLength(2);
   });
 
-  it("Antigravity CLI: no read, its line", async () => {
+  it("Antigravity CLI: `agy models` read as the others are, Gemini 4 Neon first; no line while it has its list", async () => {
     const s = service();
-    expect((await s.catalogs.view("mini", "agy")).none).toBe("Antigravity CLI's models are in its own picker.");
-    expect(s.runner.runs).toHaveLength(0);
+    const view = await s.catalogs.settled("mini", "agy");
+    expect(s.runner.runs.map((run) => run.command)).toEqual([{ program: "agy", args: ["models"], stdin: null, timeoutMs: 20_000 }]);
+    expect(view.models).toHaveLength(23);
+    expect(view.models[0]).toMatchObject({ id: "gemini-4-neon-high", label: "Gemini 4 Neon (High)" });
+    expect(view.none).toBeNull();
+    expect(view.error).toBeNull();
+  });
+
+  it("Antigravity CLI: a failed run that says its command is unknown (1.5.13) keeps its picker's line, no error line", async () => {
+    const s = service();
+    s.runner.next.push(() => Promise.resolve({ kind: "ran", code: 1, output: "error: unknown command \"models\"\n" }));
+    const view = await s.catalogs.settled("mini", "agy");
+    expect(view).toMatchObject({ agent: "agy", models: [], error: null, none: "Antigravity CLI's models are in its own picker." });
+    expect(startFlags("agy", { model: null, effort: null }, view.models)).toEqual({ ok: true, flags: [] });
+  });
+
+  // These kept the picker's line before; now any other failed read shows the built-in list under the
+  // could-not-read line and "Showing the models Adari knows." (test/agy-list.test.ts holds the rest of the rule).
+  it("Antigravity CLI: a missing program, a time out, no row or rows from a failed run: its built-in list under the could-not-read line", async () => {
+    const runs: [() => Promise<ListRun>, string][] = [
+      [() => Promise.resolve({ kind: "missing" }), "agy was not found on Mac mini"],
+      [() => Promise.resolve({ kind: "ran", code: 0, output: "Fetching available models...\n" }), "its list named no model"],
+      [() => Promise.resolve({ kind: "ran", code: 0, output: "" }), "its list named no model"],
+      [() => Promise.reject(new Error("its answer was cut off")), "its answer was cut off"],
+    ];
+    for (const [run, reason] of runs) {
+      const s = service();
+      s.runner.next.push(run);
+      const view = await s.catalogs.settled("mini", "agy");
+      expect(view).toMatchObject({ agent: "agy", readAt: null, error: `Could not read Antigravity CLI's models: ${reason}. Showing the models Adari knows.`, none: null });
+      expect(view.models).toEqual(agyBuiltIn);
+    }
+    // Rows printed by a run that did not end with success (exit 1, or killed: no code) are not a list.
+    for (const code of [1, 2, null]) {
+      const s = service();
+      s.runner.next.push(() => Promise.resolve({ kind: "ran", code, output: "Fetching available models...\ngemini-4-neon-high\tGemini 4 Neon (High)\nsome-id\tModel (High)\n" }));
+      const view = await s.catalogs.settled("mini", "agy");
+      expect(view).toMatchObject({ agent: "agy", readAt: null, error: `Could not read Antigravity CLI's models: it ended with exit ${code}. Showing the models Adari knows.`, none: null });
+      expect(view.models).toEqual(agyBuiltIn);
+      expect(view.models.some((model) => model.id === "some-id")).toBe(false);
+      expect(startFlags("agy", { model: null, effort: null }, view.models)).toEqual({ ok: true, flags: [] });
+    }
+    const late = service({ deadlineMs: 20 });
+    late.runner.next.push(() => new Promise<ListRun>(() => undefined));
+    await late.catalogs.refresh("mini", "agy");
+    expect(await late.catalogs.view("mini", "agy")).toMatchObject({ models: agyBuiltIn, error: "Could not read Antigravity CLI's models: it did not answer within 20 s. Showing the models Adari knows.", none: null });
   });
 });
 
@@ -270,7 +315,7 @@ describe("another Mac: the remote script", () => {
     const remote = new RemoteCatalogRunner(new DemoRemote([], { read: async () => new Uint8Array(), size: async () => 0 } as never, Date.now()), "Mac mini");
     const s = service();
     const catalogs = new ModelCatalogs({ machine: () => ({ runner: remote, startCommand: async () => null }), store: null, now: () => 1, changed: () => undefined });
-    for (const [agent, count] of [["codex", 9], ["grok", 4], ["cursor", 143], ["opencode", 48], ["claude", 14]] as const) {
+    for (const [agent, count] of [["codex", 9], ["grok", 4], ["cursor", 143], ["opencode", 48], ["claude", 14], ["agy", 23]] as const) {
       expect((await catalogs.settled("demo", agent)).models).toHaveLength(count);
     }
     expect(s.runner.runs).toHaveLength(0);

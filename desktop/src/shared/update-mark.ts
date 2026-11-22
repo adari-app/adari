@@ -47,6 +47,7 @@
 // Build and Cursor Agent. A kind with no readable notice is never read.
 
 import { claudeBoxRules, isClaudeBottomRule } from "./claude-box";
+import { updateCommandRefusal } from "./start-commands";
 
 /** The agents whose update notice is known: Claude Code's line, Codex's notice. */
 export const updateLineKinds: ReadonlySet<string> = new Set(["claude", "codex"]);
@@ -123,6 +124,30 @@ export function readCodexUpdateNotice(screen: string): boolean | null {
     if (!codexNotice.test(rows[index]!)) continue;
     const next = rows.slice(index + 1, index + 6);
     if (next.some((row) => codexFollowers.some((follower) => follower.test(row)))) return true;
+  }
+  return null;
+}
+
+/** The command in a follower row: "Run <command> to update." or "Update now (runs `<command>`)". */
+const codexCommandRows: readonly RegExp[] = [/^Run (\S.*) to update\.$/u, /^(?:\u203A\s*)?(?:1\.\s+)?Update now \(runs `([^`]+)`\)$/u];
+
+/**
+ * The update command Codex's own notice names ("Run npm install -g @openai/codex to update.", or its
+ * startup prompt's "Update now (runs `<command>`)"), read only from a row within the five rows under the notice's
+ * first line (readCodexUpdateNotice's rule), whole on that row and passing the update command's own check
+ * (start-commands.ts updateCommandRefusal); null otherwise (no notice, a notice with no command, a command cut by the
+ * pane's width). Settings offers it as a suggestion only: it is never saved or run without a click.
+ */
+export function readCodexUpdateCommand(screen: string): string | null {
+  const rows = stripTerminalCodes(screen).split("\n").map(codexRow);
+  for (let index = 0; index < rows.length; index += 1) {
+    if (!codexNotice.test(rows[index]!)) continue;
+    for (const row of rows.slice(index + 1, index + 6)) {
+      for (const pattern of codexCommandRows) {
+        const command = pattern.exec(row)?.[1]?.trim() ?? null;
+        if (command !== null && command !== "" && updateCommandRefusal(command) === null) return command;
+      }
+    }
   }
   return null;
 }
@@ -359,6 +384,8 @@ interface Entry {
   settled: boolean | null;
   askedMs: number | null;
   ready: boolean;
+  /** The update command the CLI's own notice named on this session's screen (Codex's), or null. */
+  suggestion: string | null;
 }
 
 function watched(pane: UpdateWatchPane): boolean {
@@ -373,6 +400,15 @@ export class UpdateWatch {
 
   marked(): ReadonlySet<string> {
     return new Set([...this.entries].filter(([, entry]) => entry.ready).map(([id]) => id));
+  }
+
+  /** Per CLI, the update command its notice named on a marked pane (the first by pane id); none: absent. */
+  suggestions(): Record<string, string> {
+    const out: Record<string, string> = {};
+    for (const [, entry] of [...this.entries].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))) {
+      if (entry.ready && entry.suggestion !== null && !Object.hasOwn(out, entry.kind)) out[entry.kind] = entry.suggestion;
+    }
+    return out;
   }
 
   ready(pane: string): boolean {
@@ -393,7 +429,7 @@ export class UpdateWatch {
       let entry = this.entries.get(pane.id);
       if (entry === undefined || entry.identity !== pane.identity) {
         this.lifetimes += 1;
-        entry = { kind: (pane.kind ?? "").toLowerCase(), identity: pane.identity, token: this.lifetimes, lastReadMs: null, settled: null, askedMs: null, ready: false };
+        entry = { kind: (pane.kind ?? "").toLowerCase(), identity: pane.identity, token: this.lifetimes, lastReadMs: null, settled: null, askedMs: null, ready: false, suggestion: null };
         this.entries.set(pane.id, entry);
       }
       return { pane, entry };
@@ -431,6 +467,9 @@ export class UpdateWatch {
     entry.lastReadMs = nowMs;
     const ready = screen === null ? null : readAgentUpdate(entry.kind, screen);
     if (ready !== null) entry.ready = ready;
+    // The command the notice named, kept for this session while the notice is gone from the screen.
+    const suggestion = screen === null || entry.kind !== "codex" ? null : readCodexUpdateCommand(screen);
+    if (suggestion !== null) entry.suggestion = suggestion;
     this.noteFirstMark(nowMs);
   }
 

@@ -33,7 +33,7 @@ import {
   type AfterPromptBinding,
   type ClaudeBoxSite,
 } from "../src/main/herdr/claude-box";
-import { guardTexts, promptBinding, takerName, type SendSite } from "../src/main/herdr/send";
+import { promptBinding, type SendSite } from "../src/main/herdr/send";
 import { boxChips, held, imagePaths, remnant, settled, type BoxBefore } from "../src/shared/claude-screen";
 import { IPC } from "../src/shared/ipc-contract";
 import { claudeScreen } from "./support/claude-screens";
@@ -305,8 +305,11 @@ describe("the binding the Return goes on (promptBinding)", () => {
 
 const binding = { terminalID: "t1", isAgent: true, kind: "claude", session: "s1" };
 
-/** One machine through the IPC: its box's screen per read (`draw`), every write logged; real 250 ms waits. */
-function mac(draw: (read: number, prompted: boolean, returns: number) => string, epoch: number | null = 7) {
+/**
+ * One machine through the IPC: its box's screen per read (`draw`), every write logged; real 250 ms waits. `session`:
+ * the session its agent names (null: none, where the screen is the proof).
+ */
+function mac(draw: (read: number, prompted: boolean, returns: number) => string, epoch: number | null = 7, session: string | null = "s1") {
   const log: unknown[][] = [];
   let reads = 0;
   let prompted = false;
@@ -342,7 +345,7 @@ function mac(draw: (read: number, prompted: boolean, returns: number) => string,
       agent: "claude",
       agentStatus: "idle",
       terminalID: "t1",
-      agentSession: { source: "herdr:claude", agent: "claude", kind: "id", value: "s1" },
+      ...(session === null ? {} : { agentSession: { source: "herdr:claude", agent: "claude", kind: "id", value: session } }),
       ...(epoch === null ? {} : { turnEpoch: epoch }),
     }),
     run: () => ({ connection: 3, arrival: 1 }),
@@ -353,26 +356,31 @@ function mac(draw: (read: number, prompted: boolean, returns: number) => string,
   };
   registerIpc({ hosts, paneInputs: new PaneInputs() } as never);
   const event = { senderFrame: { url: APP_ORIGIN }, sender: { id: 1, isDestroyed: () => false, send: () => undefined } };
+  // The Send IPC answers at the Return with a receipt; the check that follows is asked by its id.
+  const checked = async (receipt: { readonly check: string | null }): Promise<string> => {
+    if (receipt.check === null) return "sent";
+    const found = await (registered.handles.get(IPC.paneSendCheck)!(event, receipt.check) as Promise<string | null>);
+    return found === "taken" ? "sent" : String(found);
+  };
   return {
     log,
     send: (text: string) =>
-      (registered.handles.get(IPC.paneSend)!(event, "mini", "w1:p1", text, binding) as Promise<void>).then(
-        () => "sent",
-        (error: Error) => error.message,
-      ),
+      (registered.handles.get(IPC.paneSend)!(event, "mini", "w1:p1", text, { ...binding, session }) as Promise<{ readonly check: string | null }>).then(checked, (error: Error) => error.message),
   };
 }
 
 describe("the Send IPC: a picture send to Claude reads its box after the prompt", () => {
   it("the box before, the prompt, the pictures in: one Return through Herdr's agent keys, Sent", async () => {
-    const m = mac((read, prompted, returns) => claudeScreen({ draft: !prompted || returns > 0 ? "" : read < 3 ? "" : threePicturesBox, working: returns > 0 }));
+    // No session named: the screen is the proof (with a session named only Claude Code's record proves it).
+    const m = mac((read, prompted, returns) => claudeScreen({ draft: !prompted || returns > 0 ? "" : read < 3 ? "" : threePicturesBox, working: returns > 0 }), 7, null);
     expect(await m.send(sent)).toBe("sent");
     expect(m.log).toEqual([["read"], ["read"], ["prompt", sent], ["read"], ["read"], ["keys", ["Enter"]], ["read"]]);
   });
 
   it("no turn_epoch for the pane: no Return, unconfirmed", async () => {
     const m = mac((_read, prompted) => claudeScreen({ draft: prompted ? threePicturesBox : "" }), null);
-    expect(await m.send(sent)).toBe(guardTexts.returnUnconfirmed(takerName("claude")));
+    // Rule 5: the check says it is still in the box (the bubble's), never a note for the composer.
+    expect(await m.send(sent)).toBe("stillInBox");
     expect(m.log.filter((entry) => entry[0] === "keys")).toEqual([]);
   });
 

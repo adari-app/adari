@@ -31,13 +31,13 @@ import { HostStore, SavedHosts, type SavedHost } from "./host-store";
 import { HostRegistry, type HostDescriptor } from "./hosts";
 import { diskCacheFiles, LaunchCache } from "./launch-cache";
 import { registerIpc } from "./ipc";
-import { startCommandsOf } from "./start-commands";
-import { commandFor } from "../shared/start-commands";
+import { saveStartCommandOf, startCommandsOf } from "./start-commands";
+import { commandFor, updateCommandKey } from "../shared/start-commands";
 import { FileCatalogStore, LocalCatalogRunner, ModelCatalogs, RemoteCatalogRunner, type CatalogRunner } from "./model-catalogs";
 import { readInteractiveEnvironment } from "./herdr/local";
 import { LayoutService } from "./layouts";
 import { openShippedLicenses } from "./licenses";
-import { feedbackDetails, openFeedbackIssue } from "./feedback";
+import { feedbackDetails, openFeedbackIssue, speedLogs } from "./feedback";
 import type { FeedbackKind } from "../shared/feedback";
 import { hasInstrumentFlag, parseLaunchOptions } from "./launch-options";
 import { installApplicationMenu } from "./menu";
@@ -55,7 +55,7 @@ import { DraftStore, MemoryDraftFiles, fileDrafts } from "./drafts";
 import { draftsAnswered, registerDraftsIpc } from "./drafts-ipc";
 import type { DraftsChangedEvent } from "../shared/drafts";
 import { UpdateMarkService } from "./update-marks";
-import { IntegrationService } from "./integrations";
+import { fileIntegrationSettings, IntegrationService, memoryIntegrationSettings } from "./integrations";
 import { StartScreenService } from "./start-screens";
 import { PromptService } from "./prompt/prompts";
 import { pickFolderOnThisMac } from "./folder-pick";
@@ -192,6 +192,9 @@ void app.whenReady().then(() => {
   // run when the app's own signature is not the Developer ID one it was built for.
   const updateRun = updateSettings(process.env, { platform: process.platform, packaged: app.isPackaged, signed: signedBuild, demo: options.demo, flags: hasInstrumentFlag(process.argv) });
   const updateLog = (line: string): void => console.log(`updates: ${line}`);
+  // Each New agent's and picture message's timings, one line each beside the
+  // `updates:` lines (`new-agent: …`, `picture-send: …`), and the last 20 of each in memory for Report a Problem.
+  const speed = speedLogs((line) => console.log(line));
   if (signedBuild && (process.env["HERDR_COMPANION_UPDATE_FEED"] ?? "") !== "") updateLog("HERDR_COMPANION_UPDATE_FEED is ignored: a signed release checks GitHub only");
   let updates = new UpdateController({
     settings: updateRun,
@@ -282,7 +285,12 @@ void app.whenReady().then(() => {
   );
   // The update mark's screen reads take the same per-pane gate (one read of a pane at a time).
   updateMarks = new UpdateMarkService(registry, Date.now, paneReads);
-  integrations = new IntegrationService(registry, redact);
+  // Settings' install-before-start switch is kept beside the notification switches (the demo keeps it in memory).
+  integrations = new IntegrationService(
+    registry,
+    redact,
+    options.demo ? memoryIntegrationSettings() : fileIntegrationSettings(path.join(userData, "integration-settings.json"), (line) => console.log(`integrations: ${line}`)),
+  );
   // The hook-review reads take the same per-pane gate.
   const startScreenService = new StartScreenService(registry, undefined, paneReads);
   startScreens = startScreenService;
@@ -356,6 +364,7 @@ void app.whenReady().then(() => {
           window: () => mainWindow,
           select: (target, hostId, paneId) => void commands.send(target.webContents, { type: "select-pane", hostId, paneId }).catch(() => undefined),
           openSettings: (target) => void commands.send(target.webContents, { type: "settings", open: true }).catch(() => undefined),
+          log: notifyLog,
         });
   const notifier = new NeedsNotifier(notifyPort, options.demo ? memoryNotifySettings() : fileNotifySettings(path.join(userData, "notify-settings.json"), notifyLog));
   registerNotifyIpc(notifier, notifyLog);
@@ -481,12 +490,25 @@ void app.whenReady().then(() => {
       arch: process.arch,
       translated: app.runningUnderARM64Translation === true,
     });
-    openFeedbackIssue(kind, details, openOutsideLink);
+    // Report a Problem: the answers not sent because the question changed, as counts (prompt/refusals.ts), and New
+    // agent's and picture messages' timings, numbers and fixed words only (speed-record.ts).
+    openFeedbackIssue(kind, details, openOutsideLink, prompts.refusals.list(), { start: speed.starts.list(), picture: speed.pictures.list() });
   };
 
   registerIpc({
     info,
     prompts,
+    speed,
+    // A picture message past its Return, kept in drafts.json until the transcript settles it; a reloaded page learns
+    // main's check's outcome by drafts-changed.
+    unproved: {
+      reserve: (entry) => drafts.reserveUnproved(entry),
+      release: (reservation) => drafts.releaseReservation(reservation),
+      keep: (entry, reservation) => drafts.keepUnproved(entry, reservation ?? null),
+      outcome: (id, outcome) => {
+        if (drafts.unprovedOutcome(id, outcome)) notifyDrafts({ state: drafts.state(), gone: [] });
+      },
+    },
     modelCatalogs,
     integrations,
     startScreens: startScreenService,
@@ -767,6 +789,8 @@ void app.whenReady().then(() => {
   let settingsCaptureSize: [number, number] | null = null;
   /** Puts back the screens and status of the pane 131-133 last blocked. */
   let tallCardRestore: (() => void) | null = null;
+  /** Puts back the screens and status of the Codex pane 300-302 blocked on Codex's own question. */
+  let codexQuestionRestore: (() => void) | null = null;
   /** Puts back the folder and session of the pane 156-157 changed. */
   let codexSessionRestore: (() => void) | null = null;
   /** Puts back the session and integration states 158-162 changed. */
@@ -837,6 +861,10 @@ void app.whenReady().then(() => {
       startFixCaptureSteps,
       codexSessionCaptureSteps,
       integrationsCaptureSteps,
+      autoInstallCaptureSteps,
+      newAgentSpeedCaptureSteps,
+      updatesCaptureSteps,
+      otherCaptureKinds,
       linksChipsCaptureSteps,
       firstChatCaptureSteps,
       compactCapturePane,
@@ -849,6 +877,8 @@ void app.whenReady().then(() => {
       pickersCodexPane,
       chatSupportCaptureSteps,
       chatSupportCaptureTargets,
+      agyModelsCaptureSteps,
+      agyListCaptureSteps,
       cursorPickCaptureSteps,
       listsCaptureSteps,
       listsCodexPane,
@@ -861,6 +891,7 @@ void app.whenReady().then(() => {
       reorderCaptureSteps,
       firstSendCaptureSteps,
       feedbackCaptureSteps,
+      codexQuestionCaptureSteps,
     } = dev();
     void (async () => {
       await registry.refreshAll();
@@ -872,7 +903,7 @@ void app.whenReady().then(() => {
         // Settings 106-114, the terminal drawer 115-120, the agents 121-125, the context ring 126-130, the tall approvals 131-133,
         // the app's own updates 134-140, folder-pick 141-148, start-fix 149-154, codex-session 155-157, integrations 158-162,
         // links-chips 163-168, Compact held and compacted 173-174, a queued message taken back 175-176, the model pickers 181-187,
-        // chat-support 190-196, twotier 230-233, notifications 240-241, the sidebar's workspaces moved 250-253, firstsend 260-261 (last).
+        // chat-support 190-196, twotier 230-233, notifications 240-241, the sidebar's workspaces moved 250-253, firstsend 260-261, agy-models 294-299, agy-list 303-304, codex-question 300-302 (last).
         const results = await runCaptures(window, commands, path.resolve(captureDir), chosenCaptures([
           ...demoCaptureSteps(demoHostIds),
           ...sendCaptureSteps(demoHostIds),
@@ -1008,6 +1039,7 @@ void app.whenReady().then(() => {
             if (what !== null && backend instanceof DemoBackend) {
               if (what.noSession) integrationsRestore.push(backend.setPaneSession(paneId, { session: null }));
               for (const [target, state] of Object.entries(what.states)) integrationsRestore.push(backend.setIntegration(target, state));
+              if (what.listRefused === true) integrationsRestore.push(backend.refuseIntegrationList());
             }
             await registry.refresh(hostId);
             integrations?.forgetForCapture(hostId);
@@ -1259,6 +1291,76 @@ void app.whenReady().then(() => {
           ),
           // Settings › About's Report a problem and Send feedback 270, both clicked (nothing opens; the log has the addresses) 271.
           ...feedbackCaptureSteps(),
+          // New agent installing Codex's missing integration first, its line 280; Settings › Machines' switch 281; the
+          // Atelier Codex pane's Chat with no session and the list not read: the sentence and Retry 282. Put back after each.
+          ...autoInstallCaptureSteps(demoHostIds, async (hostId, paneId, what) => {
+            for (const restore of integrationsRestore.splice(0).reverse()) restore();
+            const backend = registry.backend(hostId);
+            if (what !== null && backend instanceof DemoBackend) {
+              if (what.noSession) integrationsRestore.push(backend.setPaneSession(paneId, { session: null }));
+              for (const [target, state] of Object.entries(what.states)) integrationsRestore.push(backend.setIntegration(target, state));
+              if (what.listRefused === true) integrationsRestore.push(backend.refuseIntegrationList());
+            }
+            await registry.refresh(hostId);
+            integrations?.forgetForCapture(hostId);
+          }),
+          // New agent's step line while the demo's Herdr holds an install 283; the
+          // new pane shown while it holds agent.start 284. Put back after each.
+          ...newAgentSpeedCaptureSteps(demoHostIds, async (hostId, what) => {
+            for (const restore of integrationsRestore.splice(0).reverse()) restore();
+            const backend = registry.backend(hostId);
+            if (what !== null && backend instanceof DemoBackend) {
+              for (const [target, state] of Object.entries(what.states)) integrationsRestore.push(backend.setIntegration(target, state));
+              integrationsRestore.push(backend.hold("install", what.holdInstallMs), backend.hold("start", what.holdStartMs));
+            }
+            await registry.refresh(hostId);
+            integrations?.forgetForCapture(hostId);
+          }),
+          // Update all (3) over the Mac mini's integrations 290; Agent CLIs with an update command set and
+          // Codex's printed one offered 291; Update's confirmation 292 (closed with Esc: nothing runs); Other agents 293.
+          // Put back after.
+          ...updatesCaptureSteps(
+            demoHostIds,
+            async (what) => {
+              for (const restore of integrationsRestore.splice(0).reverse()) restore();
+              const backend = registry.backend(demoHostIds.macMini);
+              if (backend instanceof DemoBackend) {
+                for (const [target, state] of Object.entries(what?.states ?? {})) integrationsRestore.push(backend.setIntegration(target, state));
+                await saveStartCommandOf(backend, updateCommandKey("codex"), what?.command ?? "").catch(() => undefined);
+                for (const kind of otherCaptureKinds) await saveStartCommandOf(backend, updateCommandKey(kind), what?.others?.[kind] ?? "").catch(() => undefined);
+              }
+              await registry.refresh(demoHostIds.macMini);
+              integrations?.forgetForCapture(demoHostIds.macMini);
+            },
+            (script) => window.webContents.executeJavaScript(script, true),
+          ),
+          // Antigravity CLI: New agent's Model and Effort 294-295, its new pane 296 (opened in Chat), that pane's chips 297
+          // and menus 298-299 (last: the pane stays).
+          ...agyModelsCaptureSteps(demoHostIds),
+          // Antigravity CLI's built-in list (build-box's `agy models` answering as over SSH): the pane's Model chip 303,
+          // New agent with Gemini 4 Neon and High preselected 304 (right after 299: the pane from 296 still shown);
+          // build-box's list put back after.
+          ...agyListCaptureSteps(demoHostIds, async (step) => {
+            const box = registry.backend(demoHostIds.buildBox);
+            if (!(box instanceof DemoBackend)) return;
+            const remote = box.commands();
+            if (step === "built-in") remote.keychainLocked.add("agy");
+            else remote.keychainLocked.delete("agy");
+            modelCatalogs.forgetForCapture(demoHostIds.buildBox, "agy");
+            await modelCatalogs.refresh(demoHostIds.buildBox, "agy");
+          }),
+          // Codex's own question in Plan mode as the Needs card: question 1 of 2 with long descriptions 300, the last
+          // question 301, Implement this plan? 302, on the Mac mini's Codex pane; its screens and status put back after.
+          ...codexQuestionCaptureSteps(demoHostIds, async (hostId, paneId, screens, status) => {
+            codexQuestionRestore?.();
+            codexQuestionRestore = null;
+            const backend = registry.backend(hostId);
+            if (screens !== null && backend instanceof DemoBackend) {
+              codexQuestionRestore = backend.showPrompt(paneId, screens, null);
+              if (status !== undefined) backend.setPaneStatus(paneId, status);
+            }
+            await registry.refresh(hostId);
+          }),
         ]));
         for (const result of results) console.log(`captured ${result.file} (${result.width}x${result.height})`);
       } else {

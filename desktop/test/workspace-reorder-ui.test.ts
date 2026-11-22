@@ -343,7 +343,7 @@ describe("a workspace header dragged", () => {
   });
 });
 
-describe("fix1: a drag ends when what it drags goes away, or when the button is no longer held", () => {
+describe("a drag ends when what it drags goes away, or when the button is no longer held", () => {
   /** Nothing left of a drag: no cursor, class, line, listener, frame or Esc hold, and nothing saved. */
   const nothingLeft = (dom: ReturnType<typeof fakePage>, sidebar: ReturnType<typeof mount>): void => {
     expect(dom.body["cursor"]).toBeUndefined();

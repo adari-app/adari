@@ -11,10 +11,10 @@ import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { decodeSessionTopology } from "../src/main/herdr/wire";
-import { fileNotifySettings, memoryNotifySettings, NeedsNotifier, RecordedNotifyPort } from "../src/main/needs-notifier";
+import { fileNotifySettings, memoryNotifySettings, NeedsNotifier, RecordedNotifyPort, testAnswerWaitMs } from "../src/main/needs-notifier";
 import { buildDesktopSidebar, type DesktopRow, type SidebarHost } from "../src/shared/desktop-sidebar";
 import {
   defaultNotifySettings,
@@ -24,6 +24,7 @@ import {
   maxReportRows,
   maxReportWaiting,
   needsYouReport,
+  notifyTexts,
   shownText,
   testSentText,
   testUnsupportedText,
@@ -187,16 +188,16 @@ describe("the needs-you notifications", () => {
     expect(port.quits).toBe(1);
   });
 
-  it("send a test notification (it has macOS ask the first time), or say the system cannot", () => {
+  it("send a test notification (it has macOS ask the first time), or say the system cannot", async () => {
     const { port, notifier } = setup({ ...defaultNotifySettings, sound: false });
-    expect(notifier.test()).toBe(testSentText);
+    expect(await notifier.test()).toBe(testSentText);
     expect(port.notifications.map((record) => record.content)).toEqual([
       { title: "Adari", body: "Notifications are on. Adari tells you here when an agent needs you.", silent: true },
     ]);
     port.notifications[0]!.click();
     expect(port.reveals).toEqual([null]);
     port.supported = false;
-    expect(notifier.test()).toBe(testUnsupportedText);
+    expect(await notifier.test()).toBe(testUnsupportedText);
     expect(port.notifications).toHaveLength(1);
   });
 
@@ -496,5 +497,104 @@ describe("the switches, kept in a file", () => {
     const notifier = new NeedsNotifier(new RecordedNotifyPort(), store);
     notifier.setSettings({ sound: false });
     expect(store.load()).toEqual({ notify: true, sound: false, menuBar: true });
+  });
+});
+
+describe("what became of the last notification (macOS shows it, or does not)", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  /** A notifier on a port whose notifications wait for an answer, with a clock that moves by hand. */
+  function held() {
+    const port = new RecordedNotifyPort();
+    port.outcome = null;
+    let clock = 1_000;
+    const notifier = new NeedsNotifier(port, memoryNotifySettings(), () => clock);
+    notifier.start();
+    notifier.update(report([], [["mini", "1:1"]]));
+    return { port, notifier, tick: (ms: number) => (clock += ms) };
+  }
+
+  it("nothing is known before a notification is answered, nor from a system that does not say", async () => {
+    const { port, notifier } = held();
+    expect(notifier.delivery()).toBeNull();
+    notifier.update(report([a], [["mini", "1:1"]]));
+    expect(notifier.delivery()).toBeNull();
+    port.notifications[0]!.answer("unknown");
+    expect(notifier.delivery()).toBeNull();
+    port.outcome = "unknown";
+    expect(await notifier.test()).toBe(testSentText);
+    expect(notifier.delivery()).toBeNull();
+  });
+
+  it("an agent's notification that fails marks it failed, with the time; a later one that shows clears it", () => {
+    const { port, notifier, tick } = held();
+    notifier.update(report([a], [["mini", "1:1"]]));
+    port.notifications[0]!.answer("failed");
+    expect(notifier.delivery()).toEqual({ outcome: "failed", at: 1_000 });
+    tick(5_000);
+    notifier.update(report([a, b], [["mini", "1:1"]]));
+    expect(notifier.delivery()).toEqual({ outcome: "failed", at: 1_000 });
+    port.notifications[1]!.answer("shown");
+    expect(notifier.delivery()).toEqual({ outcome: "shown", at: 6_000 });
+    // Only the first answer of a notification counts (the port answers once).
+    port.notifications[1]!.answer("failed");
+    expect(notifier.delivery()).toEqual({ outcome: "shown", at: 6_000 });
+  });
+
+  it("a failure changes nothing else: no retry, the badge and the menu bar item as before, the click still opens the agent, close still closes", () => {
+    const { port, notifier } = held();
+    notifier.update(report([a], [["mini", "1:1"]]));
+    port.notifications[0]!.answer("failed");
+    expect(port.notifications).toHaveLength(1);
+    expect(port.badges.at(-1)).toBe(1);
+    expect(port.menuBar?.items[0]).toEqual({ kind: "line", label: "1 agent needs you" });
+    port.notifications[0]!.click();
+    expect(port.reveals).toEqual([{ hostId: "mini", paneId: "w1:p1" }]);
+    notifier.update(report([b], [["mini", "1:1"]]));
+    expect(port.notifications).toHaveLength(2);
+    port.notifications[1]!.answer("failed");
+    notifier.update(report([], [["mini", "1:1"]]));
+    expect(port.notifications[1]!.closed).toBe(true);
+    expect(port.badges.at(-1)).toBe(0);
+    expect(port.notifications).toHaveLength(2);
+  });
+
+  it("the test button's answer: Sent. when it shows, the off line when it fails; one notification each, never sent again", async () => {
+    const { port, notifier } = held();
+    const failing = notifier.test();
+    expect(port.notifications).toHaveLength(1);
+    port.notifications[0]!.answer("failed");
+    expect(await failing).toBe(notifyTexts.offLine);
+    expect(notifier.delivery()?.outcome).toBe("failed");
+    const showing = notifier.test();
+    port.notifications[1]!.answer("shown");
+    expect(await showing).toBe(testSentText);
+    expect(notifier.delivery()?.outcome).toBe("shown");
+    expect(port.notifications).toHaveLength(2);
+    expect(port.notifications.map((record) => record.content.title)).toEqual(["Adari", "Adari"]);
+  });
+
+  it("the test button says Sent. as before when no answer comes in time (nothing retried)", async () => {
+    vi.useFakeTimers();
+    const { port, notifier } = held();
+    let said: string | null = null;
+    void notifier.test().then((text) => (said = text));
+    await vi.advanceTimersByTimeAsync(testAnswerWaitMs - 1);
+    expect(said).toBeNull();
+    await vi.advanceTimersByTimeAsync(1);
+    expect(said).toBe(testSentText);
+    expect(notifier.delivery()).toBeNull();
+    // A late answer is still kept; the test is not sent again.
+    port.notifications[0]!.answer("failed");
+    expect(notifier.delivery()?.outcome).toBe("failed");
+    expect(port.notifications).toHaveLength(1);
+  });
+
+  it("Open Notification Settings goes to the port (which opens the one fixed address)", () => {
+    const { port, notifier } = held();
+    notifier.openSystemSettings();
+    expect(port.systemSettingsOpened).toBe(1);
   });
 });

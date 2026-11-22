@@ -11,6 +11,7 @@ import { pullClearKeys, readClaudeScreenFacts, takeBackTexts } from "../src/shar
 import { IPC } from "../src/shared/ipc-contract";
 import type { AgentInfo, TopologyPaneInfo } from "../src/main/herdr/wire";
 import { FakeClaudeQueue, queueScreen } from "./support/claude-queue-screens";
+import { blankLineMessages } from "./support/blank-lines";
 
 const registered = vi.hoisted(() => ({ handles: new Map<string, (...args: unknown[]) => unknown>() }));
 vi.mock("electron", () => ({
@@ -126,6 +127,19 @@ describe("takeBackQueued", () => {
     expect(result.type).toBe("taken");
     expect(claude.keysSent()).toEqual(["Up", "ctrl+u", "ctrl+u"]);
   });
+
+  // The pulled row's real rows are counted, blank ones included.
+  for (const [shape, text] of blankLineMessages) {
+    it(`a queued message with ${shape}: Up, then the clear covers every drawn row, and the row ends empty`, async () => {
+      const claude = new FakeClaudeQueue({ queued: [text] });
+      const result = await takeBackQueued(siteOf(claude), forTexts(claude, [text]));
+      expect(result).toEqual({ type: "taken", texts: [text], note: takeBackTexts.taken });
+      expect(claude.state).toMatchObject({ queued: [], input: "", working: true });
+      expect(claude.keysSent().filter((key) => key === "Enter" || key === "Escape")).toEqual([]);
+      claude.turnEnds();
+      expect(claude.sent).toEqual([]);
+    });
+  }
 
   it("two of the user's queued: both come back when the pull shows exactly those two", async () => {
     const claude = new FakeClaudeQueue({ queued: ["one", "two"] });

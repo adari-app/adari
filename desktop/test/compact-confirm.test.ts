@@ -165,15 +165,16 @@ describe("Compacted from a transcript with background tasks and subagent lines",
     picks.receive(key, read.settings, read.turn);
     const compactedTurn = read.turn;
     expect(picks.compacting(key, binding)).toBeNull();
-    expect(picks.confirmations(key, compactedTurn)).toEqual(["Compacted"]);
-    // The transcript's own notice shows once too.
+    // Rule 10: no line of its own; the record's "Conversation compacted" row is the word.
+    expect(picks.confirmations(key, compactedTurn)).toEqual([]);
+    // The transcript's own notice shows once.
     const notices = (lines: readonly string[]) =>
       timelineOf(lines).timeline.turns.flatMap((turn) => turn.items.filter((item) => item.type === "notice" && item.value.kind === "compacted"));
     expect(notices(reads.all)).toHaveLength(1);
     // The next monitor's turn and more subagent lines: never a second Compacted.
     read = reads.add(after);
     picks.receive(key, read.settings, read.turn);
-    expect(picks.confirmations(key, compactedTurn)).toEqual(["Compacted"]);
+    expect(picks.confirmations(key, compactedTurn)).toEqual([]);
     expect(picks.confirmations(key, read.turn).filter((line) => line === "Compacted").length).toBeLessThanOrEqual(1);
     expect(notices(reads.all)).toHaveLength(1);
     expect(sent).toEqual(["/compact"]);

@@ -3,10 +3,13 @@
 // keys blind), the way T3 Code switches a runtime mode but through each
 // agent's own Terminal UI:
 //
-// - Claude Code and Grok: Shift+Tab (tmux's BTab) cycles their modes; at most
+// - Claude Code, Grok and Antigravity CLI: Shift+Tab (tmux's BTab) cycles their modes; at most
 //   cyclePressLimit presses, each only after a read shows the same mode and
 //   an empty box, each followed by reads until the mode changed. Anything
-//   else stops the cycle where it is (nothing more is pressed).
+//   else stops the cycle where it is (nothing more is pressed). Antigravity
+//   CLI's "empty box" is its input box seen whole, idle and empty
+//   (agy-input.ts agyBoxEmpty: never a draft, a question, a command list or a
+//   working turn), its mode its last row's first word (none: Supervised).
 // - Cursor: `/auto-review` or `/run-everything` typed and read back (its
 //   command list with it highlighted, or the box holding exactly it) twice,
 //   the second right before Enter; then reads until its model row's word
@@ -42,13 +45,16 @@ import {
   cursorModeCommand,
   cyclePassing,
   cyclePressLimit,
+  isCycleAgent,
   isOfferedMode,
   readClaudeModeScreen,
   readCodexScreen,
   shiftTabKey,
   type CodexScreen,
+  type CycleAgent,
   type ModeAgent,
 } from "../../shared/approval-modes";
+import { agyBoxEmpty, readAgyStatusRow } from "../../shared/agy-input";
 import { cursorFooterMode, readCursorScreen, readGrokScreen, type CursorFooter, type CursorScreen } from "../../shared/agent-settings";
 import type { SendBinding } from "../../shared/send-binding";
 import { runChangedText } from "../../shared/send-binding";
@@ -77,7 +83,13 @@ export const modeSettleReads = 8;
 export const modeSettleMs = 250;
 
 // The shared table's names ("Grok Build", "Cursor Agent").
-const agentNames: Record<ModeAgent, string> = { claude: knownAgentName("claude")!, codex: knownAgentName("codex")!, grok: knownAgentName("grok")!, cursor: knownAgentName("cursor")! };
+const agentNames: Record<ModeAgent, string> = {
+  claude: knownAgentName("claude")!,
+  codex: knownAgentName("codex")!,
+  grok: knownAgentName("grok")!,
+  cursor: knownAgentName("cursor")!,
+  agy: knownAgentName("agy")!,
+};
 
 /** A Permissions pick's words (the chip's note). */
 export const modePickTexts = {
@@ -124,8 +136,12 @@ interface Ops {
   type(text: string): Promise<void>;
   keys(keys: readonly string[]): Promise<void>;
   wait(): Promise<void>;
-  /** A key that may change the mode went (Shift+Tab, Cursor's Enter, Codex's digit or its confirmation). */
-  moved(): void;
+  /**
+   * A key that may change the mode (Shift+Tab, Cursor's Enter, Codex's digit or its confirmation), checked first like
+   * every write. Past the check the mode evidence is stale from the moment the key is dispatched, before its reply is
+   * awaited (a key whose reply is lost may still have landed); only a read that succeeds after it clears that.
+   */
+  changing(keys: readonly string[]): Promise<void>;
 }
 
 /** One pick toward `target`, by the agent's own way (see above). Resolves with the result and the last screen read (null: none). */
@@ -133,6 +149,8 @@ export async function driveModePick(io: ModeIO, agent: ModeAgent, target: string
   if (!isOfferedMode(agent, target)) return { result: { type: "refused", note: modePickTexts.notOffered, mode: null }, screen: null };
   let last: string | null = null;
   let moved = false;
+  // A key that may change the mode was dispatched and no read has succeeded since: `last` is from before it.
+  let stale = false;
   // The mode a Shift+Tab pick started from (its route is kept; a stop past a mode allowing more warns).
   const route: { start: string | null } = { start: null };
   const checked = async (action: () => Promise<void>): Promise<void> => {
@@ -143,31 +161,37 @@ export async function driveModePick(io: ModeIO, agent: ModeAgent, target: string
   const ops: Ops = {
     look: async () => {
       last = await io.read();
+      stale = false;
       return last;
     },
     type: (text) => checked(() => io.type(text)),
     keys: (keys) => checked(() => io.keys(keys)),
+    changing: (keys) =>
+      checked(() => {
+        // Nothing was written before the check passed (a refusal there keeps the known mode); from here the key is sent.
+        moved = true;
+        stale = true;
+        return io.keys(keys);
+      }),
     wait: () => io.wait(),
-    moved: () => {
-      moved = true;
-    },
   };
   const name = agentNames[agent];
   try {
-    const result =
-      agent === "claude" || agent === "grok" ? await cycle(agent, target, ops, route) : agent === "cursor" ? await cursor(target, ops) : await codex(target, ops);
+    const result = isCycleAgent(agent) ? await cycle(agent, target, ops, route) : agent === "cursor" ? await cursor(target, ops) : await codex(target, ops);
     if (result.type !== "refused") return { result, screen: last };
     const reason =
       result.note === modePickTexts.cycleBound(agent) ? `${name}'s mode did not come round to it in ${cyclePressLimit} presses` : `${name}'s mode did not change as expected`;
     return { result: passing(agent, target, route.start, moved, result, reason), screen: last };
   } catch (error) {
-    // The mode as the last read showed it (none for Codex: its screen does not show one).
-    const mode = last === null ? null : shownMode(agent, last);
+    // The mode as the last read showed it (none for Codex: its screen does not show one); none when that read was
+    // before a key that may have changed it (the mode is unknown until a read after the key succeeds).
+    const mode = last === null || stale ? null : shownMode(agent, last);
     const note = error instanceof ModeStop ? modePickTexts.stopped(error.why) : modePickTexts.unanswered;
     // After a key that may have changed it, a screen with no mode is an unknown mode.
     const result: ModePickResult = moved && mode === null ? unknown(note) : { type: "refused", note, mode };
     const reason = !(error instanceof ModeStop) ? "the pane did not answer" : error.why === pickTypedMeanwhile ? "you typed in Terminal" : error.why;
-    return { result: passing(agent, target, route.start, moved, result, reason), screen: last };
+    // A screen from before the last key is not handed on as the pane's now.
+    return { result: passing(agent, target, route.start, moved, result, reason), screen: stale ? null : last };
   }
 }
 
@@ -177,7 +201,7 @@ export async function driveModePick(io: ModeIO, agent: ModeAgent, target: string
  * (the user's input may be why).
  */
 function passing(agent: ModeAgent, target: string, start: string | null, moved: boolean, result: ModePickResult, reason: string): ModePickResult {
-  if (result.type !== "refused" || !moved || start === null || (agent !== "claude" && agent !== "grok")) return result;
+  if (result.type !== "refused" || !moved || start === null || !isCycleAgent(agent)) return result;
   if (result.mode !== null) {
     if (!allowsMore(agent, result.mode, start, target)) return result;
     return { type: "refused", note: modePickTexts.passed(approvalMode(agent, result.mode)?.label ?? result.mode, reason), mode: result.mode, warning: true };
@@ -193,8 +217,14 @@ const refused = (note: string, mode: string | null, footer?: CursorFooter | null
 const unknown = (note: string, footer?: CursorFooter | null): ModePickResult =>
   footer === undefined ? { type: "refused", note, mode: null, unknown: true } : { type: "refused", note, mode: null, footer, unknown: true };
 
-/** Claude's or Grok's box (empty or not) and mode on a screen; null when its box is not there. */
-function cycleScreen(agent: "claude" | "grok", screen: string): { readonly empty: boolean; readonly mode: string | null } | null {
+/** Claude's, Grok's or Antigravity CLI's box (empty or not) and mode on a screen; null when its box is not there. */
+function cycleScreen(agent: CycleAgent, screen: string): { readonly empty: boolean; readonly mode: string | null } | null {
+  if (agent === "agy") {
+    // Its last row reads under its input box seen whole (agyBoxEmpty's own rule); a question, a list or a working turn: no box.
+    const row = readAgyStatusRow(screen);
+    if (row === null) return null;
+    return { empty: agyBoxEmpty(screen), mode: row.mode };
+  }
   if (agent === "claude") {
     const read = readClaudeModeScreen(screen);
     return read === null ? null : { empty: read.empty, mode: read.mode };
@@ -205,7 +235,7 @@ function cycleScreen(agent: "claude" | "grok", screen: string): { readonly empty
 
 /** The mode a screen shows for the agent (null: none reads; Codex's screen shows none). */
 function shownMode(agent: ModeAgent, screen: string): string | null {
-  if (agent === "claude" || agent === "grok") return cycleScreen(agent, screen)?.mode ?? null;
+  if (isCycleAgent(agent)) return cycleScreen(agent, screen)?.mode ?? null;
   if (agent === "cursor") {
     const read = readCursorScreen(screen);
     return read.kind === "box" && read.footer !== null ? cursorFooterMode(read.footer) : null;
@@ -215,7 +245,7 @@ function shownMode(agent: ModeAgent, screen: string): string | null {
 
 // MARK: - Claude Code and Grok: Shift+Tab
 
-async function cycle(agent: "claude" | "grok", target: string, ops: Ops, route: { start: string | null }): Promise<ModePickResult> {
+async function cycle(agent: CycleAgent, target: string, ops: Ops, route: { start: string | null }): Promise<ModePickResult> {
   const first = cycleScreen(agent, await ops.look());
   if (first === null) return refused(modePickTexts.noBox(agent), null);
   if (!first.empty) return refused(modePickTexts.draft(agent), first.mode);
@@ -233,8 +263,7 @@ async function cycle(agent: "claude" | "grok", target: string, ops: Ops, route: 
       const seen = before?.mode ?? null;
       return press > 0 && seen === null ? unknown(modePickTexts.cycleStopped(agent)) : refused(modePickTexts.cycleStopped(agent), seen);
     }
-    await ops.keys([shiftTabKey]);
-    ops.moved();
+    await ops.changing([shiftTabKey]);
     // "Unchanged and readable" (it still shows `current`) is not "unreadable or the box gone" (unknown).
     let next: { readonly empty: boolean; readonly mode: string | null } | undefined;
     let unreadable = false;
@@ -313,8 +342,7 @@ async function cursor(target: string, ops: Ops): Promise<ModePickResult> {
     // Read again right before Enter: exactly the command, nothing else.
     screen = await look();
     if (!shows(screen, command)) return await backOut(modePickTexts.cursorUnexpected);
-    await ops.keys([cursorKeys.enter]);
-    ops.moved();
+    await ops.changing([cursorKeys.enter]);
     typed = null;
     let changed: CursorFooter | null = null;
     for (let read = 0; read < modeSettleReads; read += 1) {
@@ -406,8 +434,7 @@ async function codex(target: string, ops: Ops): Promise<ModePickResult> {
   if (screen.kind !== "permissions" || JSON.stringify(screen.rows.map((each) => [each.digit, each.label, each.current])) !== shape) {
     return await closeList(modePickTexts.codexMoved, current);
   }
-  await ops.keys([String(row.digit)]);
-  ops.moved();
+  await ops.changing([String(row.digit)]);
   let confirmed = false;
   for (let read = 0; read < modeSettleReads; read += 1) {
     screen = await look();
@@ -416,7 +443,7 @@ async function codex(target: string, ops: Ops): Promise<ModePickResult> {
       // Its confirmation exactly as recorded, read again right before the answer.
       screen = await look();
       if (screen.kind !== "fullAccess") return await closeList(modePickTexts.codexConfirm, current);
-      await ops.keys(["1"]);
+      await ops.changing(["1"]);
       confirmed = true;
       continue;
     }
@@ -480,7 +507,7 @@ export function pickModeBound(
         keys: (keys) => site.calls.paneSendKeys(paneID, keys),
         // Claude's and Grok's cycle keeps their box: Herdr's word that it started working stops it. Codex's list and
         // Cursor's command list may read to Herdr as something else: past the first key their screen says the rest.
-        check: pickCheck(site, expected, started, agent === "claude" || agent === "grok"),
+        check: pickCheck(site, expected, started, isCycleAgent(agent)),
         wait,
       },
       agent,

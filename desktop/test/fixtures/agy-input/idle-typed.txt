@@ -1,0 +1,16 @@
+demo % agy --model gemini-4-hydrogen-low
+
+      ▄▀▀▄        Antigravity CLI 1.5.13
+     ▀▀▀▀▀▀       a fixture account
+    ▀▀▀▀▀▀▀▀      Gemini 4 Hydrogen (Low)
+   ▄▀▀    ▀▀▄     /tmp/demo/work
+  ▄▀▀      ▀▀▄
+
+
+ ┃ Introducing Gemini 4 Neon
+ ┃ Our best balance of intelligence, cost, and latency. Get building today with Neon.
+ ┃ esc to dismiss
+───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+> hello draft text
+───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+                                                                                         auto · Gemini 4 Hydrogen · low

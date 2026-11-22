@@ -6,7 +6,7 @@
 import type { HerdrDesktopBridge, HostView } from "../../shared/ipc-contract";
 import { stopBindingOf } from "../../shared/agent-stop";
 import { readingMatch, sameFingerprint, type PromptFingerprint, type PromptMatch, type PromptOption } from "../../shared/prompt/matcher";
-import type { AnswerResult, PanePrompt } from "../../shared/prompt/view";
+import { showsDoneQuestion, type AnswerResult, type PanePrompt } from "../../shared/prompt/view";
 import { agentName } from "../../shared/prompt/card";
 
 export interface CardState {
@@ -69,9 +69,11 @@ export class NeedsCardStore {
 
   receive(prompts: readonly PanePrompt[]): void {
     this.prompts = new Map(prompts.map((prompt) => [keyOf(prompt.hostId, prompt.paneId), prompt]));
+    // The panes the page shows otherwise than Herdr says: the cleared ones, and the done or idle agy panes
+    // showing one of agy's questions, or Codex panes showing its plan list (with their block).
     const cleared = prompts
-      .filter((prompt) => prompt.cleared)
-      .map((prompt) => keyOf(prompt.hostId, prompt.paneId))
+      .filter((prompt) => prompt.cleared || (prompt.whileNotBlocked === true && showsDoneQuestion(prompt.reading)))
+      .map((prompt) => (prompt.whileNotBlocked === true ? `${keyOf(prompt.hostId, prompt.paneId)}\u0002${prompt.episode}` : keyOf(prompt.hostId, prompt.paneId)))
       .sort()
       .join("\u0001");
     const clearedChanged = cleared !== this.clearedKey;
@@ -95,7 +97,7 @@ export class NeedsCardStore {
     if (clearedChanged) for (const listener of Array.from(this.clearedListeners)) listener();
   }
 
-  /** Called when the set of cleared panes changes (the page shows its machines again). */
+  /** Called when the set of cleared panes, or of done or idle panes showing agy's question or Codex's plan list, changes (the page shows its machines again). */
   onCleared(listener: () => void): () => void {
     this.clearedListeners.add(listener);
     return () => this.clearedListeners.delete(listener);

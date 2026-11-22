@@ -435,12 +435,13 @@ describe("a Compact that does not land stops spinning", () => {
       expect(picks.compacting(key, binding)).toBe("running");
     }
     picks.receive(key, settings(52_000), "turn-2");
-    expect(picks.confirmations(key, "turn-2")).toEqual(["Compacted"]);
+    // Rule 10: no line of its own; the record's "Conversation compacted" row is the word.
+    expect(picks.confirmations(key, "turn-2")).toEqual([]);
     expect(picks.compacting(key, binding)).toBeNull();
     picks.receive(key, settings(52_000), "turn-2");
     clock.now += 60_000;
     picks.sync(key, ctx("done"));
-    expect(picks.confirmations(key, "turn-2")).toEqual(["Compacted"]);
+    expect(picks.confirmations(key, "turn-2")).toEqual([]);
     expect(picks.note(key)).toBeNull();
   });
 });

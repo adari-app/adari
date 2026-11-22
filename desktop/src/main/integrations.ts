@@ -18,6 +18,34 @@
 // machine and target at a time. Herdr's messages are kept as bounded lines, its
 // failure in words without its code; the list is read again after it.
 //
+// Update all (updateAll): Settings' one click for a machine whose list says
+// some of its shown integrations are out of date. Each goes through install()
+// above, one after the other, with that binding and those rules; a missing one
+// is never installed by it; one refusal or failure does not stop the rest, a
+// changed machine stops it; the list is read again at the end.
+//
+// Install before a start (beforeStart): New agent, about to start an agent of
+// a shown kind, asks first. With Settings' switch on (kept in
+// userData/integration-settings.json; missing or unreadable: on), a read on the
+// machine's entry, connection and command connection as New agent began on it,
+// and that target listed as not installed or out of date there, the install
+// goes through install() with that binding (so its refusals and its one
+// install per machine and target hold: a second New agent of the kind waits on
+// the first's install, it never sends another). Herdr's `available` is not
+// asked: Herdr installs a hook whose agent its server does not see. New agent
+// waits at most autoInstallWaitMs and starts the agent whatever came of it; the
+// answer is its one line (installed, updated, Herdr's failure words, or still
+// under way). The switch off, a list not read on that connection, a machine
+// with no integration calls (herdr-core), a kind Adari shows no integration
+// for, or a target listed current or not listed: nothing is sent and there is
+// no line.
+//
+// Not read: a machine with the calls whose list was not read on its
+// connection (Herdr did not answer it, or the answer came on another command
+// connection and was dropped) is marked so (HostView.integrationsUnread) for
+// Chat's line and its Retry (retry), which asks the list again on that same
+// connection only.
+//
 // Started-after marks:
 // - New agent asks for a start token (startToken) before anything is
 //   sent; it holds when this read lists the kind's integration as current, or
@@ -52,8 +80,12 @@
 // screens never evict and re-add); the machine is told only when the marks
 // changed.
 
+import { closeSync, fchmodSync, openSync, readFileSync, renameSync, writeFileSync } from "node:fs";
+
 import type { HostView } from "../shared/ipc-contract";
 import {
+  autoInstallTexts,
+  decodeAutoInstall,
   integrationActionOf,
   integrationMessageLines,
   integrationName,
@@ -68,12 +100,78 @@ import {
   type IntegrationItem,
   type IntegrationOutcome,
   type IntegrationState,
+  type IntegrationUpdateAllReply,
+  updateAllTargets,
 } from "../shared/integrations";
 import type { IntegrationHerdr } from "./herdr/backend";
 import { errorWords } from "./herdr/new-agent";
 import { DecodingError } from "./herdr/decode";
 import type { IntegrationInfo } from "./herdr/wire";
 import { agentKind, agentSession, runsAgent } from "../shared/send-binding";
+import { integrationInstallTimeoutMs } from "./herdr/client";
+
+/**
+ * How long New agent waits for its install before it starts the agent anyway: Herdr's own
+ * install timeout (the client's) and 5 seconds for the list read after it.
+ */
+export const autoInstallWaitMs = integrationInstallTimeoutMs + 5_000;
+
+/** Where Settings' install-before-start switch is kept. */
+export interface IntegrationSettingsStore {
+  load(): boolean;
+  save(on: boolean): void;
+}
+
+export function memoryIntegrationSettings(initial = true): IntegrationSettingsStore {
+  let kept = initial;
+  return {
+    load: () => kept,
+    save: (on) => {
+      kept = on;
+    },
+  };
+}
+
+/** `{"autoInstall": …}` in `file` (userData/integration-settings.json, beside notify-settings.json); missing or unreadable: on. */
+export function fileIntegrationSettings(file: string, log: (line: string) => void = () => undefined): IntegrationSettingsStore {
+  let kept: unknown = null;
+  try {
+    kept = JSON.parse(readFileSync(file, "utf8"));
+  } catch {
+    // None yet, or not readable: on.
+  }
+  return {
+    load: () => decodeAutoInstall(kept),
+    save: (on) => {
+      kept = { autoInstall: on };
+      try {
+        // Private even over an old temporary file: its mode is set to 0600 before anything is written or renamed
+        // (writeFileSync's mode applies only to a file it creates).
+        const fd = openSync(`${file}.tmp`, "w", 0o600);
+        try {
+          fchmodSync(fd, 0o600);
+          writeFileSync(fd, `${JSON.stringify(kept)}\n`);
+        } finally {
+          closeSync(fd);
+        }
+        renameSync(`${file}.tmp`, file);
+      } catch (error) {
+        log(`could not keep the integration settings: ${error instanceof Error ? error.message : String(error)}`);
+      }
+    },
+  };
+}
+
+/** A timer New agent's wait rings at (tests give their own). */
+export type AutoInstallAlarm = (ms: number) => { readonly rang: Promise<void>; cancel(): void };
+
+const liveAlarm: AutoInstallAlarm = (ms) => {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const rang = new Promise<void>((resolve) => {
+    timer = setTimeout(resolve, Math.max(0, ms));
+  });
+  return { rang, cancel: () => clearTimeout(timer) };
+};
 
 /** What the service needs of the machines (HostRegistry has it). */
 export interface IntegrationHosts {
@@ -86,6 +184,8 @@ export interface IntegrationHosts {
   name(id: string): string | null;
   /** The machine's integrations as read now (null: none to show). */
   setIntegrations(id: string, integrations: HostIntegrations | null): void;
+  /** The connection the machine's list was not read on (null: none); absent in older fakes. */
+  setIntegrationsUnread?(id: string, unread: IntegrationBinding | null): void;
 }
 
 /** The shown targets of Herdr's list, in shownIntegrations' order (an unknown state or target is left out). */
@@ -124,6 +224,8 @@ interface Read {
    * and whose session is not named yet; `startedAfter`: it was on startedAfter then (it goes back once the session is).
    */
   readonly hookReviewed: Map<string, HookReviewed[]>;
+  /** Settings' Update all under way on this read (a second click waits on it). */
+  updatingAll: Promise<IntegrationUpdateAllReply> | null;
 }
 
 /** A pane that showed the hook review, in the terminal it showed it in. */
@@ -138,12 +240,27 @@ function hookMarks(read: Read): string {
   return JSON.stringify([[...read.startedAfter], [...read.hookReviewed]]);
 }
 
+/**
+ * What New agent hears of its integration step as it runs (nothing here changes
+ * what is sent): `began` once an install or update is sent, or one under way is joined (`joined`), before the wait;
+ * `ended` when the wait ended, `stalled` when its bound ran out first.
+ */
+export interface IntegrationStepObserver {
+  began?(step: { readonly action: IntegrationAction; readonly joined: boolean; readonly name: string }): void;
+  ended?(stalled: boolean): void;
+}
+
 /** What New agent holds from before it sends anything until its agent started (startToken). */
 export interface IntegrationStartToken {
   readonly hostId: string;
   readonly target: string;
   /** The read it was taken on (opaque outside this file). */
   readonly read: unknown;
+}
+
+/** The read stands for the entry, connection and command connection `binding` names. */
+function sameBinding(read: Read, binding: IntegrationBinding): boolean {
+  return read.incarnation === binding.incarnation && read.connection === binding.connection && read.epoch === binding.epoch;
 }
 
 /** At most this many started-after panes are kept per target and read (the oldest go first). */
@@ -158,7 +275,21 @@ export class IntegrationService {
     private readonly hosts: IntegrationHosts,
     /** Takes the saved secrets out of a text before it is kept for the page. */
     private readonly redact: (text: string) => string = (text) => text,
+    /** Settings' install-before-start switch (on unless kept off). */
+    private readonly settings: IntegrationSettingsStore = memoryIntegrationSettings(),
+    /** New agent's wait for its install (a test's timer; live: setTimeout). */
+    private readonly alarm: AutoInstallAlarm = liveAlarm,
   ) {}
+
+  /** Settings' "Install Herdr's integrations when I start an agent". */
+  autoInstall(): boolean {
+    return this.settings.load();
+  }
+
+  setAutoInstall(on: boolean): boolean {
+    this.settings.save(on);
+    return this.settings.load();
+  }
 
   /** The machines changed: each connected one with Herdr's calls is read once on its connection and command connection now. */
   hostsChanged(): void {
@@ -193,8 +324,10 @@ export class IntegrationService {
         outcomeAt: new Map(),
         startedAfter: new Map(),
         hookReviewed: new Map(),
+        updatingAll: null,
       };
       this.reads.set(host.id, read);
+      this.markUnread(read, false);
       void this.read(read);
     }
   }
@@ -293,6 +426,7 @@ export class IntegrationService {
       outcomes: Object.fromEntries(read.outcomes),
       ...(read.startedAfter.size === 0 ? {} : { startedAfter: Object.fromEntries([...read.startedAfter].map(([target, panes]) => [target, [...panes]])) }),
       ...(read.hookReviewed.size === 0 ? {} : { hookReviewed: Object.fromEntries([...read.hookReviewed].map(([target, panes]) => [target, panes.map((entry) => entry.paneId)])) }),
+      ...(read.updatingAll === null ? {} : { updatingAll: true as const }),
     };
   }
 
@@ -364,18 +498,24 @@ export class IntegrationService {
         }
         if (!this.current(read)) return;
         // An answer on another command connection than the one this read stands
-        // for is not its answer (nor its silence); the snapshot on the new one starts a read of its own.
-        if (sentOn !== read.epoch) return;
+        // for is not its answer (nor its silence); the snapshot on the new one starts a read of its own. Until then a
+        // read that never answered is marked not read (Chat's Retry asks it again).
+        if (sentOn !== read.epoch) {
+          if (read.status !== "read") this.markUnread(read, true);
+          return;
+        }
         if (list === null) {
-          // Never answered on this connection: nothing shown, never asked again on it. One that answered before keeps
-          // what it said (a later read that fails is not Herdr refusing the call).
+          // Never answered on this connection: nothing shown, not asked again on it unless Chat's Retry asks. One
+          // that answered before keeps what it said (a later read that fails is not Herdr refusing the call).
           if (read.status === "reading") {
             read.status = "unanswered";
             read.again = false;
+            this.markUnread(read, true);
             return;
           }
           continue;
         }
+        if (read.status !== "read") this.markUnread(read, false);
         read.status = "read";
         read.items = shownItems(list);
         // Asked after the outcome was set and still missing or old: it wins.
@@ -401,6 +541,85 @@ export class IntegrationService {
 
   private publish(read: Read): void {
     if (this.current(read)) this.hosts.setIntegrations(read.hostId, this.view(read.hostId));
+  }
+
+  /** The read's connection marked as not read (or no longer), for Chat's line and Retry. */
+  private markUnread(read: Read, unread: boolean): void {
+    if (!this.current(read)) return;
+    this.hosts.setIntegrationsUnread?.(read.hostId, unread ? { incarnation: read.incarnation, connection: read.connection, epoch: read.epoch } : null);
+  }
+
+  /**
+   * Chat's Retry: the machine's list asked again, only on the entry, connection and command
+   * connection the window showed as not read, and only while it is still not read there. Anything else sends nothing.
+   */
+  retry(hostId: string, binding: IntegrationBinding): Promise<void> {
+    const read = this.reads.get(hostId);
+    if (read === undefined || read.status === "read" || !sameBinding(read, binding)) return Promise.resolve();
+    const identity = this.hosts.connectionIdentity(hostId);
+    if (identity === null || identity.incarnation !== binding.incarnation || identity.epoch !== binding.epoch || this.hosts.connection(hostId) !== binding.connection) {
+      return Promise.resolve();
+    }
+    if (this.hosts.backend(hostId)?.integrations?.() === undefined) return Promise.resolve();
+    read.status = "reading";
+    this.markUnread(read, false);
+    return this.read(read);
+  }
+
+  /**
+   * New agent is about to start an agent of `kind` on the machine it began on (`binding`, taken
+   * before anything was awaited): Herdr's integration for it installed or updated first when the switch is on and this
+   * connection's list says it is missing or old (or one is under way: this waits on it). Waits at most
+   * autoInstallWaitMs and never throws; the line New agent says (null: nothing was asked, or nothing was sent).
+   */
+  async beforeStart(hostId: string, kind: string, binding: IntegrationBinding, observer?: IntegrationStepObserver): Promise<string | null> {
+    if (kind === "shell" || !this.settings.load()) return null;
+    const target = integrationTargetOf(kind);
+    const read = this.reads.get(hostId);
+    if (target === null || read === undefined || read.status !== "read" || !sameBinding(read, binding)) return null;
+    const item = read.items.find((candidate) => candidate.target === target);
+    if (item === undefined) return null;
+    const running = read.installs.get(target);
+    const action = integrationActionOf(item.state);
+    if (running === undefined && action === null) return null;
+    // With none running, an install that already succeeded on this connection stands (inPlace), even when the list
+    // after it could not be read: no second install. A later list read and saying missing or old clears it (read()).
+    if (running === undefined && this.inPlace(read, target)) return null;
+    const machine = this.hosts.name(hostId) ?? "the machine";
+    let work: Promise<IntegrationInstallReply>;
+    try {
+      work = running ?? this.install(hostId, target, binding);
+    } catch {
+      return null;
+    }
+    // What is under way now: the running one's action (joined), else the one just sent.
+    const under = read.outcomes.get(target)?.action ?? action ?? "install";
+    try {
+      observer?.began?.({ action: under, joined: running !== undefined, name: item.name });
+    } catch {
+      // An observer's failure changes nothing here.
+    }
+    const alarm = this.alarm(autoInstallWaitMs);
+    let reply: IntegrationInstallReply | "late";
+    try {
+      reply = await Promise.race([work.catch((): IntegrationInstallReply => ({ sent: false, note: "" })), alarm.rang.then(() => "late" as const)]);
+    } finally {
+      alarm.cancel();
+    }
+    try {
+      observer?.ended?.(reply === "late");
+    } catch {
+      // As above.
+    }
+    if (reply === "late") {
+      const stalledUnder = read.outcomes.get(target)?.action ?? action ?? "install";
+      return autoInstallTexts.stalled(item.name, stalledUnder, Math.round(autoInstallWaitMs / 1_000));
+    }
+    // Refused before anything went (the machine changed since New agent began): no line, the start's own rule says it.
+    if (!reply.sent) return null;
+    const outcome = reply.outcome;
+    if (outcome.phase === "installed") return outcome.action === "update" ? autoInstallTexts.updated(item.name, machine) : autoInstallTexts.installed(item.name, machine);
+    return outcome.text;
   }
 
   /**
@@ -438,6 +657,59 @@ export class IntegrationService {
     });
     read.installs.set(target, work);
     return work;
+  }
+
+  /**
+   * Settings' Update all on the machine, bound to it as the window showed it (`binding`): each target the list read on
+   * that binding says is out of date (and Settings shows: updateAllTargets), one after the other, each through
+   * install() with its own rules (nothing goes once the machine's entry, connection or command connection changed; a
+   * target with an install under way, New agent's or a click's, is waited on, never sent twice; one listed current
+   * by the list read after an earlier one is passed over). A missing integration is never installed here. A refusal
+   * or a failure leaves its own row's words and the rest still go, except a refusal because the machine changed:
+   * then nothing more is sent. The list is read again at the end. A second click while one runs gets its answer.
+   */
+  updateAll(hostId: string, binding: IntegrationBinding): Promise<IntegrationUpdateAllReply> {
+    const read = this.reads.get(hostId);
+    if (read === undefined || read.status !== "read" || !sameBinding(read, binding)) {
+      const machine = this.hosts.name(hostId) ?? "the machine";
+      return Promise.resolve({ results: [], note: this.hosts.backend(hostId) === null ? integrationTexts.removed : integrationTexts.connectionChanged(machine) });
+    }
+    if (read.updatingAll !== null) return read.updatingAll;
+    // The targets as the list showed them at the click (missing ones are never among them).
+    const targets = updateAllTargets(read.items);
+    const work = (async (): Promise<IntegrationUpdateAllReply> => {
+      const results: { target: string; reply: IntegrationInstallReply }[] = [];
+      for (const target of targets) {
+        if (!this.current(read)) break;
+        // The list read after an earlier install (or New agent's) may say it is current now: nothing to send.
+        const item = read.items.find((candidate) => candidate.target === target);
+        if (item === undefined || (item.state !== "outdated" && !read.installs.has(target))) continue;
+        let reply: IntegrationInstallReply;
+        try {
+          reply = await this.install(hostId, target, binding);
+        } catch (error) {
+          reply = { sent: false, note: integrationTexts.failed("update", errorWords(error)) };
+        }
+        results.push({ target, reply });
+        // The machine changed since the click: nothing more is sent (install() refused it before anything went).
+        if (!reply.sent && !this.bindingHolds(hostId, binding)) break;
+      }
+      // The list read again at the end, on the same read (a reconnect reads its own).
+      if (this.current(read)) await this.read(read);
+      return { results, note: null };
+    })().finally(() => {
+      read.updatingAll = null;
+      this.publish(read);
+    });
+    read.updatingAll = work;
+    this.publish(read);
+    return work;
+  }
+
+  /** The machine is still on the entry, connection and command connection `binding` names. */
+  private bindingHolds(hostId: string, binding: IntegrationBinding): boolean {
+    const identity = this.hosts.connectionIdentity(hostId);
+    return identity !== null && identity.incarnation === binding.incarnation && identity.epoch === binding.epoch && this.hosts.connection(hostId) === binding.connection;
   }
 
   private async installNow(read: Read, calls: IntegrationHerdr, item: IntegrationItem, action: IntegrationAction): Promise<IntegrationInstallReply> {

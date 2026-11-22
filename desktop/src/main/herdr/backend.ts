@@ -92,6 +92,8 @@ export interface PaneLayoutHerdr {
 export interface PromptPaneCalls {
   paneRead(pane: string, lines: number): Promise<string>;
   paneSendKeys(pane: string, keys: readonly string[]): Promise<void>;
+  /** `pane.layout`: the pane's width in columns is its cell rectangle's; absent where the backend has none. */
+  paneLayout?(pane: string): Promise<PaneLayout>;
 }
 
 /** Herdr's integration calls (HerdrClient has them). */

@@ -1,0 +1,16 @@
+─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ ☐ Q95
+
+Q95: what should Z research next for the earning talk?
+
+❯ 1. Deploy the current build after applying the queued migrations and restarting the affected background workers in the staging environment
+     Moshi and the SSH apps in detail. Web only, under 300K tokens.
+  2. Deploy the current build after applying the queued migrations and restarting the affected background workers in the production environment
+     Moshi and the SSH apps in detail. Web only, under 300K tokens.
+  3. Nothing now
+     No more research until you open the earning talk.
+  4. Type something.
+─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+  5. Chat about this
+
+Enter to select · ↑/↓ to navigate · Esc to cancel

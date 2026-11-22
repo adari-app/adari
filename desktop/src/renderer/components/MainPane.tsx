@@ -59,6 +59,8 @@ import { useRestart } from "./restart-view";
 import { agentRestarts } from "./restart";
 import { composerNoteMs, noteLineOf, type NoteSource } from "./note-line";
 import { restartCardLabel, restartMenuLabel } from "../../shared/agent-restart";
+import { isUpdateCommandKind } from "../../shared/agent-update";
+import { AgentUpdateButton, useUpdateCommand } from "./agent-update";
 import { needsCards } from "../chat/needs-card-store";
 import { needsCardShown } from "../chat/NeedsCard";
 import { boxAnswer } from "../../shared/prompt/box";
@@ -334,7 +336,7 @@ export function Composer({
       composerDrafts,
       (h, p, t) =>
         command(t)
-          ? sendCommandRow((hh, pp, tt) => bridge.sendToPane(hh, pp, tt, commandBinding), h, p, t)
+          ? sendCommandRow((hh, pp, tt) => bridge.sendToPane(hh, pp, tt, commandBinding).then(() => undefined), h, p, t)
           : sendWithPending(
               (hh, pp, tt) => bridge.sendToPane(hh, pp, tt, binding),
               h,
@@ -345,6 +347,8 @@ export function Composer({
               Date.now,
               // This pane's own Chat says its transcript is not found as the message goes (not written yet).
               chatUpdates.transcriptNotFound(h, p),
+              // The check after a picture message's Return (main's), asked by its receipt's id.
+              bridge.sendCheck === undefined ? {} : { check: (checkId) => bridge.sendCheck!(checkId) },
             ),
       host.id,
       row.paneID,
@@ -898,6 +902,8 @@ export interface MainPaneProps {
   onRename?(kept?: PaneMenuContext | null): void;
   /** An agent pane's terminal drawer (its header button, the drawer under the view); none on a shell. */
   readonly drawer?: DrawerView | null;
+  /** Opens a pane (the Update button's new shell tab); no Update button beside the mark without it. */
+  onOpenPane?(hostId: string, paneId: string): void;
 }
 
 export function MainPane(props: MainPaneProps) {
@@ -909,6 +915,9 @@ export function MainPane(props: MainPaneProps) {
   const offer = useResumeOffer(host, row);
   // Restart, from the Update ready card and the header's menu.
   const restart = useRestart(host, row);
+  // Update beside the mark, while the machine has an update command for the pane's CLI.
+  const updateKind = row.updateReady === true && typeof row.kind === "string" && isUpdateCommandKind(row.kind.toLowerCase()) ? row.kind.toLowerCase() : null;
+  const updateCommand = useUpdateCommand(host, updateKind, updateKind !== null);
   const [moreMenu, setMoreMenu] = useState<{ x: number; y: number; kept: PaneMenuContext | null | undefined } | null>(null);
   // More is about the pane it opened on: another pane shown closes it.
   useEffect(() => setMoreMenu(null), [host.id, row.paneID]);
@@ -978,6 +987,9 @@ export function MainPane(props: MainPaneProps) {
         {row.updateReady === true ? (
           <UpdateMark card kind={row.kind} restart={{ label: restartCardLabel, disabledReason: restart.disabledReason, onRestart: restart.run }} />
         ) : null}
+        {updateKind === null || updateCommand === null || props.onOpenPane === undefined ? null : (
+          <AgentUpdateButton compact bridge={window.herdrDesktop} host={host} kind={updateKind} command={updateCommand} workspaceId={row.workspaceID} onOpened={props.onOpenPane} />
+        )}
         <span className={row.glyph === "needsYou" ? "stt ny" : "stt"}>
           <Glyph glyph={row.glyph} />
           {statusLabel[row.glyph]}

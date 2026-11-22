@@ -79,7 +79,9 @@ describe("Settings › Machines: one line of Herdr's integrations per connected 
     expect(itemTexts(view.tree)).toEqual(["Claude Code: installed", "Codex: not installed", "Grok Build: out of date"]);
     expect(texts(view.tree)).toEqual(expect.arrayContaining(["Install", "Update"]));
     const buttons = elements(view.tree).filter((element) => element.type === "button");
+    // Update all above the rows, for the one out-of-date row (Grok Build); never for the missing one.
     expect(buttons.map((button) => [button.props["data-integration-install"], button.props["children"]])).toEqual([
+      [undefined, "Update all (1)"],
       ["codex", "Install"],
       ["grok", "Update"],
     ]);
@@ -131,5 +133,46 @@ describe("Settings › Machines: one line of Herdr's integrations per connected 
     run.rerender({ hosts: [thisMac, mini({ connection: 5 }), sshHost("studio", "Studio")] });
     await flush();
     expect(refreshed).toBe(1);
+  });
+
+  it("Machines has the install-before-start switch after the machines: on by default, read from main, a click sets it there", async () => {
+    const { bridge } = settingsBridge();
+    const sets: boolean[] = [];
+    let kept = true;
+    const run = mountSettings("machines", {
+      bridge: {
+        ...bridge,
+        integrationAutoInstall: () => Promise.resolve(kept),
+        setIntegrationAutoInstall: (on: boolean) => {
+          sets.push(on);
+          kept = on;
+          return Promise.resolve(kept);
+        },
+      },
+      hosts: [thisMac, mini()],
+    });
+    await flush();
+    const rows = run.all((element) => element.props["className"] === "set-row");
+    expect(rows.map((element) => element.props["data-machine"] ?? (element.props["data-integration-auto"] === "" ? "switch" : null))).toEqual(["local", "mini", "switch"]);
+    const toggle = () => run.part("Switch", (props) => props["label"] === "Install Herdr's integrations when I start an agent");
+    expect(toggle()?.props["on"]).toBe(true);
+    expect(texts(run.view.tree)).toContain("Install Herdr's integrations when I start an agent");
+    expect(texts(run.view.tree).some((text) => text.includes("small hook file"))).toBe(true);
+    (toggle()!.props["onChange"] as (on: boolean) => void)(false);
+    await flush();
+    run.rerender({});
+    expect(sets).toEqual([false]);
+    expect(toggle()?.props["on"]).toBe(false);
+  });
+
+  it("the switch reads off when main kept it off, and stays on with an older bridge that has no switch", async () => {
+    const { bridge } = settingsBridge();
+    const off = mountSettings("machines", { bridge: { ...bridge, integrationAutoInstall: () => Promise.resolve(false) }, hosts: [thisMac] });
+    await flush();
+    off.rerender({});
+    expect(off.part("Switch", (props) => props["label"] === "Install Herdr's integrations when I start an agent")?.props["on"]).toBe(false);
+    const older = mountSettings("machines", { bridge, hosts: [thisMac] });
+    await flush();
+    expect(older.part("Switch", (props) => props["label"] === "Install Herdr's integrations when I start an agent")?.props["on"]).toBe(true);
   });
 });

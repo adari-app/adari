@@ -13,6 +13,22 @@
 // (50, 256 KB); one with no room stays a draft, as it was, until there is room
 // or its pane is back. A machine removed takes its drafts with it.
 //
+// Unproved messages: a picture message to Claude Code whose keys and Return went
+// is kept here from its Return (written at once, before the page retires its
+// draft) until the transcript settles it, Put back or Dismiss, so a page reload,
+// a renderer crash or a quit brings its bubble back. At most 8 per pane (the
+// oldest beyond goes to Kept drafts) and 64 in all; one older than a week is
+// dropped at load. A machine that answers without its pane moves it to Kept
+// drafts ("Adari could not confirm Claude Code got this. Its pane is gone."),
+// its pictures as chips, where Put in box, Copy and Discard are.
+//
+// The unproved list counts against the same whole-file bound the reader keeps
+// (2 MiB), and holds at most 640 KiB itself. Its room is taken before the
+// Return (reserveUnproved): when a copy does not fit, the oldest copies move to
+// Kept drafts while Kept has room; when that cannot make room either, the Send
+// is refused before any key (unprovedNoRoomText). No draft is ever dropped to
+// make room for it, and no file the reader refuses is ever written.
+//
 // A damaged file is moved aside (drafts.json.damaged-<time>) and the app starts
 // with no drafts.
 
@@ -33,11 +49,22 @@ import {
   maxLostNames,
   maxSavedDrafts,
   utf8Bytes,
+  isUnprovedSend,
+  unprovedKeptReason,
+  unprovedLimit,
+  unprovedMaxAgeMs,
+  unprovedPerPane,
   type DraftInput,
   type DraftsState,
   type KeptDraft,
+  type SavedChip,
   type SavedDraft,
+  type UnprovedHistory,
+  type UnprovedOutcome,
+  type UnprovedSend,
+  unprovedByteLimit,
 } from "../shared/drafts";
+import { imagePaths } from "../shared/claude-screen";
 
 /** Where the drafts are written. */
 export interface DraftFiles {
@@ -146,11 +173,46 @@ function normalizedDraft(input: DraftInput & { readonly hostId: string; readonly
   };
 }
 const keyOf = (hostId: string, paneId: string): string => `${hostId}\n${paneId}`;
+
+/**
+ * An unproved message as a Kept draft's text and chips: its caption, and its pictures as chips when every image path
+ * is at its end as Send put it there; otherwise the whole text, no chips.
+ */
+function keptParts(text: string): { readonly text: string; readonly chips: readonly SavedChip[] } {
+  const paths = imagePaths(text);
+  const tail = paths.join(" ");
+  if (paths.length === 0 || !text.endsWith(tail)) return { text, chips: [] };
+  const head = text.slice(0, text.length - tail.length);
+  const chips = paths.map((path) => ({ path, name: path.slice(path.lastIndexOf("/") + 1) || path, image: true }));
+  return { text: head.endsWith(" ") ? head.slice(0, -1) : head, chips: chips.slice(0, maxDraftChips) };
+}
 const sizeOf = (value: unknown): number => utf8Bytes(JSON.stringify(value));
+/** What an unproved list adds to the file when it was empty (`,"unproved":[` and `]`), with room to spare. */
+const unprovedKeyBytes = 16;
+/** What a copy is before it is kept. */
+export type UnprovedEntry = Omit<UnprovedSend, "id" | "outcome" | "sentAt" | "history">;
+/**
+ * The most a copy of `entry` can take in the file once kept: a uuid, the longest outcome, a time, and the
+ * longest history the page may add (an anchor of 256 characters, each escaped), and its comma.
+ */
+function unprovedSize(entry: UnprovedEntry): number {
+  const longest: UnprovedSend = {
+    ...entry,
+    id: "00000000-0000-0000-0000-000000000000",
+    sentAt: 9_999_999_999_999,
+    outcome: "stillInBox",
+    history: { anchor: "\u0000".repeat(256) },
+  };
+  return sizeOf(longest) + 1;
+}
 
 export class DraftStore {
   private readonly drafts = new Map<string, SavedDraft>();
   private kept: KeptDraft[] = [];
+  /** Messages past their Return nothing proved yet, oldest first. */
+  private unproved: UnprovedSend[] = [];
+  /** Room taken for copies whose Send is under way (reserveUnproved), by token: their most bytes. */
+  private readonly reserved = new Map<string, number>();
   private timer: ReturnType<typeof setTimeout> | null = null;
   private dirty = false;
   private readonly now: () => number;
@@ -194,6 +256,11 @@ export class DraftStore {
       this.kept.push(item);
       used += grows;
     }
+    // Unproved messages: a week old at most, then the per-pane and overall counts (the oldest beyond go to Kept drafts).
+    const fresh = loaded.unproved.filter((entry) => this.now() - entry.sentAt <= unprovedMaxAgeMs);
+    if (fresh.length < loaded.unproved.length) this.log(`drafts.json: ${loaded.unproved.length - fresh.length} unproved messages older than a week were dropped`);
+    skipped += loaded.unproved.length - fresh.length;
+    for (const entry of fresh.sort((a, b) => a.sentAt - b.sentAt)) this.addUnproved(entry, null);
     const before = this.drafts.size;
     this.bound(null);
     skipped += before - this.drafts.size;
@@ -204,7 +271,7 @@ export class DraftStore {
   }
 
   /** The file's entries that check, and how many did not; null when it is not a drafts file at all. */
-  private static parse(text: string): { drafts: SavedDraft[]; kept: KeptDraft[]; skipped: number } | null {
+  private static parse(text: string): { drafts: SavedDraft[]; kept: KeptDraft[]; unproved: UnprovedSend[]; skipped: number } | null {
     let value: unknown;
     try {
       value = JSON.parse(text);
@@ -216,11 +283,192 @@ export class DraftStore {
     if (v["version"] !== 1 || !Array.isArray(v["drafts"]) || !Array.isArray(v["kept"])) return null;
     const drafts = v["drafts"].filter(isSavedDraft) as SavedDraft[];
     const kept = v["kept"].filter(isKeptDraft) as KeptDraft[];
-    return { drafts, kept, skipped: v["drafts"].length - drafts.length + v["kept"].length - kept.length };
+    // A file from before unproved messages has none.
+    const listed = Array.isArray(v["unproved"]) ? (v["unproved"] as unknown[]) : [];
+    const unproved = listed.filter(isUnprovedSend) as UnprovedSend[];
+    return { drafts, kept, unproved, skipped: v["drafts"].length - drafts.length + v["kept"].length - kept.length + listed.length - unproved.length };
   }
 
   state(): DraftsState {
-    return { drafts: Array.from(this.drafts.values()), kept: [...this.kept] };
+    return { drafts: Array.from(this.drafts.values()), kept: [...this.kept], ...(this.unproved.length === 0 ? {} : { unproved: [...this.unproved] }) };
+  }
+
+  /**
+   * Before a picture message's first key: room for its copy, taken until it is kept (keepUnproved with the token) or
+   * the Send ends without a Return (releaseReservation). The oldest copies move to Kept drafts while Kept has room
+   * when that makes room. Null: no room, and the Send is refused before any key (unprovedNoRoomText).
+   */
+  reserveUnproved(entry: UnprovedEntry): string | null {
+    const size = unprovedSize(entry);
+    if (!this.roomFor(size)) {
+      this.log(`no room to keep a copy of a message for ${entry.hostId} ${entry.paneId} (${size} bytes): the Send is refused before any key`);
+      return null;
+    }
+    const token = randomUUID();
+    this.reserved.set(token, size);
+    return token;
+  }
+
+  /** The Send ended without its Return: its room goes back. */
+  releaseReservation(token: string): void {
+    this.reserved.delete(token);
+  }
+
+  /**
+   * A message whose keys and Return went, kept until the transcript settles it: written to the file now, before the
+   * page retires its draft. Its id; null when there is no room for it (the room its Send reserved was taken since by
+   * the drafts, or none was reserved): then nothing is written, the file stays one the reader loads, and no draft is
+   * dropped for it.
+   */
+  keepUnproved(entry: UnprovedEntry, reservation: string | null = null): string | null {
+    const size = unprovedSize(entry);
+    if (reservation !== null) this.reserved.delete(reservation);
+    if (!this.roomFor(size)) {
+      this.log(`a copy of a message for ${entry.hostId} ${entry.paneId} was not kept: drafts.json has no room for it`);
+      return null;
+    }
+    const id = randomUUID();
+    this.addUnproved({ ...entry, id, sentAt: this.now(), outcome: "checking" }, entry.hostId);
+    this.dirty = true;
+    this.write();
+    return id;
+  }
+
+  /**
+   * Where the session's transcript stood when unproved message `id` went (the page's baseline): set once, written
+   * at once. False when it is not kept, already has one, or the file has no room for it (it then stays without one:
+   * its restored bubble is never settled by the transcript).
+   */
+  unprovedHistory(id: string, history: UnprovedHistory): boolean {
+    const entry = this.unproved.find((candidate) => candidate.id === id);
+    if (entry === undefined || entry.history !== undefined) return false;
+    const next = { ...entry, history };
+    const grows = sizeOf(next) - sizeOf(entry);
+    if (this.fileBytes() + this.reservedBytes() + grows > maxDraftsBytes || sizeOf(this.unproved) + this.reservedBytes() + grows > unprovedByteLimit) return false;
+    this.unproved = this.unproved.map((candidate) => (candidate.id === id ? next : candidate));
+    this.revision += 1;
+    this.dirty = true;
+    this.write();
+    return true;
+  }
+
+  private reservedBytes(): number {
+    let total = 0;
+    for (const size of this.reserved.values()) total += size;
+    return total;
+  }
+
+  /**
+   * Room for one more copy of `size` bytes beside the copies kept and the room reserved: within the list's own bound
+   * and the whole file's, the drafts and Kept drafts as they are. When only the list's bound is short, the oldest
+   * copies move to Kept drafts while Kept has room (moving never makes the file smaller, so the file's bound is never
+   * met that way); they move only when that makes room. No draft is dropped.
+   */
+  private roomFor(size: number): boolean {
+    const reserved = this.reservedBytes();
+    const fileNow = (): number => this.fileBytes() + (this.unproved.length === 0 ? unprovedKeyBytes : 0);
+    let file = fileNow();
+    let list = sizeOf(this.unproved);
+    const fits = (): boolean => list + reserved + size <= unprovedByteLimit && file + reserved + size <= maxDraftsBytes;
+    if (fits()) return true;
+    if (file + reserved + size > maxDraftsBytes) return false;
+    // The moves, planned first: each the oldest copy as a Kept draft, while Kept has room.
+    const moves: { readonly entry: UnprovedSend; readonly item: KeptDraft }[] = [];
+    let keptCount = this.kept.length;
+    let keptBytes = sizeOf(this.kept);
+    for (const entry of [...this.unproved].sort((a, b) => a.sentAt - b.sentAt)) {
+      if (fits()) break;
+      const item = this.keptItem(entry, entry.hostId, unprovedKeptReason);
+      const grows = sizeOf(item) + (keptCount === 0 ? 0 : 1);
+      if (keptCount >= keptLimit || keptBytes + grows > keptByteLimit) break;
+      const shrinks = sizeOf(entry) + 1;
+      keptCount += 1;
+      keptBytes += grows;
+      list -= shrinks;
+      file += grows - shrinks;
+      moves.push({ entry, item });
+    }
+    if (moves.length === 0 || !fits()) return false;
+    const before = { unproved: this.unproved, kept: this.kept };
+    const moving = new Set(moves.map((move) => move.entry));
+    this.unproved = this.unproved.filter((candidate) => !moving.has(candidate));
+    this.kept = [...this.kept, ...moves.map((move) => move.item)];
+    // The plan's sums, checked against the file as it would be written.
+    if (sizeOf(this.unproved) + reserved + size > unprovedByteLimit || fileNow() + reserved + size > maxDraftsBytes) {
+      this.unproved = before.unproved;
+      this.kept = before.kept;
+      return false;
+    }
+    this.log(`${moves.length} unproved messages moved to Kept drafts to make room for a new one`);
+    this.changed();
+    return true;
+  }
+
+  /** Main's check answered for unproved message `id`: false when it is not kept (any more) or already said so. */
+  unprovedOutcome(id: string, outcome: Exclude<UnprovedOutcome, "checking">): boolean {
+    const entry = this.unproved.find((candidate) => candidate.id === id);
+    if (entry === undefined || entry.outcome === outcome) return false;
+    this.unproved = this.unproved.map((candidate) => (candidate.id === id ? { ...candidate, outcome } : candidate));
+    this.changed();
+    return true;
+  }
+
+  /** The transcript settled it, or the person put it back or dismissed it: it is kept no more. */
+  releaseUnproved(id: string): boolean {
+    const next = this.unproved.filter((candidate) => candidate.id !== id);
+    if (next.length === this.unproved.length) return false;
+    this.unproved = next;
+    this.changed();
+    return true;
+  }
+
+  /**
+   * Adds `entry` (the newest of its pane), then holds the bounds: past unprovedPerPane for its pane, or
+   * unprovedLimit in all, the oldest goes to Kept drafts (with no room there, or in the file, it is dropped and
+   * logged). The bytes were made room for before (roomFor).
+   */
+  private addUnproved(entry: UnprovedSend, hostLabel: string | null): void {
+    this.unproved = [...this.unproved, entry];
+    const forPane = this.unproved.filter((candidate) => candidate.hostId === entry.hostId && candidate.paneId === entry.paneId);
+    const extra = forPane.slice(0, Math.max(0, forPane.length - unprovedPerPane));
+    const beyond = this.unproved.length - extra.length - unprovedLimit;
+    if (beyond > 0) extra.push(...this.unproved.filter((candidate) => !extra.includes(candidate)).slice(0, beyond));
+    for (const old of extra) {
+      this.unproved = this.unproved.filter((candidate) => candidate !== old);
+      if (!this.keepAsKept(old, hostLabel ?? old.hostId, unprovedKeptReason)) this.log(`an unproved message for ${old.hostId} ${old.paneId} was dropped: Kept drafts has no room for it`);
+    }
+  }
+
+  /** An unproved message as a Kept draft (its caption and pictures as chips). */
+  private keptItem(entry: UnprovedSend, hostLabel: string, reason: string): KeptDraft {
+    const parts = keptParts(entry.text);
+    return {
+      id: randomUUID(),
+      hostId: entry.hostId,
+      hostLabel: hostLabel.slice(0, 255),
+      paneId: entry.paneId,
+      agentName: "claude",
+      text: cutToBytes(parts.text, maxDraftTextBytes),
+      chips: parts.chips,
+      reason,
+      at: this.now(),
+    };
+  }
+
+  /**
+   * An unproved message (already out of the list) under Kept drafts; false with no room there, or when the file
+   * would pass its bound with it.
+   */
+  private keepAsKept(entry: UnprovedSend, hostLabel: string, reason: string): boolean {
+    const item = this.keptItem(entry, hostLabel, reason);
+    const grows = sizeOf(item) + (this.kept.length === 0 ? 0 : 1);
+    if (this.kept.length >= keptLimit || sizeOf(this.kept) + grows > keptByteLimit) return false;
+    this.kept.push(item);
+    if (this.fileBytes() + this.reservedBytes() > maxDraftsBytes) {
+      this.kept.pop();
+      return false;
+    }
+    return true;
   }
 
   /** A pane's draft as the page has it now; null (or an empty one) clears it. `agent`: who it is for, when known. */
@@ -290,7 +538,18 @@ export class DraftStore {
       this.drafts.delete(key);
       moved.push({ hostId, paneId: draft.paneId });
     }
-    if (moved.length > 0) {
+    // Unproved messages of gone panes: under Kept drafts (no bubble can show them); with no room, kept as they are.
+    let movedUnproved = false;
+    for (const entry of this.unproved.filter((candidate) => candidate.hostId === hostId && !livePanes.has(candidate.paneId))) {
+      const before = this.unproved;
+      this.unproved = this.unproved.filter((candidate) => candidate !== entry);
+      if (!this.keepAsKept(entry, hostLabel, `${unprovedKeptReason} ${goneReason}`)) {
+        this.unproved = before;
+        continue;
+      }
+      movedUnproved = true;
+    }
+    if (moved.length > 0 || movedUnproved) {
       this.bound(null);
       this.changed();
     }
@@ -349,11 +608,20 @@ export class DraftStore {
       this.kept = kept;
       changed = true;
     }
+    const unproved = this.unproved.filter((entry) => entry.hostId !== hostId);
+    if (unproved.length !== this.unproved.length) {
+      this.unproved = unproved;
+      changed = true;
+    }
     if (changed) this.changed();
   }
 
+  /** Counts every change (the page is told of one a machine's answer made: drafts-ipc.ts draftsAnswered). */
+  revision = 0;
+
   /** A change not written yet: written by the deadline set by the first such change. */
   private changed(): void {
+    this.revision += 1;
     this.dirty = true;
     if (this.timer !== null) return;
     this.timer = setTimeout(() => {

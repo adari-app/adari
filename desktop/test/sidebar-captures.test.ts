@@ -119,8 +119,20 @@ describe("the sidebar's captures", () => {
       "...reorderCaptureSteps(",
       // A new Pi pane's first message 260-261.
       "...firstSendCaptureSteps(",
-      // Settings › About's Report a problem and Send feedback, then both clicked 270-271 (last).
+      // Settings › About's Report a problem and Send feedback, then both clicked 270-271.
       "...feedbackCaptureSteps(",
+      // New agent installing an integration first 280, Settings' switch 281, Chat's not-read sentence 282.
+      "...autoInstallCaptureSteps(",
+      // New agent's step line 283, its pane at once 284 (last).
+      "...newAgentSpeedCaptureSteps(",
+      // Update all (3) 290, Agent CLIs' update command and Codex's suggestion 291, Update's confirmation 292 (last).
+      "...updatesCaptureSteps(",
+      // Antigravity CLI's New agent rows, its new pane's chips and menus 294-299 (last).
+      "...agyModelsCaptureSteps(",
+      // Antigravity CLI's built-in list over SSH, the pane's Model chip and New agent's preselect 303-304.
+      "...agyListCaptureSteps(",
+      // Codex's own question in Plan mode, 1 of 2 and the last, and Implement this plan? as the Needs card, 300-302 (last).
+      "...codexQuestionCaptureSteps(",
     ]);
   });
 });

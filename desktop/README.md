@@ -1,9 +1,9 @@
 # Adari for Mac
 
-The Mac app of Adari, built for [Herdr](https://herdr.dev): first-class Chat for Claude Code and
-Codex, early Chat for [15 more agents](../README.md#agents), and the real terminal for every coding
-agent you run in Herdr panes, on this Mac and on the Macs you add over SSH. Adari is an independent
-project, not made or endorsed by Herdr, Inc.
+The Mac app of Adari, built for [Herdr](https://herdr.dev): first-class Chat for Claude Code,
+Codex and Antigravity CLI, early Chat for [14 more agents](../README.md#agents), and the real
+terminal for every coding agent you run in Herdr panes, on this Mac and on the Macs you add over
+SSH. Adari is an independent project, not made or endorsed by Herdr, Inc.
 
 ## Use it
 

@@ -318,7 +318,8 @@ describe("Compact", () => {
     expect(picks.compacting(key, binding)).toBe("running");
     picks.receive(key, { model: "claude-opus-5-5", modelLabel: "Opus 5.5", effort: null, used: null, compactedAt: 9_000, scope: { terminalID: "t1", session: "s1" } }, "turn-2");
     expect(picks.compacting(key, binding)).toBeNull();
-    expect(picks.confirmations(key, "turn-2")).toEqual(["Compacted"]);
+    // Rule 10: no line of its own; the record's "Conversation compacted" row is the word.
+    expect(picks.confirmations(key, "turn-2")).toEqual([]);
   });
 
   it("a dialog holds it too", () => {

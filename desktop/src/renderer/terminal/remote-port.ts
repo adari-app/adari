@@ -30,6 +30,8 @@ export class RemoteTerminalPort implements TerminalPort {
   private readonly earlyExit = new Map<string, string | null>();
   private readonly unsubscribers: (() => void)[] = [];
   private latest: { cols: number; rows: number } | null = null;
+  /** Run first on dispose, while input still goes (TerminalView's finish of a press the program holds). */
+  private readonly finishers = new Set<() => void>();
   /** Parsed bytes not yet told to main (told once per turn of the event loop). */
   private parsedBytes = 0;
 
@@ -153,7 +155,20 @@ export class RemoteTerminalPort implements TerminalPort {
     }
   }
 
+  beforeDispose(finish: () => void): () => void {
+    this.finishers.add(finish);
+    return () => this.finishers.delete(finish);
+  }
+
   dispose(): void {
+    for (const finish of this.finishers) {
+      try {
+        finish();
+      } catch {
+        // A view's finish never keeps the attach open.
+      }
+    }
+    this.finishers.clear();
     const sessionId = this.stateValue === "open" ? this.sessionId : null;
     this.end("disposed");
     for (const unsubscribe of this.unsubscribers.splice(0)) unsubscribe();

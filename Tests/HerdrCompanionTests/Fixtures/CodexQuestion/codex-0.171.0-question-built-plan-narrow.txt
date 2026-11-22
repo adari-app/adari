@@ -1,0 +1,40 @@
+    answer: quick-note
+  • Which format should the note file use?
+    answer: Markdown
+
+• Proposed Plan
+
+
+  # Tiny Note File
+
+  ## Summary
+
+  Create quick-note.md in the workspace root.
+
+  ## Contents
+
+  Use a heading, # Quick Note, followed by one line: A place for a quick thought or reminder.
+
+  ## Validation
+
+  Confirm the filename and Markdown content match the plan.
+
+  ## Assumptions
+
+  The placeholder sentence is suitable because no note text was supplied. No other files will change.
+
+
+  Worked for 44s • 9:36 PM
+
+  Implement this plan?
+
+
+› 1. Yes, implement this plan          Switch to Default and
+                                       start coding
+  2. Yes, clear context and implement  Start a fresh thread
+                                       (current context: 4%
+                                       used)
+  3. No, stay in Plan mode             Continue planning with
+                                       the model
+
+  enter select · esc back

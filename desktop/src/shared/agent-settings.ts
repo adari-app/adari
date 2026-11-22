@@ -39,6 +39,7 @@ import { isGeminiFamilyFormat, type GeminiFamilyFormat } from "./chat/agents/gem
 import { isStoreAgentFormat, type StoreAgentFormat } from "./chat/agents/store-agents";
 import type { KiroFormat } from "./chat/agents/kiro-locate";
 import { codexModeOfTurn, cursorModeOfWord, grokModeOfWord, readClaudeModeScreen, type ModeAgent } from "./approval-modes";
+import { readAgyStatusRow } from "./agy-input";
 
 /** What the chips show; null: not known (Effort: Default). */
 export interface AgentSettings {
@@ -1379,6 +1380,8 @@ export function screenMode(agent: ModeAgent, screen: string): string | null {
       const footer = parseCursorFooter(screen);
       return footer === null ? null : cursorFooterMode(footer);
     }
+    case "agy":
+      return readAgyStatusRow(screen)?.mode ?? null;
     case "codex":
       return null;
   }

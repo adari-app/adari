@@ -36,6 +36,19 @@
 // there; until then the result waits. Otherwise it stands alone as its own row. File order can put a result before
 // its planner (transcript_parser.go:253-259): such a result stands alone, and is kept, so that once the steps around
 // it are read the same rule may finish the call it fits.
+//
+// What agy 1.5.13 writes (read live, 2026-11-20): the tools are `read_file {Path}`, `write_file {Path, Content,
+// Append | Overwrite}`, `edit_file {Path, Target, Replacement}` and `run_command {CommandLine, WaitMsBeforeAsync,
+// toolSummary}`, and every result is `GENERIC`. A planner's results follow it in call order, one step number per
+// call: a planner with three calls at step 5 had its results at 6, 7 and 8. A declined or interrupted call has no
+// result step at all, and its number is skipped (13 the planner, 14 never written, 15 the next user message).
+// So a `GENERIC` result is placed by its slot: step `planner + 1 + n` is the result of the planner's call n, and only
+// when the planner is the newest read before it, no other planner step lies between, every step between them was
+// read and is a result (a missing step could be a planner not read yet, or a skipped call: the result then waits,
+// and stands as its own row), and call n still waits. A typed result keeps the rule above.
+// A call whose own slot was never written settles, as not finished, once the conversation moves on: the next user
+// message, or a planner step past the call's window. A command's `GENERIC` result reads "Command exited with code N."
+// then "Command output:" and the output.
 
 import { firstLine, LineResult, otherToolName, type TranscriptLineResult } from "../claude-parser";
 import { CodexRolloutParser } from "../codex-parser";
@@ -92,9 +105,23 @@ const boilerplate = [
   "You can use the view_file tool to read specific sections if needed.",
 ];
 
-type WaitingCall = { readonly id: string; readonly name: string };
+type WaitingCall = { readonly id: string; readonly name: string; readonly index: number };
 type Planner = { readonly step: number; readonly calls: WaitingCall[]; readonly count: number };
-type Result = { readonly step: number; readonly type: string; readonly output: ChatToolOutput; readonly time: number | null };
+type Result = {
+  readonly step: number;
+  readonly type: string;
+  readonly output: ChatToolOutput;
+  /** The cleaned text and whether the step failed, to shape a `GENERIC` result by the call it finishes. */
+  readonly text: string;
+  readonly failedStep: boolean;
+  readonly time: number | null;
+};
+type Placement = { readonly planner: Planner; readonly call: WaitingCall };
+
+/** The type every result of agy 1.5.13 carries, whatever its tool. */
+const generic = "GENERIC";
+/** What a call settled with no result says (its own slot never written: declined, or stopped). */
+const noResultText = "No result: declined or interrupted before it finished.";
 
 /** A tool's arguments, each value read from the JSON text the runtime writes (T3 Code's toolArguments). */
 function decodedArguments(args: unknown): JSONObject {
@@ -158,12 +185,37 @@ function exitCodeOf(text: string): number | null {
   return /The command completed successfully\./.test(text) ? 0 : null;
 }
 
-function resultOutput(type: string, status: string | null, content: string | null, error: string | null): ChatToolOutput {
-  const text = content !== null ? cleanedResult(type, content) : (error ?? "").trim();
-  const failedStep = status === "ERROR" || (content === null && error !== null);
+/** agy 1.5.13's command result: "Command exited with code N.", a blank line, "Command output:" and the output. */
+const exitedLine = /^Command exited with code (-?\d+)\.?[ \t]*$/m;
+const outputHeader = /^Command output:[ \t]*$/m;
+/** agy 1.5.13's read result line before the file's numbered lines. */
+const showingLines = /^Showing lines \d+-\d+ of \d+[ \t]*$/m;
+
+/** A command's output: its exit code, and the text after agy's "Command output:" header (carriage returns off). */
+function commandOutput(text: string, failedStep: boolean): ChatToolOutput {
+  const exited = exitedLine.exec(text);
+  const exitCode = exited !== null ? Number(exited[1]) : exitCodeOf(text);
+  const header = outputHeader.exec(text);
+  let shown = text;
+  if (header !== null) shown = text.slice(header.index + header[0].length).replace(/^\n/, "");
+  else if (exited !== null) shown = text.replace(exitedLine, "").trim();
+  shown = shown.replace(/\r(?=\n|$)/g, "").replace(/\s+$/, "");
+  return toolOutput(shown, { isError: failedStep || (exitCode !== null && exitCode !== 0), exitCode });
+}
+
+function resultOutput(type: string, text: string, failedStep: boolean): ChatToolOutput {
   if (type !== "RUN_COMMAND") return toolOutput(text, { isError: failedStep });
   const exitCode = exitCodeOf(text);
   return toolOutput(text, { isError: failedStep || (exitCode !== null && exitCode !== 0), exitCode });
+}
+
+/** A result for the call it finishes: a `GENERIC` one is shaped by that call's tool (a command's exit and output). */
+function outputFor(name: string, result: Result): ChatToolOutput {
+  if (result.type !== generic) return result.output;
+  if (name === "run_command") return commandOutput(result.text, result.failedStep);
+  // A read's "Showing lines 1-3 of 3" heads the numbered lines: not one of them.
+  if (name === "read_file") return toolOutput(result.text.replace(showingLines, "").replace(/^\n+/, ""), { isError: result.failedStep });
+  return result.output;
 }
 
 /**
@@ -186,6 +238,24 @@ export function antigravityToolCall(id: string, name: string, args: JSONObject, 
   switch (name) {
     case "view_file":
       return make("read", string("AbsolutePath") ?? summary);
+    // agy 1.5.13 (read live): `read_file {Path}`.
+    case "read_file":
+      return make("read", string("Path") ?? summary);
+    // `write_file {Path, Content, Append | Overwrite}`: the content written (or appended), every line added.
+    case "write_file": {
+      const path = string("Path") ?? "";
+      const content = asString(args.Content);
+      return content === null ? make("edit", path || summary) : make("edit", path, { type: "diff", diff: ChatDiffMaker.written(content, path) });
+    }
+    // `edit_file {Path, Target, Replacement}`: the text replaced.
+    case "edit_file": {
+      const path = string("Path") ?? "";
+      const old = asString(args.Target);
+      const replacement = asString(args.Replacement);
+      if (old === null || replacement === null) return make("edit", path || summary);
+      const diff = old.length === 0 ? ChatDiffMaker.written(replacement, path) : ChatDiffMaker.replacement(old, replacement, path);
+      return make("edit", path, { type: "diff", diff });
+    }
     case "list_dir":
       return make("read", string("DirectoryPath") ?? summary);
     case "write_to_file": {
@@ -244,6 +314,8 @@ export class AntigravityTranscriptParser {
   private steps = new Set<number>();
   /** The planner steps read (with or without calls): each ends the windows of the planners before it. */
   private plannerSteps = new Set<number>();
+  /** The result steps read: a `GENERIC` result is placed only over its planner's other results. */
+  private resultSteps = new Set<number>();
   private planners: Planner[] = [];
   private early: Result[] = [];
 
@@ -253,6 +325,7 @@ export class AntigravityTranscriptParser {
     copy.lineOffset = this.lineOffset;
     copy.steps = new Set(this.steps);
     copy.plannerSteps = new Set(this.plannerSteps);
+    copy.resultSteps = new Set(this.resultSteps);
     copy.planners = this.planners.map((planner) => ({ ...planner, calls: [...planner.calls] }));
     copy.early = [...this.early];
     return copy;
@@ -263,7 +336,8 @@ export class AntigravityTranscriptParser {
     if (step === null) return LineResult.malformed();
     const index = ChatJSON.int(step.step_index);
     const type = asString(step.type);
-    if (index === null || index < 0 || type === null || type.length === 0) return LineResult.unknown("(no step)");
+    // A step number past the safe integers is not a step (its neighbours could not be told apart).
+    if (index === null || !Number.isSafeInteger(index) || index < 0 || type === null || type.length === 0) return LineResult.unknown("(no step)");
     const status = step.status === undefined ? null : asString(step.status);
     if (step.status !== undefined && (status === null || !statuses.has(status))) return LineResult.unknown(`${type}:${String(status ?? "?")}`);
     if (this.steps.has(index)) return LineResult.skipped(type);
@@ -278,13 +352,17 @@ export class AntigravityTranscriptParser {
         if (source !== null && source !== "USER_EXPLICIT") return LineResult.of(this.settle(), `${type}:${source}`);
         const text = promptText(content ?? "");
         if (text.length === 0) return LineResult.of(this.settle(), type);
+        // The conversation moved on: a call whose own result step was never written settles before the message.
+        const abandoned = this.planners.flatMap((planner) => this.unanswered(planner, time));
         this.planners = [];
-        return LineResult.events([{ type: "userMessage", message: userMessage(`agy-${index}`, text, time) }]);
+        return LineResult.events([...abandoned, { type: "userMessage", message: userMessage(`agy-${index}`, text, time) }]);
       }
       case "PLANNER_RESPONSE": {
         if (status !== null && status !== "DONE") return LineResult.unknown(`${type}:${status}`);
-        this.remember(index, true);
-        return LineResult.of([...this.planner(index, step, (content ?? "").trim(), (error ?? "").trim(), time), ...this.settle()], type);
+        this.remember(index, "planner");
+        // A planner step past an earlier planner's window: that planner's calls whose result step was never written settle.
+        const abandoned = this.planners.filter((planner) => index > planner.step + planner.count).flatMap((planner) => this.unanswered(planner, time));
+        return LineResult.of([...abandoned, ...this.planner(index, step, (content ?? "").trim(), (error ?? "").trim(), time), ...this.settle()], type);
       }
       case "CONVERSATION_HISTORY":
       case "SYSTEM_MESSAGE":
@@ -293,8 +371,10 @@ export class AntigravityTranscriptParser {
         return LineResult.of(this.settle(), type);
       default: {
         if (!resultTypes.has(type)) return LineResult.unknown(type);
-        this.remember(index);
-        const result: Result = { step: index, type, output: resultOutput(type, status, content, error), time };
+        this.remember(index, "result");
+        const text = content !== null ? cleanedResult(type, content) : (error ?? "").trim();
+        const failedStep = status === "ERROR" || (content === null && error !== null);
+        const result: Result = { step: index, type, output: resultOutput(type, text, failedStep), text, failedStep, time };
         return LineResult.events([...this.result(result), ...this.settle(result)]);
       }
     }
@@ -310,7 +390,7 @@ export class AntigravityTranscriptParser {
       if (name === null || name.length === 0) return;
       const id = `agy-${index}-${number}`;
       events.push({ type: "toolStarted", call: antigravityToolCall(id, name, decodedArguments(call.args), time) });
-      calls.push({ id, name });
+      calls.push({ id, name, index: number });
     });
     if (calls.length === 0) {
       if (events.length > 0) events.push({ type: "agentStopped", time });
@@ -327,10 +407,28 @@ export class AntigravityTranscriptParser {
     // No call fits it alone yet: its own row, finished; one the steps not read yet may still decide is kept for it.
     if (decision === "wait") this.early = [...this.early.slice(-(keptEarly - 1)), result];
     const id = `agy-${result.step}`;
+    // A `GENERIC` result names no tool: a plain "Tool result" row, its first line as the target.
+    const call =
+      result.type === generic
+        ? toolCall(id, { other: "tool result" }, "Tool result", firstLine(result.text), { time: result.time })
+        : toolCall(id, { other: otherToolName(result.type.toLowerCase()) }, result.type, "", { time: result.time });
     return [
-      { type: "toolStarted", call: toolCall(id, { other: otherToolName(result.type.toLowerCase()) }, result.type, "", { time: result.time }) },
+      { type: "toolStarted", call },
       { type: "toolFinished", id, output: result.output, time: result.time },
     ];
+  }
+
+  /**
+   * The planner's waiting calls whose own result step (`planner + 1 + n`) was never read, settled as not finished
+   * (the conversation moved on past them), and taken from those waiting. A call whose step holds a result that did
+   * not fit it stays as it is: that result may be its own.
+   */
+  private unanswered(planner: Planner, time: number | null): TranscriptEvent[] {
+    const settled = planner.calls.filter((call) => !this.steps.has(planner.step + 1 + call.index));
+    if (settled.length === 0) return [];
+    for (const call of settled) planner.calls.splice(planner.calls.indexOf(call), 1);
+    if (planner.calls.length === 0) this.planners = this.planners.filter((held) => held !== planner);
+    return settled.map((call): TranscriptEvent => ({ type: "toolFinished", id: call.id, output: toolOutput(noResultText, { isError: true }), time }));
   }
 
   /**
@@ -355,7 +453,8 @@ export class AntigravityTranscriptParser {
    * than one can, or a later planner step lies between the call's planner and it; "wait" when no planner read yet
    * admits it, or a step between the first planner that does and it is not read yet (it could be a planner).
    */
-  private decide(result: Result): { readonly planner: Planner; readonly call: WaitingCall } | "never" | "wait" {
+  private decide(result: Result): Placement | "never" | "wait" {
+    if (result.type === generic) return this.decideBySlot(result);
     const admitting = this.planners.filter((planner) => result.step > planner.step && result.step <= planner.step + planner.count);
     if (admitting.length === 0) return "wait";
     const fits = admitting.flatMap((planner) => planner.calls.filter((call) => takes(call.name, result.type)).map((call) => ({ planner, call })));
@@ -368,22 +467,48 @@ export class AntigravityTranscriptParser {
     return only;
   }
 
-  /** Takes the call from those waiting and finishes it with the result. */
-  private finish({ planner, call }: { readonly planner: Planner; readonly call: WaitingCall }, result: Result): TranscriptEvent {
-    planner.calls.splice(planner.calls.indexOf(call), 1);
-    if (planner.calls.length === 0) this.planners = this.planners.filter((held) => held !== planner);
-    return { type: "toolFinished", id: call.id, output: result.output, time: result.time };
+  /**
+   * A `GENERIC` result by its slot: the newest planner read before it, with no planner step between, every step
+   * between read and each a result, and the call at its place in that planner's list still waiting. "wait" while a
+   * step between is not read (a planner could be there); "never" otherwise. Never a walk over the step numbers
+   * between the two (a far step number would make it endless): the slot is checked against the planner's window
+   * first, and the steps between are counted on the kept sets (at most keptSteps entries).
+   */
+  private decideBySlot(result: Result): Placement | "never" | "wait" {
+    let planner: Planner | null = null;
+    for (const held of this.planners) if (held.step < result.step && (planner === null || held.step > planner.step)) planner = held;
+    if (planner === null) return "wait";
+    const from = planner.step;
+    const between = (index: number): boolean => index > from && index < result.step;
+    for (const index of this.plannerSteps) if (between(index)) return "never";
+    let read = 0;
+    for (const index of this.steps) if (between(index)) read += 1;
+    if (read < result.step - from - 1) return "wait";
+    const slot = result.step - from - 1;
+    if (slot >= planner.count) return "never";
+    for (const index of this.steps) if (between(index) && !this.resultSteps.has(index)) return "never";
+    const call = planner.calls.find((waiting) => waiting.index === slot);
+    return call === undefined ? "never" : { planner, call };
   }
 
-  private remember(index: number, planner = false): void {
+  /** Takes the call from those waiting and finishes it with the result. */
+  private finish({ planner, call }: Placement, result: Result): TranscriptEvent {
+    planner.calls.splice(planner.calls.indexOf(call), 1);
+    if (planner.calls.length === 0) this.planners = this.planners.filter((held) => held !== planner);
+    return { type: "toolFinished", id: call.id, output: outputFor(call.name, result), time: result.time };
+  }
+
+  private remember(index: number, kind: "planner" | "result" | null = null): void {
     if (this.steps.size >= keptSteps) {
       const oldest = this.steps.values().next().value;
       if (oldest !== undefined) {
         this.steps.delete(oldest);
         this.plannerSteps.delete(oldest);
+        this.resultSteps.delete(oldest);
       }
     }
     this.steps.add(index);
-    if (planner) this.plannerSteps.add(index);
+    if (kind === "planner") this.plannerSteps.add(index);
+    if (kind === "result") this.resultSteps.add(index);
   }
 }

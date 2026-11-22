@@ -1,0 +1,55 @@
+{
+ "source": "the samples folder (agy 1.5.13, read live 2026-11-20, pane.read source recent, 40 lines, 119 columns): the folder, the account and the shell prompt replaced by neutral stand-ins of the same length",
+ "screens": [
+  {
+   "name": "idle-start",
+   "herdrStatus": "idle",
+   "text": "usr@demo-host1.test work % agy --model gemini-4-hydrogen-low\n\n      ▄▀▀▄        Antigravity CLI 1.5.13\n     ▀▀▀▀▀▀       someone.x@example.test (Google AI Pro)\n    ▀▀▀▀▀▀▀▀      Gemini 4 Hydrogen (Low)\n   ▄▀▀    ▀▀▄     /tmp/demo/agy-sample/work-01\n  ▄▀▀      ▀▀▄\n\n\n ┃ Introducing Gemini 4 Neon\n ┃ Our best balance of intelligence, cost, and latency. Get building today with Neon.\n ┃ esc to dismiss\n───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n> Auto mode: edits & safe commands auto-approved (shift+tab to cycle)\n───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n? for shortcuts                                                                          auto · Gemini 4 Hydrogen · low\n"
+  },
+  {
+   "name": "idle-plan",
+   "herdrStatus": "idle",
+   "text": "usr@demo-host1.test work % agy --model gemini-4-hydrogen-low\n\n      ▄▀▀▄        Antigravity CLI 1.5.13\n     ▀▀▀▀▀▀       someone.x@example.test (Google AI Pro)\n    ▀▀▀▀▀▀▀▀      Gemini 4 Hydrogen (Low)\n   ▄▀▀    ▀▀▄     /tmp/demo/agy-sample/work-01\n  ▄▀▀      ▀▀▄\n\n\n ┃ Introducing Gemini 4 Neon\n ┃ Our best balance of intelligence, cost, and latency. Get building today with Neon.\n ┃ esc to dismiss\n───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n> Plan mode: research & plan only (shift+tab to cycle)\n───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n? for shortcuts                                                                          plan · Gemini 4 Hydrogen · low\n"
+  },
+  {
+   "name": "idle-ask-mode",
+   "herdrStatus": "idle",
+   "text": "usr@demo-host1.test work % agy --model gemini-4-hydrogen-low\n\n      ▄▀▀▄        Antigravity CLI 1.5.13\n     ▀▀▀▀▀▀       someone.x@example.test (Google AI Pro)\n    ▀▀▀▀▀▀▀▀      Gemini 4 Hydrogen (Low)\n   ▄▀▀    ▀▀▄     /tmp/demo/agy-sample/work-01\n  ▄▀▀      ▀▀▄\n\n\n ┃ Introducing Gemini 4 Neon\n ┃ Our best balance of intelligence, cost, and latency. Get building today with Neon.\n ┃ esc to dismiss\n───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n>\n───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n? for shortcuts                                                                                 Gemini 4 Hydrogen · low\n"
+  },
+  {
+   "name": "idle-accept-edits",
+   "herdrStatus": "idle",
+   "text": "usr@demo-host1.test work % agy --model gemini-4-hydrogen-low\n\n      ▄▀▀▄        Antigravity CLI 1.5.13\n     ▀▀▀▀▀▀       someone.x@example.test (Google AI Pro)\n    ▀▀▀▀▀▀▀▀      Gemini 4 Hydrogen (Low)\n   ▄▀▀    ▀▀▄     /tmp/demo/agy-sample/work-01\n  ▄▀▀      ▀▀▄\n\n\n ┃ Introducing Gemini 4 Neon\n ┃ Our best balance of intelligence, cost, and latency. Get building today with Neon.\n ┃ esc to dismiss\n───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n> Accept-edits mode: file edits auto-approved (shift+tab to cycle)\n───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n? for shortcuts                                                                  accept-edits · Gemini 4 Hydrogen · low\n"
+  },
+  {
+   "name": "idle-typed",
+   "herdrStatus": "idle",
+   "text": "usr@demo-host1.test work % agy --model gemini-4-hydrogen-low\n\n      ▄▀▀▄        Antigravity CLI 1.5.13\n     ▀▀▀▀▀▀       someone.x@example.test (Google AI Pro)\n    ▀▀▀▀▀▀▀▀      Gemini 4 Hydrogen (Low)\n   ▄▀▀    ▀▀▄     /tmp/demo/agy-sample/work-01\n  ▄▀▀      ▀▀▄\n\n\n ┃ Introducing Gemini 4 Neon\n ┃ Our best balance of intelligence, cost, and latency. Get building today with Neon.\n ┃ esc to dismiss\n───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n> hello draft text\n───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n                                                                                         auto · Gemini 4 Hydrogen · low\n"
+  },
+  {
+   "name": "idle-cleared",
+   "herdrStatus": "idle",
+   "text": "usr@demo-host1.test work % agy --model gemini-4-hydrogen-low\n\n      ▄▀▀▄        Antigravity CLI 1.5.13\n     ▀▀▀▀▀▀       someone.x@example.test (Google AI Pro)\n    ▀▀▀▀▀▀▀▀      Gemini 4 Hydrogen (Low)\n   ▄▀▀    ▀▀▄     /tmp/demo/agy-sample/work-01\n  ▄▀▀      ▀▀▄\n\n\n ┃ Introducing Gemini 4 Neon\n ┃ Our best balance of intelligence, cost, and latency. Get building today with Neon.\n ┃ esc to dismiss\n───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n>\n───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n? for shortcuts                                                                          auto · Gemini 4 Hydrogen · low\n"
+  },
+  {
+   "name": "idle-two-lines",
+   "herdrStatus": "done",
+   "text": "usr@demo-host1.test work % agy --model gemini-4-hydrogen-low\n\n      ▄▀▀▄        Antigravity CLI 1.5.13\n     ▀▀▀▀▀▀       someone.x@example.test (Google AI Pro)\n    ▀▀▀▀▀▀▀▀      Gemini 4 Hydrogen (Low)\n   ▄▀▀    ▀▀▄     /tmp/demo/agy-sample/work-01\n  ▄▀▀      ▀▀▄\n\n────────────────────────────────────────────────────────────\n> say hi in three words\n\n  Hello there, friend!\n\n────────────────────────────────────────────────────────────\n> count slowly from 1 to 60, one number per line, with a short sentence after each\n\n\n  1. Starting off at the very beginning.\n  2. Taking a second step forward.\n  3. Three is a steady, balanced number.\n  4. Four corners form a solid square.\n  5. Five fingers on a single hand.\n  6. Six sides on a standard die.\n  7. Seven days make up a full week.\n  8. Eight legs belong to a busy spider.\n  9. Nine lives are said to belong to a cat.\n  10. Ten marks the first major milestone.\n  11. Eleven players take the field in soccer.\n  12. Twelve months complete a calendar year.\n  13. Thirteen is just past\n\n  ⎿  Interrupted · What should Antigravity CLI do instead?\n───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n> line one\n  line two\n───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n                                                                                         auto · Gemini 4 Hydrogen · low\n"
+  },
+  {
+   "name": "idle-after-reply",
+   "herdrStatus": "done",
+   "text": "usr@demo-host1.test work % agy --model gemini-4-hydrogen-low\n\n      ▄▀▀▄        Antigravity CLI 1.5.13\n     ▀▀▀▀▀▀       someone.x@example.test (Google AI Pro)\n    ▀▀▀▀▀▀▀▀      Gemini 4 Hydrogen (Low)\n   ▄▀▀    ▀▀▄     /tmp/demo/agy-sample/work-01\n  ▄▀▀      ▀▀▄\n\n────────────────────────────────────────────────────────────\n> say hi in three words\n\n  Hello there, friend!\n\n───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n>\n───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n? for shortcuts                                                                          auto · Gemini 4 Hydrogen · low\n"
+  },
+  {
+   "name": "idle-after-esc",
+   "herdrStatus": "done",
+   "text": "usr@demo-host1.test work % agy --model gemini-4-hydrogen-low\n\n      ▄▀▀▄        Antigravity CLI 1.5.13\n     ▀▀▀▀▀▀       someone.x@example.test (Google AI Pro)\n    ▀▀▀▀▀▀▀▀      Gemini 4 Hydrogen (Low)\n   ▄▀▀    ▀▀▄     /tmp/demo/agy-sample/work-01\n  ▄▀▀      ▀▀▄\n\n────────────────────────────────────────────────────────────\n> say hi in three words\n\n  Hello there, friend!\n\n────────────────────────────────────────────────────────────\n> count slowly from 1 to 60, one number per line, with a short sentence after each\n\n\n  1. Starting off at the very beginning.\n  2. Taking a second step forward.\n  3. Three is a steady, balanced number.\n  4. Four corners form a solid square.\n  5. Five fingers on a single hand.\n  6. Six sides on a standard die.\n  7. Seven days make up a full week.\n  8. Eight legs belong to a busy spider.\n  9. Nine lives are said to belong to a cat.\n  10. Ten marks the first major milestone.\n  11. Eleven players take the field in soccer.\n  12. Twelve months complete a calendar year.\n  13. Thirteen is just past\n\n  ⎿  Interrupted · What should Antigravity CLI do instead?\n───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n>\n───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n? for shortcuts                                                                          auto · Gemini 4 Hydrogen · low\n"
+  },
+  {
+   "name": "working",
+   "herdrStatus": "working",
+   "text": "usr@demo-host1.test work % agy --model gemini-4-hydrogen-low\n\n      ▄▀▀▄        Antigravity CLI 1.5.13\n     ▀▀▀▀▀▀       someone.x@example.test (Google AI Pro)\n    ▀▀▀▀▀▀▀▀      Gemini 4 Hydrogen (Low)\n   ▄▀▀    ▀▀▄     /tmp/demo/agy-sample/work-01\n  ▄▀▀      ▀▀▄\n\n────────────────────────────────────────────────────────────\n> say hi in three words\n⡿  Generating...\n───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n>\n───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\nesc to cancel                                                                            auto · Gemini 4 Hydrogen · low\n"
+  }
+ ]
+}

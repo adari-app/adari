@@ -29,6 +29,12 @@
 // keeps it as the machine's start commands (src/main/start-commands.ts), so
 // New agent and Resume use it from then on, and restart for the kinds it
 // restarts (Claude Code, Codex, Grok Build).
+//
+// Settings › Updates › Agent CLIs saves a CLI's update command the
+// same way, as the key `<kind>.update` (start-commands.ts updateCommandKey),
+// with its own check in step 1 (updateCommandSaveRefusal: one line, no control
+// or invisible character, at most 200 characters; quotes and `;` allowed) and
+// every other step as above.
 
 import {
   legacyStartCommandsRelativePath,
@@ -37,6 +43,8 @@ import {
   startCommandSaveRefusal,
   startCommandsDisplayPath,
   startCommandsRelativePath,
+  updateCommandSaveRefusal,
+  updateKindOfKey,
   type AgentStartCommands,
 } from "../shared/start-commands";
 
@@ -160,10 +168,11 @@ export interface SaveOptions {
 
 /**
  * Saves `command` as `kind`'s start command (empty: removes it) in the machine's `~/.adari/agents.json`; the file as
- * the reader reads it after. Throws StartCommandSaveError with the reason when it does not save.
+ * the reader reads it after. `kind` may be an update command's key (`codex.update`): then its own check applies.
+ * Throws StartCommandSaveError with the reason when it does not save.
  */
 export async function saveStartCommand(files: StartCommandsFileAccess, kind: string, command: string, options: SaveOptions = {}): Promise<AgentStartCommands> {
-  const refusal = startCommandSaveRefusal(command);
+  const refusal = updateKindOfKey(kind) === null ? startCommandSaveRefusal(command) : updateCommandSaveRefusal(command);
   if (refusal !== null) throw new StartCommandSaveError(refusal);
 
   const home = await files.home();

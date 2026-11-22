@@ -3,9 +3,14 @@
 // issue of the app's own repository, its body already filled in, and they
 // press Submit there (or not). The body is a short template and four details
 // about this build and this Mac: Adari's version, a signed release or a
-// development build, the macOS version and the chip family. Nothing else
-// goes in: no machine, address, user name, path, agent, chat or terminal
-// text, no log. The repository is the update feed's (src/main/feedback.ts
+// development build, the macOS version and the chip family. Report a Problem
+// also carries the answers not sent because the question changed
+// (prompt/refusals.ts), as counts and fixed words only, when there are any,
+// and the last New agents' and picture
+// messages' timings (speed-record.ts: the kind, the step names, whole
+// milliseconds, a picture's bytes and the outcome word), the newest that fit.
+// Nothing else goes in: no machine, address,
+// user name, path, agent's words, chat or terminal text, no log. The repository is the update feed's (src/main/feedback.ts
 // passes UPDATE_GITHUB_FEED's owner and name); the address is built here and
 // checked again before it opens (isFeedbackIssueUrl).
 
@@ -31,6 +36,27 @@ export const feedbackRowTitles: Readonly<Record<FeedbackKind, string>> = {
 };
 export const feedbackRowButton = "New issue";
 export const feedbackFoot = "Opens a new issue on GitHub in your browser. Adari sends nothing itself.";
+
+import { refusalLine, refusalSummary, type PromptRefusal } from "./prompt/refusals";
+import { speedLine, speedSections, speedSummary, type SpeedRecord } from "./speed-record";
+
+/** New agent's and picture messages' timings Report a Problem carries (each oldest first). */
+export interface FeedbackSpeed {
+  readonly start: readonly SpeedRecord[];
+  readonly picture: readonly SpeedRecord[];
+}
+
+const noSpeed: FeedbackSpeed = { start: [], picture: [] };
+
+/** A timings section: its count line and the newest `kept`, newest first; nothing when there are none. */
+function speedSection(title: string, records: readonly SpeedRecord[], kept: number): string {
+  if (records.length === 0) return "";
+  const newest = [...records].reverse().slice(0, Math.max(0, kept));
+  return `\n### ${title}\n\n${[speedSummary(records), ...newest.map((record) => `- ${speedLine(record)}`)].join("\n")}\n`;
+}
+
+/** Report a Problem's section for the answers not sent because the question changed. */
+export const refusalSection = "Answers not sent: the question changed";
 
 /** A GitHub repository, as the update feed names it. */
 export interface FeedbackRepo {
@@ -86,10 +112,26 @@ export function feedbackDetailLines(details: FeedbackDetails, limit = detailValu
   ];
 }
 
-/** The issue's body as it opens: the kind's sections, each with a line to write on, then the details. */
-export function feedbackBody(kind: FeedbackKind, details: FeedbackDetails, limit = detailValueLength): string {
+/**
+ * The issue's body as it opens: the kind's sections, each with a line to write on, then the details. Report a Problem
+ * with refusals (oldest first): then their section, the count line and the newest `kept` of them, newest first.
+ */
+export function feedbackBody(
+  kind: FeedbackKind,
+  details: FeedbackDetails,
+  limit = detailValueLength,
+  refusals: readonly PromptRefusal[] = [],
+  kept = refusals.length,
+  speed: FeedbackSpeed = noSpeed,
+  speedKept = Math.max(speed.start.length, speed.picture.length),
+): string {
   const asks = sections[kind].map((title) => `### ${title}\n\n\n`).join("");
-  return `${asks}### Details\n\n${feedbackDetailLines(details, limit).join("\n")}\n`;
+  const body = `${asks}### Details\n\n${feedbackDetailLines(details, limit).join("\n")}\n`;
+  if (kind !== "problem") return body;
+  const timings = speedSection(speedSections.start, speed.start, speedKept) + speedSection(speedSections.picture, speed.picture, speedKept);
+  if (refusals.length === 0) return body + timings;
+  const newest = [...refusals].reverse().slice(0, Math.max(0, kept));
+  return `${body}\n### ${refusalSection}\n\n${[refusalSummary(refusals), ...newest.map(refusalLine)].join("\n")}\n${timings}`;
 }
 
 /** Where a new issue of `repo` is written. */
@@ -101,10 +143,16 @@ export function feedbackIssueBase(repo: FeedbackRepo): string {
  * The new issue's address: the title left empty, the body URL-encoded, the whole under maxFeedbackUrlLength
  * characters (a long or odd version or macOS value is shortened until it fits; the template always does).
  */
-export function feedbackIssueUrl(kind: FeedbackKind, details: FeedbackDetails, repo: FeedbackRepo): string {
+export function feedbackIssueUrl(kind: FeedbackKind, details: FeedbackDetails, repo: FeedbackRepo, refusals: readonly PromptRefusal[] = [], speed: FeedbackSpeed = noSpeed): string {
   const base = feedbackIssueBase(repo);
+  // The refusals and the timings: as many of the newest of each as fit, the oldest left out first, each section at
+  // most `kept` (the count lines always say how many).
+  for (let kept = Math.max(refusals.length, speed.start.length, speed.picture.length); kept > 0; kept -= 1) {
+    const url = `${base}?body=${encodeURIComponent(feedbackBody(kind, details, detailValueLength, refusals, Math.min(kept, refusals.length), speed, kept))}`;
+    if (url.length < maxFeedbackUrlLength) return url;
+  }
   for (let limit = detailValueLength; ; limit -= 8) {
-    const url = `${base}?body=${encodeURIComponent(feedbackBody(kind, details, limit))}`;
+    const url = `${base}?body=${encodeURIComponent(feedbackBody(kind, details, limit, refusals, 0, speed, 0))}`;
     if (url.length < maxFeedbackUrlLength || limit <= 0) return url;
   }
 }

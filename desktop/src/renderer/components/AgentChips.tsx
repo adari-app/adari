@@ -33,8 +33,15 @@
 // agent's choice, else "Default" (agent-picks.ts chip). An OpenCode pane gets
 // the Model chip only.
 //
+// An Antigravity CLI pane's chips show its last row (agent-picks.ts agyRow:
+// "auto · Gemini 4 Hydrogen · low"): Model its model, Effort its level (none
+// for a model with no level), Permissions its mode. Model lists its models as
+// its list groups them (model-choices.ts agyFamilies); a model or a level goes
+// as `/model <the row's id>` made in main, the level kept when the new model
+// has it.
+//
 // The Permissions chip after them, for a Claude, Codex, Grok
-// or Cursor pane (shown even while Model and Effort wait for their values):
+// Cursor or Antigravity CLI pane (shown even while Model and Effort wait for their values):
 // T3 Code's ComposerContextPermissions, the mode's icon and the agent's own
 // word ("Permissions" and a plain shield while none reads); its menu lists the
 // agent's modes, each with its icon and description, the current one ticked
@@ -60,6 +67,9 @@ import {
 } from "../../shared/agent-settings";
 import { approvalMode, menuModes, type ModeAgent, type ModeIcon as ModeIconKind } from "../../shared/approval-modes";
 import {
+  agyFamilyOf,
+  agyRowId,
+  agyRowSaid,
   claudeModelOf,
   cursorCurrentId,
   cursorEffortChoices,
@@ -207,7 +217,19 @@ export function runningModel(context: PickContext, key: string, models: readonly
     return seen === null ? { id: null, label: null } : { id: seen.model, label: seen.label };
   }
   const settings = agentPicks.settings(key, context.binding);
+  // Antigravity CLI's last row: the list's row of that model and level.
+  if (context.agent === "agy") return { id: settings.modelLabel === null ? null : agyRowSaid(models, settings.modelLabel, settings.effort), label: settings.modelLabel };
   return { id: settings.model, label: settings.modelLabel };
+}
+
+/** The list's row id an Antigravity CLI pane runs as its chips show it: a pick on its way, else its last row's, else New agent's choice. */
+export function agyCurrentRow(context: PickContext, key: string, models: readonly CatalogModel[]): string | null {
+  const pending = agentPicks.effective(key, context.binding).model;
+  if (pending !== null && agyFamilyOf(models, pending) !== null) return pending;
+  const said = runningModel(context, key, models);
+  if (said.label !== null) return said.id;
+  const start = agentPicks.startShown(key, context.binding);
+  return start?.model == null ? null : agyRowId(models, start.model, start.effort);
 }
 
 /** The Model chip's picker for the pane: its rows, the ticked one, "Agent's default", read only or not, its action. */
@@ -255,6 +277,12 @@ export function cursorFamilyRows(models: readonly CatalogModel[]): CatalogModel[
 export function chipPickerSpec(context: PickContext, key: string, view: CatalogView | null): ChipPickerSpec {
   const agent = catalogAgentOfContext(context);
   const all = view?.models ?? [];
+  if (agent === "agy") {
+    // One row per model; the one it runs ticked (a pick on its way first). No "Agent's default" row: a running
+    // session's model is always one of the list's.
+    const current = agyCurrentRow(context, key, all);
+    return { agent, models: listedModels("agy", all), current: current === null ? null : (agyFamilyOf(all, current)?.id ?? null), defaultRow: null, readOnly: null, note: null, hideIds: true, action: null };
+  }
   const listed = listedModels(agent, all);
   const running = runningModel(context, key, listed);
   const start = agentPicks.startShown(key, context.binding);
@@ -342,8 +370,14 @@ export function modelPickRequest(agent: CatalogAgent, models: readonly CatalogMo
       const model = models.find((one) => one.id === id);
       return model === undefined ? null : { kind: "model", value: id, label: model.label, openCodeModel: id };
     }
-    case "agy":
-      return null;
+    case "agy": {
+      // `/model <id>` made in main: the model's row at the level it runs now (when it has it), else its first.
+      if (id === null) return null;
+      const pick = named(id);
+      const family = agyFamilyOf(models, id);
+      if (pick === null || family === null) return null;
+      return { kind: "model", value: pick.modelPick.model, label: family.name, ...pick };
+    }
   }
 }
 
@@ -356,6 +390,8 @@ export function chipRowRequest(spec: ChipPickerSpec, view: CatalogView | null, i
     if (id !== null && spec.models.find((row) => row.id === id)?.note !== undefined) return { kind: "model", value: "picker", label: "Choosing\u{2026}" };
     return modelPickRequest("cursor", view?.models ?? [], id, effortNow);
   }
+  // Antigravity CLI's rows are its models: the pick is made from its list itself.
+  if (spec.agent === "agy") return modelPickRequest("agy", view?.models ?? [], id, effortNow);
   return modelPickRequest(spec.agent, [...spec.models, ...(view?.models ?? [])], id, effortNow);
 }
 
@@ -366,6 +402,7 @@ export function effortMenuChoices(context: PickContext, key: string, view: Catal
     const footer = agentPicks.cursorFooter(key, context.binding);
     return footer === null ? effortChoices("cursor", models, null) : cursorEffortChoices(models, footer.model);
   }
+  if (context.agent === "agy") return effortChoices("agy", models, agyCurrentRow(context, key, models));
   const settings = agentPicks.settings(key, context.binding);
   const start = agentPicks.startShown(key, context.binding);
   // The model a pick not yet confirmed names first, else the transcript's.
@@ -387,6 +424,7 @@ export function chipMenu(kind: ChipKind, context: PickContext, key: string, view
   }
   const settings = agentPicks.settings(key, context.binding);
   if (context.agent === "grok") return grokMenu(kind, settings);
+  if (context.agent === "agy") return kind === "effort" ? agyEffortMenu(context, key, view) : [];
   if (context.agent === "opencode" || kind !== "effort") return [];
   const choices = effortMenuChoices(context, key, view);
   if (choices.levels.length === 0) return [{ label: "This model takes no effort level", ticked: false, pick: null, disabledReason: "Its effort is fixed" }];
@@ -404,6 +442,31 @@ export function chipMenu(kind: ChipKind, context: PickContext, key: string, view
       const reading = (view === null || view.loading) && (view?.models.length ?? 0) === 0;
       return { ...item, disabledReason: reading ? "Reading Codex's models\u{2026}" : "Codex's list on this machine does not name this model", pick: plain };
     }
+    return { ...item, pick: { ...plain, modelPick, command: built.command } };
+  });
+}
+
+/**
+ * An Antigravity CLI pane's Effort menu: the levels of the model it runs, the one it runs ticked, the CLI's first for
+ * it marked; each a model pick of that model's row at that level (`/model <id>`, made in main).
+ */
+export function agyEffortMenu(context: PickContext, key: string, view: CatalogView | null): ChipMenuItem[] {
+  const models = view?.models ?? [];
+  const current = agyCurrentRow(context, key, models);
+  const choices = effortMenuChoices(context, key, view);
+  if (current === null) {
+    const reading = (view === null || view.loading) && models.length === 0;
+    return [{ label: reading ? "Reading Antigravity CLI's models\u{2026}" : "Antigravity CLI's model is not known yet", ticked: false, pick: null, disabledReason: "Its list on this machine does not name the model its screen shows" }];
+  }
+  if (choices.levels.length === 0) return [{ label: "This model takes no effort level", ticked: false, pick: null, disabledReason: "Its effort is fixed" }];
+  const effective = agentPicks.effective(key, context.binding);
+  return choices.levels.map((level) => {
+    const plain: PickRequest = { kind: "effort", value: level, label: effortLabel(level) };
+    const item = { label: effortLabel(level), ticked: effective.effort === level, ...(choices.defaultLevel === level ? { tag: "default" } : {}) };
+    const id = agyRowId(models, current, level);
+    const modelPick: ModelPick | null = id === null ? null : { agent: "agy", model: id, effort: null };
+    const built = modelPick === null ? null : modelPickCommand(modelPick, models);
+    if (modelPick === null || built === null || !built.ok) return { ...item, disabledReason: "Antigravity CLI's list on this machine does not name this level", pick: plain };
     return { ...item, pick: { ...plain, modelPick, command: built.command } };
   });
 }
@@ -527,6 +590,13 @@ export function AgentChips({ host, row, onShowTerminal }: { host: HostView; row:
   if (context.agent === "grok") {
     const settings = agentPicks.settings(key, context.binding);
     if (settings.modelLabel === null || settings.effort === null) effortChip = false;
+  }
+  // An Antigravity CLI pane's only while its last row names a level (a model with none has no Effort chip), or,
+  // before any row reads, while New agent's choice names one.
+  if (context.agent === "agy") {
+    const settings = agentPicks.settings(key, context.binding);
+    const start = agentPicks.startShown(key, context.binding);
+    if (settings.modelLabel !== null ? settings.effort === null : (start?.effort ?? null) === null) effortChip = false;
   }
   const showTerminal =
     onShowTerminal === undefined

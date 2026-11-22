@@ -269,6 +269,59 @@ export const C = {
   second: codex("second"),
 } as const;
 
+const claudeAskFolder = path.join(repoRoot, "Tests/HerdrCompanionTests/Fixtures/ClaudeAsk");
+
+function claudeAsk(name: string): string {
+  return readFileSync(path.join(claudeAskFolder, `claude-2.1.325-ask-${name}.txt`), "utf8");
+}
+
+/**
+ * CompanionClaudeAskFixtures, Claude Code 2.1.325's question dialog (the
+ * AskUserQuestion tool) as pane.read returns it: `sample` is the one recorded
+ * read (the dialog's 16 rows, 201 cells), every other file is built from its
+ * rows (the history above and the variants invented): each file in
+ * Tests/HerdrCompanionTests/Fixtures/ClaudeAsk, which the Swift tests read too.
+ */
+export const A = {
+  sample: claudeAsk("sample"),
+  full: claudeAsk("full"),
+  marked2: claudeAsk("marked-2"),
+  marked3: claudeAsk("marked-3"),
+  markedType: claudeAsk("marked-type"),
+  markedChat: claudeAsk("marked-chat"),
+  noMark: claudeAsk("no-mark"),
+  narrow: claudeAsk("narrow"),
+  wrapped3: claudeAsk("wrapped-3"),
+  questionWrapped: claudeAsk("question-wrapped"),
+  footerAfter: claudeAsk("footer-after"),
+  rowBetween: claudeAsk("row-between"),
+  noRule: claudeAsk("no-rule"),
+  noType: claudeAsk("no-type"),
+  gap: claudeAsk("gap"),
+  oneOption: claudeAsk("one-option"),
+  nine: claudeAsk("nine"),
+  ten: claudeAsk("ten"),
+  twoChips: claudeAsk("two-chips"),
+  checkbox: claudeAsk("checkbox"),
+  checkboxBox: claudeAsk("checkbox-box"),
+  cutRule: claudeAsk("cut-rule"),
+  cutHeader: claudeAsk("cut-header"),
+  tall: claudeAsk("tall"),
+  nextOutput: claudeAsk("next-output"),
+  after: claudeAsk("after"),
+  // A review's screens (overflow-number, zwj-width, combining-width, wide-label-wrap: its
+  // boundary-screens.json, verbatim) and row numbers, long labels built from the sample.
+  overflowNumber: claudeAsk("overflow-number"),
+  numberThreeDigit: claudeAsk("number-three-digit"),
+  numberTwelve: claudeAsk("number-twelve"),
+  numberZero: claudeAsk("number-zero"),
+  zwjWidth: claudeAsk("zwj-width"),
+  combiningWidth: claudeAsk("combining-width"),
+  wideLabelWrap: claudeAsk("wide-label-wrap"),
+  longLabels: claudeAsk("long-labels"),
+  longUnbroken: claudeAsk("long-unbroken"),
+} as const;
+
 function overlay(name: string): string {
   return readFileSync(path.join(codexFolder, `codex-0.166.0-overlay-${name}.txt`), "utf8");
 }
@@ -286,6 +339,46 @@ export const CO = {
   permissions: overlay("permissions"),
   networkExec: overlay("network-exec"),
 } as const;
+
+const codexQuestionFolder = path.join(repoRoot, "Tests/HerdrCompanionTests/Fixtures/CodexQuestion");
+
+function codexQuestionScreen(name: string): string {
+  return readFileSync(path.join(codexQuestionFolder, `codex-0.171.0-question-${name}.txt`), "utf8");
+}
+
+/**
+ * CompanionCodexQuestionFixtures, Codex 0.171.0's own question in Plan mode (its request_user_input tool) and its
+ * "Implement this plan?" list: the eight recorded screens (120 columns, taken in a scratch tab; the start cell's
+ * folder written as `~/work`), and screens built from their rows (`built-…`: the history around them and the variants
+ * invented, Codex's words from its source where the samples show none). Each file in
+ * Tests/HerdrCompanionTests/Fixtures/CodexQuestion, which the Swift tests read too.
+ */
+export const CQ = {
+  q1of2: codexQuestionScreen("1of2"),
+  q2of2: codexQuestionScreen("2of2"),
+  notes: codexQuestionScreen("2of2-notes"),
+  long1of2: codexQuestionScreen("long-1of2"),
+  long1of2Answered: codexQuestionScreen("long-1of2-answered"),
+  long2of2: codexQuestionScreen("long-2of2-after-digit"),
+  afterAll: codexQuestionScreen("after-all-answered"),
+  wrappedQuestion: codexQuestionScreen("built-wrapped-question"),
+  nine: codexQuestionScreen("built-nine"),
+  ten: codexQuestionScreen("built-ten"),
+  one: codexQuestionScreen("built-one"),
+  lookalike: codexQuestionScreen("built-lookalike"),
+  confirm: codexQuestionScreen("built-confirm"),
+  after: codexQuestionScreen("built-after"),
+  planAfterImplement: codexQuestionScreen("built-plan-after-implement"),
+  /** After 2 (clear context), a fresh thread: none of the old transcript. */
+  planAfterFresh: codexQuestionScreen("built-plan-after-fresh"),
+  planAfterStay: codexQuestionScreen("built-plan-after-stay"),
+  planNarrow: codexQuestionScreen("built-plan-narrow"),
+  /** Codex 0.166.0's /permissions list as recorded (mode-fixtures.ts codex-01): the same list frame and footer. */
+  permissionsList: codexQuestionScreen("built-permissions-list"),
+} as const;
+
+/** The files' expected readings (Tests/HerdrCompanionTests/Fixtures/CodexQuestion/codex-0.171.0-question-expected.json), one table for both apps. */
+export const codexQuestionExpected = JSON.parse(readFileSync(path.join(codexQuestionFolder, "codex-0.171.0-question-expected.json"), "utf8")) as Record<string, unknown>;
 
 /** CompanionLiveEdit: edits to one row of a read, the rest byte for byte. */
 export const E = {

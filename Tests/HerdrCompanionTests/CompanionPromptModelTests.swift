@@ -686,6 +686,12 @@ enum CompanionOutboxFixture {
     static func agent(_ pane: String) -> CompanionAgentBinding {
         CompanionAgentBinding(paneID: pane, terminalID: "term-\(pane)", agentSession: nil, episode: "blocked|10|1")
     }
+
+    /// The fixture agent's kind for a card of `match`
+    /// (Grok's frame on a Grok pane, Codex's form on a Codex pane, else Claude).
+    static func kind(_ match: CompanionPromptMatch) -> String {
+        match.kind.reader ?? "claude"
+    }
 }
 
 @MainActor
@@ -696,14 +702,16 @@ extension CompanionAnswerOutbox {
         _ option: CompanionPromptOption, for match: CompanionPromptMatch, hostID: UUID, hostLabel: String
     ) -> CompanionQueuedAnswer? {
         enqueue(option, for: match, host: CompanionOutboxFixture.host(hostID), hostLabel: hostLabel,
-                agent: CompanionOutboxFixture.agent(match.fingerprint.paneID))
+                agent: CompanionOutboxFixture.agent(match.fingerprint.paneID),
+                agentKind: CompanionOutboxFixture.kind(match))
     }
 
-    /// Drains on the fixture route of `hostID`, every fixture agent still there.
+    /// Drains on the fixture route of `hostID`, every fixture agent still
+    /// there (still reported as the kind its card was).
     @discardableResult
     func drain(hostID: UUID, using answerer: CompanionPromptAnswerer) async -> CompanionDrainReport {
         await drain(host: CompanionOutboxFixture.host(hostID), current: { CompanionOutboxFixture.agent($0) },
-                    using: answerer)
+                    using: answerer, agentKind: { self.queued(hostID: hostID, paneID: $0)?.agentKind })
     }
 }
 
@@ -926,7 +934,7 @@ final class CompanionAnswerOutboxTests: XCTestCase {
         let changed = CompanionScriptedPane(CompanionPromptFixtures.claudeBash)
         await outbox.drain(
             host: CompanionOutboxFixture.host(mac), current: { CompanionOutboxFixture.agent($0) },
-            using: CompanionPromptAnswerer(io: changed.io), now: { weekAgo })
+            using: CompanionPromptAnswerer(io: changed.io), agentKind: { _ in "claude" }, now: { weekAgo })
         XCTAssertEqual(outbox.notices.count, CompanionAnswerOutbox.noticeLimit, "at most 30")
         XCTAssertEqual(outbox.notices.last?.paneID, "p34", "the newest kept")
         XCTAssertEqual(outbox.notices.last?.question, "Edit Tests/HelperTests/PairingTests.swift?",
@@ -947,14 +955,16 @@ final class CompanionAnswerOutboxTests: XCTestCase {
             session: "default")
         let agent = CompanionOutboxFixture.agent("p")
         let viaTailnet = try XCTUnwrap(outbox.enqueue(
-            match.options[0], for: match, host: CompanionHostBinding(tailnet), hostLabel: tailnet.label, agent: agent))
+            match.options[0], for: match, host: CompanionHostBinding(tailnet), hostLabel: tailnet.label, agent: agent,
+            agentKind: "claude"))
         let viaLAN = try XCTUnwrap(outbox.enqueue(
-            match.options[2], for: match, host: CompanionHostBinding(lan), hostLabel: lan.label, agent: agent))
+            match.options[2], for: match, host: CompanionHostBinding(lan), hostLabel: lan.label, agent: agent,
+            agentKind: "claude"))
         XCTAssertEqual(outbox.queued, [viaTailnet, viaLAN], "one queue per saved route")
         let pane = CompanionScriptedPane(CompanionPromptFixtures.claudeEdit)
         await outbox.drain(
             host: CompanionHostBinding(lan), current: { CompanionOutboxFixture.agent($0) },
-            using: CompanionPromptAnswerer(io: pane.io))
+            using: CompanionPromptAnswerer(io: pane.io), agentKind: { _ in "claude" })
         XCTAssertEqual(pane.sent, [["3"]], "the LAN route sends only its own answer")
         XCTAssertEqual(outbox.queued, [viaTailnet])
     }
@@ -999,7 +1009,7 @@ final class CompanionAnswerOutboxTests: XCTestCase {
             let drain = Task {
                 await outbox.drain(
                     host: CompanionOutboxFixture.host(mac), current: { _ in current },
-                    using: CompanionPromptAnswerer(io: io))
+                    using: CompanionPromptAnswerer(io: io), agentKind: { _ in "claude" })
             }
             await CompanionInboxTestMac.waitUntil("the re-read starts (\(change.name))") { pending != nil }
             // A snapshot lands during the read; the pane still shows the prompt.

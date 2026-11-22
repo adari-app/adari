@@ -1,0 +1,739 @@
+{
+  "1of2": {
+    "kind": "codexQuestion",
+    "question": "Which name should the tiny note file have?",
+    "progress": {
+      "index": 1,
+      "total": 2,
+      "unanswered": 2
+    },
+    "options": [
+      {
+        "key": "1",
+        "label": "note (Recommended)",
+        "detail": "Use the simple base name “note”.",
+        "marked": true,
+        "keys": [
+          "1"
+        ]
+      },
+      {
+        "key": "2",
+        "label": "quick-note",
+        "detail": "Use the base name “quick-note”.",
+        "marked": false,
+        "keys": [
+          "2"
+        ]
+      },
+      {
+        "key": "3",
+        "label": "memo",
+        "detail": "Use the base name “memo”.",
+        "marked": false,
+        "keys": [
+          "3"
+        ]
+      }
+    ],
+    "fingerprint": {
+      "question": "Which name should the tiny note file have?",
+      "body": [
+        "  Question 1/2 (2 unanswered)",
+        "  Which name should the tiny note file have?"
+      ],
+      "options": [
+        "    1. note (Recommended)  Use the simple base name “note”.",
+        "    2. quick-note          Use the base name “quick-note”.",
+        "    3. memo                Use the base name “memo”.",
+        "    4. None of the above   Optionally, add details in notes (tab)"
+      ],
+      "words": {
+        "question": "Which name should the tiny note file have?",
+        "body": "Question 1/2 (2 unanswered)\nWhich name should the tiny note file have?",
+        "options": "1. note (Recommended)  Use the simple base name “note”.\n2. quick-note          Use the base name “quick-note”.\n3. memo                Use the base name “memo”.\n4. None of the above   Optionally, add details in notes (tab)"
+      }
+    },
+    "card": {
+      "header": "Codex asks",
+      "progress": "Question 1 of 2",
+      "flow": "Your answer moves Codex on to question 2.",
+      "ownAnswer": "None of the above: add your notes in the Terminal.",
+      "returnIndex": 0
+    }
+  },
+  "2of2-notes": null,
+  "2of2": {
+    "kind": "codexQuestion",
+    "question": "Which format should the file use?",
+    "progress": {
+      "index": 2,
+      "total": 2,
+      "unanswered": 2
+    },
+    "options": [
+      {
+        "key": "1",
+        "label": "Markdown (Recommended)",
+        "detail": "Use a .md extension with light formatting.",
+        "marked": true,
+        "keys": [
+          "1"
+        ]
+      },
+      {
+        "key": "2",
+        "label": "Plain text",
+        "detail": "Use a .txt extension with unformatted text.",
+        "marked": false,
+        "keys": [
+          "2"
+        ]
+      }
+    ],
+    "fingerprint": {
+      "question": "Which format should the file use?",
+      "body": [
+        "  Question 2/2 (2 unanswered)",
+        "  Which format should the file use?"
+      ],
+      "options": [
+        "    1. Markdown (Recommended)  Use a .md extension with light formatting.",
+        "    2. Plain text              Use a .txt extension with unformatted text.",
+        "    3. None of the above       Optionally, add details in notes (tab)"
+      ],
+      "words": {
+        "question": "Which format should the file use?",
+        "body": "Question 2/2 (2 unanswered)\nWhich format should the file use?",
+        "options": "1. Markdown (Recommended)  Use a .md extension with light formatting.\n2. Plain text              Use a .txt extension with unformatted text.\n3. None of the above       Optionally, add details in notes (tab)"
+      }
+    },
+    "card": {
+      "header": "Codex asks",
+      "progress": "Question 2 of 2",
+      "flow": "Another question has no answer yet: Codex will ask in the Terminal before it sends.",
+      "ownAnswer": "None of the above: add your notes in the Terminal.",
+      "returnIndex": 0
+    }
+  },
+  "after-all-answered": {
+    "kind": "codexPlan",
+    "question": "Implement this plan?",
+    "progress": null,
+    "options": [
+      {
+        "key": "1",
+        "label": "Yes, implement this plan",
+        "detail": "Switch to Default and start coding",
+        "marked": true,
+        "keys": [
+          "1"
+        ]
+      },
+      {
+        "key": "2",
+        "label": "Yes, clear context and implement",
+        "detail": "Start a fresh thread (current context: 4% used)",
+        "marked": false,
+        "keys": [
+          "2"
+        ]
+      },
+      {
+        "key": "3",
+        "label": "No, stay in Plan mode",
+        "detail": "Continue planning with the model",
+        "marked": false,
+        "keys": [
+          "3"
+        ]
+      }
+    ],
+    "fingerprint": {
+      "question": "Implement this plan?",
+      "body": [
+        "  Implement this plan?"
+      ],
+      "options": [
+        "  1. Yes, implement this plan          Switch to Default and start coding",
+        "  2. Yes, clear context and implement  Start a fresh thread (current context: 4% used)",
+        "  3. No, stay in Plan mode             Continue planning with the model"
+      ],
+      "words": {
+        "question": "Implement this plan?",
+        "body": "Implement this plan?",
+        "options": "1. Yes, implement this plan          Switch to Default and start coding\n2. Yes, clear context and implement  Start a fresh thread (current context: 4% used)\n3. No, stay in Plan mode             Continue planning with the model"
+      }
+    },
+    "card": {
+      "header": "Codex asks",
+      "progress": null,
+      "flow": "Either Yes starts the work now. No keeps Codex in Plan mode.",
+      "ownAnswer": null,
+      "returnIndex": 0
+    }
+  },
+  "built-after": null,
+  "built-confirm": null,
+  "built-lookalike": {
+    "kind": "codexQuestion",
+    "question": "Which name should the tiny note file have?",
+    "progress": {
+      "index": 1,
+      "total": 2,
+      "unanswered": 2
+    },
+    "options": [
+      {
+        "key": "1",
+        "label": "note (Recommended)",
+        "detail": "Use the simple base name “note”.",
+        "marked": true,
+        "keys": [
+          "1"
+        ]
+      },
+      {
+        "key": "2",
+        "label": "quick-note",
+        "detail": "Use the base name “quick-note”.",
+        "marked": false,
+        "keys": [
+          "2"
+        ]
+      },
+      {
+        "key": "3",
+        "label": "memo",
+        "detail": "Use the base name “memo”.",
+        "marked": false,
+        "keys": [
+          "3"
+        ]
+      }
+    ],
+    "fingerprint": {
+      "question": "Which name should the tiny note file have?",
+      "body": [
+        "  Question 1/2 (2 unanswered)",
+        "  Which name should the tiny note file have?"
+      ],
+      "options": [
+        "    1. note (Recommended)  Use the simple base name “note”.",
+        "    2. quick-note          Use the base name “quick-note”.",
+        "    3. memo                Use the base name “memo”.",
+        "    4. None of the above   Optionally, add details in notes (tab)"
+      ],
+      "words": {
+        "question": "Which name should the tiny note file have?",
+        "body": "Question 1/2 (2 unanswered)\nWhich name should the tiny note file have?",
+        "options": "1. note (Recommended)  Use the simple base name “note”.\n2. quick-note          Use the base name “quick-note”.\n3. memo                Use the base name “memo”.\n4. None of the above   Optionally, add details in notes (tab)"
+      }
+    },
+    "card": {
+      "header": "Codex asks",
+      "progress": "Question 1 of 2",
+      "flow": "Your answer moves Codex on to question 2.",
+      "ownAnswer": "None of the above: add your notes in the Terminal.",
+      "returnIndex": 0
+    }
+  },
+  "built-nine": {
+    "kind": "codexQuestion",
+    "question": "Which name should the tiny note file have?",
+    "progress": {
+      "index": 1,
+      "total": 2,
+      "unanswered": 2
+    },
+    "options": [
+      {
+        "key": "1",
+        "label": "name-a",
+        "detail": "Use the base name “name-a”.",
+        "marked": true,
+        "keys": [
+          "1"
+        ]
+      },
+      {
+        "key": "2",
+        "label": "name-b",
+        "detail": "Use the base name “name-b”.",
+        "marked": false,
+        "keys": [
+          "2"
+        ]
+      },
+      {
+        "key": "3",
+        "label": "name-c",
+        "detail": "Use the base name “name-c”.",
+        "marked": false,
+        "keys": [
+          "3"
+        ]
+      },
+      {
+        "key": "4",
+        "label": "name-d",
+        "detail": "Use the base name “name-d”.",
+        "marked": false,
+        "keys": [
+          "4"
+        ]
+      },
+      {
+        "key": "5",
+        "label": "name-e",
+        "detail": "Use the base name “name-e”.",
+        "marked": false,
+        "keys": [
+          "5"
+        ]
+      },
+      {
+        "key": "6",
+        "label": "name-f",
+        "detail": "Use the base name “name-f”.",
+        "marked": false,
+        "keys": [
+          "6"
+        ]
+      },
+      {
+        "key": "7",
+        "label": "name-g",
+        "detail": "Use the base name “name-g”.",
+        "marked": false,
+        "keys": [
+          "7"
+        ]
+      },
+      {
+        "key": "8",
+        "label": "name-h",
+        "detail": "Use the base name “name-h”.",
+        "marked": false,
+        "keys": [
+          "8"
+        ]
+      }
+    ],
+    "fingerprint": {
+      "question": "Which name should the tiny note file have?",
+      "body": [
+        "  Question 1/2 (2 unanswered)",
+        "  Which name should the tiny note file have?"
+      ],
+      "options": [
+        "    1. name-a             Use the base name “name-a”.",
+        "    2. name-b             Use the base name “name-b”.",
+        "    3. name-c             Use the base name “name-c”.",
+        "    4. name-d             Use the base name “name-d”.",
+        "    5. name-e             Use the base name “name-e”.",
+        "    6. name-f             Use the base name “name-f”.",
+        "    7. name-g             Use the base name “name-g”.",
+        "    8. name-h             Use the base name “name-h”.",
+        "    9. None of the above  Optionally, add details in notes (tab)"
+      ],
+      "words": {
+        "question": "Which name should the tiny note file have?",
+        "body": "Question 1/2 (2 unanswered)\nWhich name should the tiny note file have?",
+        "options": "1. name-a             Use the base name “name-a”.\n2. name-b             Use the base name “name-b”.\n3. name-c             Use the base name “name-c”.\n4. name-d             Use the base name “name-d”.\n5. name-e             Use the base name “name-e”.\n6. name-f             Use the base name “name-f”.\n7. name-g             Use the base name “name-g”.\n8. name-h             Use the base name “name-h”.\n9. None of the above  Optionally, add details in notes (tab)"
+      }
+    },
+    "card": {
+      "header": "Codex asks",
+      "progress": "Question 1 of 2",
+      "flow": "Your answer moves Codex on to question 2.",
+      "ownAnswer": "None of the above: add your notes in the Terminal.",
+      "returnIndex": 0
+    }
+  },
+  "built-one": {
+    "kind": "codexQuestion",
+    "question": "Which name should the tiny note file have?",
+    "progress": {
+      "index": 1,
+      "total": 1,
+      "unanswered": 1
+    },
+    "options": [
+      {
+        "key": "1",
+        "label": "note (Recommended)",
+        "detail": "Use the simple base name “note”.",
+        "marked": true,
+        "keys": [
+          "1"
+        ]
+      },
+      {
+        "key": "2",
+        "label": "quick-note",
+        "detail": "Use the base name “quick-note”.",
+        "marked": false,
+        "keys": [
+          "2"
+        ]
+      },
+      {
+        "key": "3",
+        "label": "memo",
+        "detail": "Use the base name “memo”.",
+        "marked": false,
+        "keys": [
+          "3"
+        ]
+      }
+    ],
+    "fingerprint": {
+      "question": "Which name should the tiny note file have?",
+      "body": [
+        "  Question 1/1 (1 unanswered)",
+        "  Which name should the tiny note file have?"
+      ],
+      "options": [
+        "    1. note (Recommended)  Use the simple base name “note”.",
+        "    2. quick-note          Use the base name “quick-note”.",
+        "    3. memo                Use the base name “memo”.",
+        "    4. None of the above   Optionally, add details in notes (tab)"
+      ],
+      "words": {
+        "question": "Which name should the tiny note file have?",
+        "body": "Question 1/1 (1 unanswered)\nWhich name should the tiny note file have?",
+        "options": "1. note (Recommended)  Use the simple base name “note”.\n2. quick-note          Use the base name “quick-note”.\n3. memo                Use the base name “memo”.\n4. None of the above   Optionally, add details in notes (tab)"
+      }
+    },
+    "card": {
+      "header": "Codex asks",
+      "progress": null,
+      "flow": "Your answer goes to Codex at once.",
+      "ownAnswer": "None of the above: add your notes in the Terminal.",
+      "returnIndex": 0
+    }
+  },
+  "built-permissions-list": null,
+  "built-plan-after-fresh": null,
+  "built-plan-after-implement": null,
+  "built-plan-after-stay": null,
+  "built-plan-narrow": {
+    "kind": "codexPlan",
+    "question": "Implement this plan?",
+    "progress": null,
+    "options": [
+      {
+        "key": "1",
+        "label": "Yes, implement this plan",
+        "detail": "Switch to Default and start coding",
+        "marked": true,
+        "keys": [
+          "1"
+        ]
+      },
+      {
+        "key": "2",
+        "label": "Yes, clear context and implement",
+        "detail": "Start a fresh thread (current context: 4% used)",
+        "marked": false,
+        "keys": [
+          "2"
+        ]
+      },
+      {
+        "key": "3",
+        "label": "No, stay in Plan mode",
+        "detail": "Continue planning with the model",
+        "marked": false,
+        "keys": [
+          "3"
+        ]
+      }
+    ],
+    "fingerprint": {
+      "question": "Implement this plan?",
+      "body": [
+        "  Implement this plan?"
+      ],
+      "options": [
+        "  1. Yes, implement this plan          Switch to Default and",
+        "                                       start coding",
+        "  2. Yes, clear context and implement  Start a fresh thread",
+        "                                       (current context: 4%",
+        "                                       used)",
+        "  3. No, stay in Plan mode             Continue planning with",
+        "                                       the model"
+      ],
+      "words": {
+        "question": "Implement this plan?",
+        "body": "Implement this plan?",
+        "options": null
+      }
+    },
+    "card": {
+      "header": "Codex asks",
+      "progress": null,
+      "flow": "Either Yes starts the work now. No keeps Codex in Plan mode.",
+      "ownAnswer": null,
+      "returnIndex": 0
+    }
+  },
+  "built-ten": null,
+  "built-wrapped-question": {
+    "kind": "codexQuestion",
+    "question": "Which name should the tiny note file have, given that it holds a short reminder you will read again tomorrow morning before the stand-up meeting and then throw away once the day is over?",
+    "progress": {
+      "index": 1,
+      "total": 2,
+      "unanswered": 2
+    },
+    "options": [
+      {
+        "key": "1",
+        "label": "note (Recommended)",
+        "detail": "Use the simple base name “note”.",
+        "marked": true,
+        "keys": [
+          "1"
+        ]
+      },
+      {
+        "key": "2",
+        "label": "quick-note",
+        "detail": "Use the base name “quick-note”.",
+        "marked": false,
+        "keys": [
+          "2"
+        ]
+      },
+      {
+        "key": "3",
+        "label": "memo",
+        "detail": "Use the base name “memo”.",
+        "marked": false,
+        "keys": [
+          "3"
+        ]
+      }
+    ],
+    "fingerprint": {
+      "question": "Which name should the tiny note file have, given that it holds a short reminder you will read again tomorrow morning before the stand-up meeting and then throw away once the day is over?",
+      "body": [
+        "  Question 1/2 (2 unanswered)",
+        "  Which name should the tiny note file have, given that it holds a short reminder you will read again tomorrow morning",
+        "  before the stand-up meeting and then throw away once the day is over?"
+      ],
+      "options": [
+        "    1. note (Recommended)  Use the simple base name “note”.",
+        "    2. quick-note          Use the base name “quick-note”.",
+        "    3. memo                Use the base name “memo”.",
+        "    4. None of the above   Optionally, add details in notes (tab)"
+      ],
+      "words": {
+        "question": "Which name should the tiny note file have, given that it holds a short reminder you will read again tomorrow morning before the stand-up meeting and then throw away once the day is over?",
+        "body": "Question 1/2 (2 unanswered)\nWhich name should the tiny note file have, given that it holds a short reminder you will read again tomorrow morning before the stand-up meeting and then throw away once the day is over?",
+        "options": "1. note (Recommended)  Use the simple base name “note”.\n2. quick-note          Use the base name “quick-note”.\n3. memo                Use the base name “memo”.\n4. None of the above   Optionally, add details in notes (tab)"
+      }
+    },
+    "card": {
+      "header": "Codex asks",
+      "progress": "Question 1 of 2",
+      "flow": "Your answer moves Codex on to question 2.",
+      "ownAnswer": "None of the above: add your notes in the Terminal.",
+      "returnIndex": 0
+    }
+  },
+  "long-1of2-answered": {
+    "kind": "codexQuestion",
+    "question": "Which name should the tiny note file have?",
+    "progress": {
+      "index": 1,
+      "total": 2,
+      "unanswered": 1
+    },
+    "options": [
+      {
+        "key": "1",
+        "label": "note (Recommended)",
+        "detail": "Use the simple base name “note” to make the file easy to recognize as a small, general-purpose note. This name leaves the subject open and works well when the file contains just a few lines of text.",
+        "marked": false,
+        "keys": [
+          "1"
+        ]
+      },
+      {
+        "key": "2",
+        "label": "quick-note",
+        "detail": "Use the base name “quick-note” to emphasize that the file is meant for a brief thought, reminder, or observation. It gives the file a clear purpose while keeping the name short and easy to scan in a folder.",
+        "marked": true,
+        "keys": [
+          "2"
+        ]
+      },
+      {
+        "key": "3",
+        "label": "scratchpad",
+        "detail": "Use the base name “scratchpad” to suggest a casual place for temporary thoughts, rough wording, or small reminders. This name suits a tiny note that can evolve freely without implying a polished document.",
+        "marked": false,
+        "keys": [
+          "3"
+        ]
+      }
+    ],
+    "fingerprint": {
+      "question": "Which name should the tiny note file have?",
+      "body": [
+        "  Question 1/2 (1 unanswered)",
+        "  Which name should the tiny note file have?"
+      ],
+      "options": [
+        "    1. note (Recommended)  Use the simple base name “note” to make the file easy to recognize as a small, general-",
+        "                           purpose note. This name leaves the subject open and works well when the file contains just",
+        "                           a few lines of text.",
+        "    2. quick-note          Use the base name “quick-note” to emphasize that the file is meant for a brief thought,",
+        "                           reminder, or observation. It gives the file a clear purpose while keeping the name short",
+        "                           and easy to scan in a folder.",
+        "    3. scratchpad          Use the base name “scratchpad” to suggest a casual place for temporary thoughts, rough",
+        "                           wording, or small reminders. This name suits a tiny note that can evolve freely without",
+        "                           implying a polished document.",
+        "    4. None of the above   Optionally, add details in notes (tab)"
+      ],
+      "words": {
+        "question": "Which name should the tiny note file have?",
+        "body": "Question 1/2 (1 unanswered)\nWhich name should the tiny note file have?",
+        "options": null
+      }
+    },
+    "card": {
+      "header": "Codex asks",
+      "progress": "Question 1 of 2",
+      "flow": "Your answer moves Codex on to question 2.",
+      "ownAnswer": "None of the above: add your notes in the Terminal.",
+      "returnIndex": 1
+    }
+  },
+  "long-1of2": {
+    "kind": "codexQuestion",
+    "question": "Which name should the tiny note file have?",
+    "progress": {
+      "index": 1,
+      "total": 2,
+      "unanswered": 2
+    },
+    "options": [
+      {
+        "key": "1",
+        "label": "note (Recommended)",
+        "detail": "Use the simple base name “note” to make the file easy to recognize as a small, general-purpose note. This name leaves the subject open and works well when the file contains just a few lines of text.",
+        "marked": true,
+        "keys": [
+          "1"
+        ]
+      },
+      {
+        "key": "2",
+        "label": "quick-note",
+        "detail": "Use the base name “quick-note” to emphasize that the file is meant for a brief thought, reminder, or observation. It gives the file a clear purpose while keeping the name short and easy to scan in a folder.",
+        "marked": false,
+        "keys": [
+          "2"
+        ]
+      },
+      {
+        "key": "3",
+        "label": "scratchpad",
+        "detail": "Use the base name “scratchpad” to suggest a casual place for temporary thoughts, rough wording, or small reminders. This name suits a tiny note that can evolve freely without implying a polished document.",
+        "marked": false,
+        "keys": [
+          "3"
+        ]
+      }
+    ],
+    "fingerprint": {
+      "question": "Which name should the tiny note file have?",
+      "body": [
+        "  Question 1/2 (2 unanswered)",
+        "  Which name should the tiny note file have?"
+      ],
+      "options": [
+        "    1. note (Recommended)  Use the simple base name “note” to make the file easy to recognize as a small, general-",
+        "                           purpose note. This name leaves the subject open and works well when the file contains just",
+        "                           a few lines of text.",
+        "    2. quick-note          Use the base name “quick-note” to emphasize that the file is meant for a brief thought,",
+        "                           reminder, or observation. It gives the file a clear purpose while keeping the name short",
+        "                           and easy to scan in a folder.",
+        "    3. scratchpad          Use the base name “scratchpad” to suggest a casual place for temporary thoughts, rough",
+        "                           wording, or small reminders. This name suits a tiny note that can evolve freely without",
+        "                           implying a polished document.",
+        "    4. None of the above   Optionally, add details in notes (tab)"
+      ],
+      "words": {
+        "question": "Which name should the tiny note file have?",
+        "body": "Question 1/2 (2 unanswered)\nWhich name should the tiny note file have?",
+        "options": null
+      }
+    },
+    "card": {
+      "header": "Codex asks",
+      "progress": "Question 1 of 2",
+      "flow": "Your answer moves Codex on to question 2.",
+      "ownAnswer": "None of the above: add your notes in the Terminal.",
+      "returnIndex": 0
+    }
+  },
+  "long-2of2-after-digit": {
+    "kind": "codexQuestion",
+    "question": "Which format should the note file use?",
+    "progress": {
+      "index": 2,
+      "total": 2,
+      "unanswered": 1
+    },
+    "options": [
+      {
+        "key": "1",
+        "label": "Plain text (Recommended)",
+        "detail": "Use a .txt extension with simple text and no formatting syntax.",
+        "marked": true,
+        "keys": [
+          "1"
+        ]
+      },
+      {
+        "key": "2",
+        "label": "Markdown",
+        "detail": "Use a .md extension with optional headings, bullets, and other lightweight formatting.",
+        "marked": false,
+        "keys": [
+          "2"
+        ]
+      }
+    ],
+    "fingerprint": {
+      "question": "Which format should the note file use?",
+      "body": [
+        "  Question 2/2 (1 unanswered)",
+        "  Which format should the note file use?"
+      ],
+      "options": [
+        "    1. Plain text (Recommended)  Use a .txt extension with simple text and no formatting syntax.",
+        "    2. Markdown                  Use a .md extension with optional headings, bullets, and other lightweight",
+        "                                 formatting.",
+        "    3. None of the above         Optionally, add details in notes (tab)"
+      ],
+      "words": {
+        "question": "Which format should the note file use?",
+        "body": "Question 2/2 (1 unanswered)\nWhich format should the note file use?",
+        "options": "1. Plain text (Recommended)  Use a .txt extension with simple text and no formatting syntax.\n2. Markdown                  Use a .md extension with optional headings, bullets, and other lightweight formatting.\n3. None of the above         Optionally, add details in notes (tab)"
+      }
+    },
+    "card": {
+      "header": "Codex asks",
+      "progress": "Question 2 of 2",
+      "flow": "This answers question 2. Codex then sends all 2 answers, or asks in the Terminal first if another question still has no answer.",
+      "ownAnswer": "None of the above: add your notes in the Terminal.",
+      "returnIndex": 0
+    }
+  }
+}

@@ -8,15 +8,22 @@
 //    run's history, `held` mine) is cleared and read empty first; `within` or other text is never cleared.
 //    The reads after an Esc claim and clear such a message by the same rule.
 // 4. Esc never restores a message the failed Send already put back in the composer.
+//
+// Under the send rules: the keys and the Return went, so the Send answers at once and the
+// composer empties (rule 2); the check's outcome is the bubble's, never a note or a restore (rules 3 and 5). The
+// fake's send() reports that outcome ("sent" when taken, else "unknown" or "stillInBox"); a refusal before the
+// write still comes back as its note (rule 4). Sending the same words again is the person's act (rule 6): the
+// tests put them back in the composer before the next Send.
 
 import { describe, expect, it } from "vitest";
 
 import { afterPrompt, afterStop, beforeSend, clearClaudeBox, type AfterPromptBinding, type ClaudeBoxSite } from "../src/main/herdr/claude-box";
-import { guardTexts, sendBound, type SendSite } from "../src/main/herdr/send";
+import { SendChecks, sendBound, sendWithReceipt, type SendSite } from "../src/main/herdr/send";
 import { held, readClaudeScreenFacts, type BoxBefore } from "../src/shared/claude-screen";
 import { ComposerDrafts, draftKey, sendDraft } from "../src/renderer/components/composer-drafts";
 import { pendingMessages, sendWithPending } from "../src/renderer/chat/chat-state";
 import { takeBackAfterStop } from "../src/renderer/chat/esc-back";
+import { putTakenBack } from "../src/renderer/chat/take-back";
 import { PendingMessages } from "../src/shared/chat/pending";
 import { claudeScreen } from "./support/claude-screens";
 
@@ -27,9 +34,12 @@ const exact = `[Image #11] [Image #12] [Image #13]${caption}`;
 const old = `[Image #1] [Image #2] [Image #3]${caption}`;
 const empty: BoxBefore = { chips: new Set(), queued: false };
 const expected = { terminalID: "t1", isAgent: true, kind: "claude", session: "session-1" };
-const note = guardTexts.returnUnconfirmed("Claude Code");
 const box = (draft = "", working = false, queued = false): string => claudeScreen({ draft, working, queued: queued ? ["this message"] : [] });
-const result = (p: Promise<void>): Promise<string> => p.then(() => "sent", (e: Error) => e.message);
+const result = (p: Promise<void>, outcome: () => string | null): Promise<string> =>
+  p.then(
+    () => (outcome() === null || outcome() === "taken" ? "sent" : outcome()!),
+    (e: Error) => e.message,
+  );
 const binding = (changes: Partial<AfterPromptBinding> = {}): AfterPromptBinding => ({ idleBefore: true, before: empty, holds: () => true, mayPress: async () => true, ...changes });
 const enters = (keys: readonly string[][]): number => keys.filter((k) => k.includes("Enter")).length;
 
@@ -127,9 +137,24 @@ class FakePane {
     },
   };
   send(text = message): Promise<string> {
-    return result(sendBound(this.site, "p1", text, expected));
+    let outcome: string | null = null;
+    const site: SendSite = { ...this.site, checked: (found) => void (outcome = found) };
+    return result(sendBound(site, "p1", text, { ...expected, session: this.session }), () => outcome);
   }
 }
+
+/** A pane whose agent names no session: the screen is the proof there. */
+function unnamed(): FakePane {
+  const p = new FakePane();
+  p.session = null;
+  return p;
+}
+
+/** The page's Send as the IPC answers it: the receipt at the Return, then the check's outcome by its id. */
+const checks = new SendChecks();
+const bridgeSend = (p: FakePane) => (_h: string, pane: string, text: string) =>
+  sendWithReceipt(checks, (follow) => sendBound({ ...p.site, ...follow }, pane, text, expected));
+const follow = { check: (id: string) => checks.take(id), wait: async () => undefined };
 
 /** A composer: caption and three newly uploaded picture chips, sent through sendDraft and sendWithPending as Chat does. */
 async function composer(p: FakePane, host: string): Promise<{ drafts: ComposerDrafts; key: string; discarded: string[] }> {
@@ -153,14 +178,19 @@ async function composer(p: FakePane, host: string): Promise<{ drafts: ComposerDr
   return { drafts, key, discarded };
 }
 
-/** The pane's draft sent once more (the next Send). */
+/**
+ * The pane's draft sent once more (the next Send). The composer emptied at the last Send's Return (rule 2):
+ * sending the same words again is the person's act (rule 6), so they put the same words and pictures back first.
+ */
 async function again(p: FakePane, drafts: ComposerDrafts, host: string): Promise<void> {
+  const key = draftKey(host, "p1");
+  if (drafts.get(key).text === "" && drafts.get(key).chips.length === 0) putTakenBack(drafts, () => undefined, key, [message]);
   let done: Promise<void> | undefined;
   expect(
     sendDraft(
       drafts,
       (h, pane, text) => {
-        done = sendWithPending((_h, pp, tt) => sendBound(p.site, pp, tt, expected), h, pane, text, true);
+        done = sendWithPending(bridgeSend(p), h, pane, text, true, null, Date.now, false, follow);
         return done;
       },
       host,
@@ -174,22 +204,26 @@ async function again(p: FakePane, drafts: ComposerDrafts, host: string): Promise
 // MARK: - An empty idle box
 
 describe("an empty idle box all along is not Sent", () => {
-  it("a no-op successful prompt and empty idle box must retain the real composer draft", async () => {
+  it("a no-op successful prompt and an empty idle box: the composer empties at the Return, nothing comes back, the bubble cannot confirm it", async () => {
     const p = new FakePane();
     p.draw = () => box();
     const { drafts, key } = await composer(p, "host-no-op");
     expect(p.keys).toEqual([]);
     expect(p.writes).toEqual([message]);
-    // A successful agent.prompt is only a reply; no read showed the text typed or taken.
-    expect(drafts.get(key).text).toBe(caption);
-    expect(drafts.get(key).chips).toHaveLength(3);
-    expect(drafts.get(key).error).toBe(note);
+    // A successful agent.prompt is only a reply; no read showed the text typed or taken: not Sent, and
+    // (rule 2, rule 3) not put back either: the keys went, so the composer is empty and says nothing.
+    expect(drafts.get(key).text).toBe("");
+    expect(drafts.get(key).chips).toHaveLength(0);
+    expect(drafts.get(key).error).toBeNull();
+    // Rule 3: the bubble says Adari could not confirm it once the bound passed (the fake's bound is instant).
+    expect(pendingMessages.forPane(key).map((bubble) => bubble.state)).toEqual(["unconfirmed"]);
   });
 
   it("intake slower than the read window must not be Sent before the first chip appears", async () => {
     const p = new FakePane();
     p.draw = (q) => box(q.clock >= 9_250 ? exact : "");
-    expect(await p.send()).toBe(note);
+    // Rule 3: unknown (the bubble waits for the record), never Sent and never a note.
+    expect(await p.send()).toBe("unknown");
     expect(p.keys).toEqual([]);
     p.clock = 9_250;
     expect(readClaudeScreenFacts(await p.screen.read()).draft).toBe(exact);
@@ -206,40 +240,43 @@ describe("an empty idle box all along is not Sent", () => {
   it("the unconfirmed send marks the box due, so the next Send reads it first", async () => {
     const p = new FakePane();
     p.draw = () => box();
-    expect(await p.send()).toBe(note);
+    // Rule 3: unknown, not a note.
+    expect(await p.send()).toBe("unknown");
     expect(p.due).toBe(true);
   });
 
-  // The three positive cases stay Sent.
+  // The three positive cases stay Sent, on a pane with no session named (with a session named only Claude
+  // Code's record proves a send, and with no reader nothing does).
   it("seen, then the box empty with Claude idle: Sent, no extra key", async () => {
-    const p = new FakePane();
+    const p = unnamed();
     p.draw = (q) => box(q.postReads === 1 ? message : "");
     expect(await p.send()).toBe("sent");
     expect(p.keys).toEqual([]);
   });
 
   it("this prompt's new queued hint: Sent; a hint there before the write: not", async () => {
-    const p = new FakePane();
+    const p = unnamed();
     p.status = "working";
     p.draw = () => box("", true, true);
     expect(await p.send()).toBe("sent");
-    const oldHint = new FakePane();
+    const oldHint = unnamed();
     oldHint.status = "working";
     oldHint.before = box("", true, true);
     oldHint.draw = () => oldHint.before;
-    expect(await oldHint.send()).toBe(note);
+    // Rule 3: unknown, not a note.
+    expect(await oldHint.send()).toBe("unknown");
     expect(oldHint.keys).toEqual([]);
   });
 
   it("Claude idle before, then working with the box empty: Sent", async () => {
-    const p = new FakePane();
+    const p = unnamed();
     p.draw = () => box("", true);
     expect(await p.send()).toBe("sent");
     expect(p.keys).toEqual([]);
   });
 
   it("chips that show late: one Return once the new chips show, Sent once the box empties", async () => {
-    const p = new FakePane();
+    const p = unnamed();
     p.draw = (q) => box(q.postReads < 3 ? "" : q.keys.length === 0 ? exact : "");
     expect(await p.send()).toBe("sent");
     expect(p.keys).toEqual([["Enter"]]);
@@ -257,7 +294,8 @@ describe("the baseline belongs to the run the prompt is sent to", () => {
       if (!q.prompted) q.epoch = 8;
     };
     p.draw = (q) => (q.keys.length === 0 ? box(exact) : box("", true));
-    expect(await p.send()).toBe(note);
+    // Rule 5: seen in the box and no Return went: still in the box, not a note.
+    expect(await p.send()).toBe("stillInBox");
     expect(p.keys).toEqual([]);
     expect(p.writes).toEqual([message]);
   });
@@ -278,14 +316,16 @@ describe("the baseline belongs to the run the prompt is sent to", () => {
       };
       // Chips new against an empty baseline: with the baseline kept a Return would go.
       p.draw = (q) => box(q.keys.length === 0 ? exact : "");
-      expect(await p.send()).toBe(note);
+      // Rule 5: seen in the box and no Return went: still in the box, not a note.
+      expect(await p.send()).toBe("stillInBox");
       expect(p.writes).toEqual([message]);
       expect(p.keys).toEqual([]);
     });
   }
 
   it("the same run from the baseline read to the write: the baseline holds and the one Return goes", async () => {
-    const p = new FakePane();
+    // No session named, so the screen's word is the answer.
+    const p = unnamed();
     p.before = box(old);
     p.draw = (q) => box(q.keys.length === 0 ? exact : "");
     expect(await p.send()).toBe("sent");
@@ -298,7 +338,8 @@ describe("the baseline belongs to the run the prompt is sent to", () => {
     p.before = box(old);
     // The same old chips after the write are not new: no Return.
     p.draw = () => box(old);
-    expect(await p.send()).toBe(note);
+    // Rule 5: still in the box, not a note.
+    expect(await p.send()).toBe("stillInBox");
     expect(p.keys).toEqual([]);
   });
 });
@@ -327,7 +368,8 @@ describe("the next Send never joins an unconfirmed picture message", () => {
     let draft = exact;
     p.draw = () => box(draft, submitted !== null);
     const first = await composer(p, "host-retry-taken");
-    expect(first.drafts.get(first.key).text).toBe(caption);
+    // Rules 2 and 5: the composer emptied at the Return; still in the box, it is not put back.
+    expect(first.drafts.get(first.key).text).toBe("");
     expect(p.keys).toEqual([["Enter"]]);
     // Claude's chip message survives the first and the corrective Return; the next Send's Return is taken.
     p.keyHook = (q) => {
@@ -482,6 +524,11 @@ describe("Esc never restores a message the failed Send already put back", () => 
     p.status = "working";
     p.draw = () => box(message, true);
     const { drafts, key } = await composer(p, "host-esc-restored");
+    // Rules 2 and 5: the composer emptied at the Return and the app put nothing back.
+    expect(drafts.get(key).text).toBe("");
+    expect(drafts.get(key).chips).toHaveLength(0);
+    // The person puts the same words and pictures back themselves (rule 6): the restored draft of this case.
+    putTakenBack(drafts, () => undefined, key, [message]);
     expect(drafts.get(key).text).toBe(caption);
     expect(drafts.get(key).chips).toHaveLength(3);
     expect(p.recorded).toEqual([message]);
@@ -523,6 +570,8 @@ describe("Esc never restores a message the failed Send already put back", () => 
       p.status = "working";
       p.draw = () => box(message, true);
       const { drafts, key } = await composer(p, `host-typed-${suffix.startsWith("\n") ? "newline" : "inline"}`);
+      // The composer emptied at the Return (rule 2): the person puts the same words and pictures back (rule 6).
+      putTakenBack(drafts, () => undefined, key, [message]);
       drafts.edit(key, caption + suffix);
       const ids = drafts.get(key).chips.map((chip) => chip.id);
       let heldDraft = exact;

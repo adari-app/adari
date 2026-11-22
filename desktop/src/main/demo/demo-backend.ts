@@ -29,6 +29,7 @@ import type { SessionTopology, TopologyPaneInfo } from "../herdr/wire";
 import type { DemoFixtures, DemoHost } from "./demo-hosts";
 import { DemoCodexLiveReply, DemoCursorLiveReply, DemoLiveReply, type DemoStreamingPane } from "./demo-live";
 import { DemoGrokPane } from "./demo-grok-pane";
+import { DemoAgyPane } from "./demo-agy-pane";
 import type { DemoClaudeQueue } from "./demo-claude-queue";
 import type { DemoRunningCall } from "./demo-tall";
 import { grokSummaryPath } from "../../shared/chat/locator";
@@ -93,6 +94,8 @@ export class FixtureTransport implements HerdrTransport {
   }
 
   private readonly lives: readonly DemoStreamingPane[];
+  /** The Antigravity CLI panes New agent started here (demo-agy-pane.ts). */
+  private readonly agys: DemoAgyPane[] = [];
 
   /** A streaming Codex pane's status as Herdr would say it (working from the user's message until its reply lands, then done). */
   private applyLiveStatus(): void {
@@ -213,6 +216,32 @@ export class FixtureTransport implements HerdrTransport {
     };
   }
 
+  /**
+   * Captures 283-284 (New agent's timing, demo only): integration.install and agent.start answered
+   * only after this many milliseconds (a slow install, an agent Herdr has not reported yet); returns what puts it back.
+   */
+  private holds = { install: 0, start: 0 };
+  hold(what: "install" | "start", ms: number): () => void {
+    const had = this.holds[what];
+    this.holds[what] = ms;
+    return () => {
+      this.holds[what] = had;
+    };
+  }
+
+  private later(ms: number, line: Promise<string>): Promise<string> {
+    return ms <= 0 ? line : new Promise((done) => setTimeout(() => done(line), ms));
+  }
+
+  /** Capture 282 (demo only): integration.list refused, so the machine's list is not read; returns what puts it back. */
+  private listRefused = false;
+  refuseIntegrationList(): () => void {
+    this.listRefused = true;
+    return () => {
+      this.listRefused = false;
+    };
+  }
+
   private integrationList(): Json[] {
     return [...this.integrations].map(([target, entry]) => ({ target, label: target, command: target, available: entry.available, state: entry.state }));
   }
@@ -311,6 +340,7 @@ export class FixtureTransport implements HerdrTransport {
         return answer({ type: "agent_list", agents: this.snapshot["agents"] ?? [] });
       // The demo's integrations (demo only), and an install that makes one current.
       case "integration.list":
+        if (this.listRefused) return refuse("unknown_method", "integration.list is not available");
         return answer({ type: "integration_list", integrations: this.integrationList() });
       case "integration.install": {
         const target = object(request["params"])["target"];
@@ -320,13 +350,13 @@ export class FixtureTransport implements HerdrTransport {
         const was = entry.state;
         entry.state = "current";
         // Herdr 0.9.5's real shape, its lines under `details`.
-        return answer({
+        return this.later(this.holds.install, answer({
           type: "integration_install",
           target,
           details: {
             messages: [was === "outdated" ? `Updated the ${String(target)} integration to the current version.` : `Installed the ${String(target)} integration.`, `Running ${String(target)} agents pick it up when they start again.`],
           },
-        });
+        }));
       }
       case "tab.create":
         return answer(this.createTab(object(request["params"])));
@@ -342,7 +372,13 @@ export class FixtureTransport implements HerdrTransport {
         const params = object(request["params"]);
         const quirk = this.quirkStart(String(params["pane_id"]), String(params["kind"]), String(params["name"]));
         if (quirk !== null) return quirk.then((line) => line.replace('"id":null', `"id":${JSON.stringify(id)}`));
-        const agent = this.startAgent(String(params["pane_id"]), String(params["kind"]), String(params["name"]));
+        if (this.holds.start > 0) {
+          return this.later(this.holds.start, Promise.resolve("")).then(() => {
+            const agent = this.startAgent(String(params["pane_id"]), String(params["kind"]), String(params["name"]), stringList(params["args"]));
+            return agent === null ? refuse("pane_not_found", "no such pane") : answer({ type: "agent_started", agent });
+          });
+        }
+        const agent = this.startAgent(String(params["pane_id"]), String(params["kind"]), String(params["name"]), stringList(params["args"]));
         return agent === null ? refuse("pane_not_found", "no such pane") : answer({ type: "agent_started", agent });
       }
       case "pane.close": {
@@ -528,7 +564,8 @@ export class FixtureTransport implements HerdrTransport {
         // over the Grok box; once its key answers it, Grok's box draws the pane again.
         const waiting = (this.screens.get(paneId)?.length ?? 0) > 1;
         const queue = this.queues.get(paneId);
-        const shown = queue !== undefined ? queue.screen() : live !== undefined ? live.screen() : grok !== undefined && !waiting ? grok.screen() : this.screen(paneId);
+        const agy = this.agys.find((each) => each.paneID === paneId);
+        const shown = queue !== undefined ? queue.screen() : live !== undefined ? live.screen() : grok !== undefined && !waiting ? grok.screen() : agy !== undefined ? agy.screen() : this.screen(paneId);
         const text = shown.split("\n").slice(-lines).join("\n");
         return answer({
           type: "pane_read",
@@ -547,6 +584,7 @@ export class FixtureTransport implements HerdrTransport {
         // Claude's Shift+Tab, Codex's /permissions list and its digits.
         if (cursor instanceof DemoLiveReply || cursor instanceof DemoCodexLiveReply) cursor.keys(stringList(object(request["params"])["keys"]));
         this.groks.find((each) => each.paneID === paneId)?.keys(stringList(object(request["params"])["keys"]));
+        this.agys.find((each) => each.paneID === paneId)?.keys(stringList(object(request["params"])["keys"]));
         return answer({ type: "ok" });
       }
       case "pane.send_text": {
@@ -558,6 +596,7 @@ export class FixtureTransport implements HerdrTransport {
         // `/permissions` typed into Codex's box (the user's messages go by agent.prompt).
         if (cursor instanceof DemoCodexLiveReply && !text.startsWith(pasteStart)) cursor.type(text);
         this.groks.find((each) => each.paneID === String(params["pane_id"]))?.type(text);
+        if (!text.startsWith(pasteStart)) this.agys.find((each) => each.paneID === String(params["pane_id"]))?.type(text);
         return answer({ type: "ok" });
       }
       case "agent.send_keys": {
@@ -566,6 +605,7 @@ export class FixtureTransport implements HerdrTransport {
         this.queues.get(String(params["target"] ?? params["pane_id"]))?.keys(stringList(params["keys"]));
         // Capture 221: a typed command's Return (send.ts) reaches the Grok pane's box too.
         this.groks.find((each) => each.paneID === String(params["target"] ?? params["pane_id"]))?.keys(stringList(params["keys"]));
+        this.agys.find((each) => each.paneID === String(params["target"] ?? params["pane_id"]))?.keys(stringList(params["keys"]));
         return answer({ type: "ok" });
       }
       case "agent.prompt":
@@ -684,9 +724,14 @@ export class FixtureTransport implements HerdrTransport {
   }
 
   /** An agent of `kind` in the pane, idle at its prompt, with a session. */
-  private startAgent(paneId: string, kind: string, name: string): Json | null {
+  private startAgent(paneId: string, kind: string, name: string, args: readonly string[] = []): Json | null {
     const pane = list(this.snapshot["panes"]).find((candidate) => candidate["pane_id"] === paneId);
     if (pane === undefined) return null;
+    // An Antigravity CLI pane draws its box and last row and takes `/model` and Shift+Tab.
+    if (kind === "agy") {
+      const model = args[0] === "--model" ? (args[1] ?? null) : null;
+      this.agys.push(new DemoAgyPane(paneId, model));
+    }
     this.screens.delete(paneId);
     const startScreen = this.quirks?.startScreen?.[kind];
     if (startScreen !== undefined) this.screens.set(paneId, [startScreen]);
@@ -1047,6 +1092,16 @@ export class DemoBackend implements HerdrHostBackend {
   /** For the captures: one integration's state on the fake (demo only); returns what puts it back. */
   setIntegration(target: string, state: string): () => void {
     return this.transport.setIntegration(target, state);
+  }
+
+  /** Captures 283-284: the fake's install or agent start answered late (demo only); returns what puts it back. */
+  hold(what: "install" | "start", ms: number): () => void {
+    return this.transport.hold(what, ms);
+  }
+
+  /** Capture 282: the fake's integration.list refused (demo only); returns what puts it back. */
+  refuseIntegrationList(): () => void {
+    return this.transport.refuseIntegrationList();
   }
 
   /** Capture 194: one target's integration found on this machine (demo only). */

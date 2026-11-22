@@ -1,0 +1,39 @@
+
+  >_ OpenAI Codex (v0.171.0)
+     ~/work
+
+• Model changed to gpt-6.1-sol medium for Plan mode.
+
+
+› Plan a tiny note file. Before you plan anything, ask me two multiple-choice questions with your question tool: which
+  of three names the file should have, and which of two formats. Read nothing and run nothing.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  Question 1/1 (1 unanswered)
+  Which name should the tiny note file have?
+
+  › 1. note (Recommended)  Use the simple base name “note”.
+    2. quick-note          Use the base name “quick-note”.
+    3. memo                Use the base name “memo”.
+    4. None of the above   Optionally, add details in notes (tab)
+
+  tab to add notes | enter to submit answer | esc to interrupt

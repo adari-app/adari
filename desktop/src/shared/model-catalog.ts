@@ -30,9 +30,18 @@
 //   `headers`, `options` and `cost`; some 450 KB for 379 models). Only the id,
 //   the display name, the provider id and the variant names are kept (a
 //   provider's options can hold a key: never kept, logged or shown).
-// - Antigravity CLI: no list command (T3 Code reads its models over ACP,
-//   `agy acp`, which this Mac app does not speak): the seam is here
-//   (listCommand returns null) and its picker says antigravityNoList.
+// - Antigravity CLI (1.5.14): `agy models`, plain text: "Fetching available
+//   models..." and then one "<id><TAB><label>" row per model in the CLI's own
+//   order (Gemini 4 Neon first); a label's last bracket is its level where it
+//   is one ("Gemini 4 Neon (High)"). Inside an SSH session it exits 1 with
+//   "Fetching available models..." and "Error: Please sign in to view
+//   available models. ..." on stderr (its sign-in is in the Mac's login
+//   keychain, which SSH cannot open). While no list was ever read for the
+//   machine, a failed read shows agyBuiltIn (the 23 rows of the local list,
+//   2026-11-22) under one line (agySshSignInLine, or agyFallbackLine), never
+//   stored. 1.5.13 had no such command: a run that says its command is unknown
+//   (agyLacksListCommand) leaves no list, and the picker says antigravityNoList
+//   as it always did (builtInCatalog's `none`, model-choices.ts agyFamilies).
 //
 // Nothing here runs anything: main's catalog service (src/main/model-catalogs.ts)
 // runs listCommand's argv (with its stdin line, for Claude Code) and gives the
@@ -97,7 +106,7 @@ export interface CatalogView {
   readonly error: string | null;
   /** A read is under way. */
   readonly loading: boolean;
-  /** Why this agent has no list to read (Antigravity CLI), or null. */
+  /** Why this agent has no list to show (Antigravity CLI while none was read), or null. */
   readonly none: string | null;
   /**
    * The quiet line over a list read on This Mac and shown for another Mac whose own list needs its
@@ -125,7 +134,7 @@ export const keychainLockedReason = "the Mac's login keychain is locked over SSH
 
 /** The words Cursor Agent prints over SSH ("Error: Your macOS login keychain is locked."). */
 export function saysKeychainLocked(line: string): boolean {
-  return /\bkeychain is locked\b/i.test(line);
+  return hasPhrase(line, "keychain is locked");
 }
 
 /** How long a program's own line may be in the failure line (the line stays one line in the picker). */
@@ -154,8 +163,66 @@ export function firstPlainLine(text: string): string | null {
   return null;
 }
 
-/** Antigravity CLI's picker line: it has no list command. */
+/** Antigravity CLI's picker line for a CLI with no `agy models` (1.5.13: the command is unknown): no model can be passed. */
 export const antigravityNoList = "Antigravity CLI's models are in its own picker.";
+
+/** Antigravity CLI's progress line before its list (on stderr): never the reason a list failed. */
+const agyProgressLine = /^Fetching available models\.*$/i;
+
+/**
+ * The first plain line of a list program's stderr (firstPlainLine), Antigravity CLI's "Fetching available models..."
+ * skipped: what the program said about a failure.
+ */
+export function saidLine(text: string): string | null {
+  return firstPlainLine(
+    text
+      .split(/\r\n|\r|\n|\u2028|\u2029/u)
+      .filter((line) => !agyProgressLine.test(cleanLabel(line)))
+      .join("\n"),
+  );
+}
+
+/** A failed `agy models` read's reason when the CLI asked to be signed in over SSH (its sign-in is in the keychain). */
+export const agySshSignInReason = "its sign-in is in the Mac's keychain, which SSH cannot open";
+
+/** `text` holds `phrase` as whole words (`\b` at both ends, ASCII case folded; its spaces exactly one space). */
+export function hasPhrase(text: string, phrase: string): boolean {
+  const lower = text.replace(/[A-Z]/g, (char) => char.toLowerCase());
+  const word = (char: string | undefined): boolean => char !== undefined && /\w/.test(char);
+  for (let at = lower.indexOf(phrase); at >= 0; at = lower.indexOf(phrase, at + 1)) {
+    if (!word(lower[at - 1]) && !word(lower[at + phrase.length])) return true;
+  }
+  return false;
+}
+
+/** Antigravity CLI's words asking to be signed in ("Please sign in to view available models."). */
+const agySignInPhrases: readonly string[] = ["please sign in", "sign in to view"];
+
+export function saysAgySignIn(line: string): boolean {
+  return agySignInPhrases.some((phrase) => hasPhrase(line, phrase));
+}
+
+/** The words a CLI says a command is unknown in ("unknown command", "unrecognized subcommand", "no such command"). */
+const unknownCommandPhrases: readonly string[] = ["unknown", "unrecognized", "unrecognised", "invalid", "no such"].flatMap((word) => [`${word} command`, `${word} subcommand`]);
+
+/**
+ * Antigravity CLI with no `agy models` (1.5.13): its answer says the command is unknown (unknownCommandPhrases). Any
+ * other failure is a list that could not be read now.
+ */
+export function agyLacksListCommand(text: string): boolean {
+  return unknownCommandPhrases.some((phrase) => hasPhrase(text, phrase));
+}
+
+/** The words after a failed read's line over Antigravity CLI's built-in list. */
+export const agyBuiltInNote = "Showing the models Adari knows.";
+
+/** The line over Antigravity CLI's built-in list when it asked to be signed in over SSH. */
+export const agySshSignInLine = `Antigravity CLI cannot list its models over SSH (its sign-in is in the Mac's keychain). ${agyBuiltInNote}`;
+
+/** The line over Antigravity CLI's built-in list after any other failed read: the could-not-read line and the note. */
+export function agyFallbackLine(reason: string): string {
+  return reason === agySshSignInReason ? agySshSignInLine : `${catalogErrorLine("agy", reason)} ${agyBuiltInNote}`;
+}
 
 /** The line over a list whose last read failed. */
 export function catalogErrorLine(agent: CatalogAgent, reason: string): string {
@@ -196,7 +263,8 @@ export const modelIdPatterns: Readonly<Record<CatalogAgent, RegExp>> = {
   grok: /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/,
   cursor: /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/,
   opencode: /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}\/[A-Za-z0-9~][A-Za-z0-9~._:@+/-]{0,191}$/,
-  agy: /^(?!)$/,
+  // `agy models`' ids ("gemini-4-neon-high", "gemini-3.8-flash-low", "gemini-pro-orchestrator-g1-pro").
+  agy: /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/,
 };
 
 export function isModelId(agent: CatalogAgent, id: unknown): id is string {
@@ -231,14 +299,16 @@ export const claudeListArgs: readonly string[] = [
   "--verbose",
 ];
 
-/** Each agent's stock program and the arguments that list its models (Antigravity CLI: none). */
-const listArgs: Readonly<Record<Exclude<CatalogAgent, "agy">, { readonly stock: ListCommand; readonly programs: readonly string[] }>> = {
+/** Each agent's stock program and the arguments that list its models. */
+const listArgs: Readonly<Record<CatalogAgent, { readonly stock: ListCommand; readonly programs: readonly string[] }>> = {
   claude: { stock: { program: "claude", args: claudeListArgs, stdin: claudeInitializeLine, timeoutMs: claudeTimeoutMs }, programs: ["claude"] },
   codex: { stock: { program: "codex", args: ["debug", "models"], stdin: null, timeoutMs: catalogTimeoutMs }, programs: ["codex"] },
   grok: { stock: { program: "grok", args: ["models"], stdin: null, timeoutMs: catalogTimeoutMs }, programs: ["grok"] },
   cursor: { stock: { program: "cursor", args: ["agent", "--list-models"], stdin: null, timeoutMs: catalogTimeoutMs }, programs: ["cursor-agent", "cursor"] },
   // With each model's display name, provider and variants (parseOpenCodeModels keeps only those).
   opencode: { stock: { program: "opencode", args: ["models", "--verbose"], stdin: null, timeoutMs: catalogTimeoutMs }, programs: ["opencode"] },
+  // About 2 s on a signed-in Mac (2026-11-21).
+  agy: { stock: { program: "agy", args: ["models"], stdin: null, timeoutMs: catalogTimeoutMs }, programs: ["agy"] },
 };
 
 /** A program word the list may run: a name or a path of plain characters (a start command's own rule), `~/` allowed. */
@@ -248,10 +318,9 @@ const programWord = /^(?:~\/)?[A-Za-z0-9._/+@-]{1,255}$/;
  * The command that lists `agent`'s models on a machine whose start command for it is `startCommand` (null: none
  * set): the binary that command names when it is the agent's own (`codex`, a path ending in `/codex`; Cursor's
  * `cursor-agent`, or `cursor agent`), else the stock one found on the machine's PATH. A wrapper such as `cl` or `cx`
- * is never run for a list. Null for an agent with no list command (Antigravity CLI).
+ * is never run for a list. Null for an agent with no list command (none now: Antigravity CLI's is `agy models`).
  */
 export function listCommand(agent: CatalogAgent, startCommand: string | null): ListCommand | null {
-  if (agent === "agy") return null;
   const entry = listArgs[agent];
   if (startCommand === null) return entry.stock;
   const words = startCommand.trim().split(/\s+/).filter((word) => word !== "");
@@ -303,7 +372,7 @@ export function parseCatalog(agent: CatalogAgent, text: string): ParsedCatalog {
     case "opencode":
       return parseOpenCodeModels(text);
     case "agy":
-      return refused("it has no list command");
+      return parseAgyModels(text);
   }
 }
 
@@ -569,6 +638,28 @@ export function parseOpenCodeModels(text: string): ParsedCatalog {
   return kept(models);
 }
 
+/**
+ * `agy models`: each row "<id><TAB><label>", the id of the agent's pattern and the label with words, in the CLI's
+ * order; any other row (its "Fetching available models..." line, a blank, an error, a row with another tab or none,
+ * a missing label) is skipped. A carriage return at a row's end is not part of it. No model name is written here: a
+ * model the CLI lists tomorrow shows up by itself. The levels are read off the labels later (model-choices.ts
+ * agyFamilies): each row is one model here, its `efforts` empty.
+ */
+export function parseAgyModels(text: string): ParsedCatalog {
+  const models: CatalogModel[] = [];
+  for (const raw of text.split(/\r?\n/)) {
+    const row = raw.replace(/\r$/, "");
+    const parts = row.split("\t");
+    if (parts.length !== 2) continue;
+    const id = parts[0]!;
+    if (!isModelId("agy", id)) continue;
+    const label = cleanLabel(parts[1]!);
+    if (!/\p{L}/u.test(label)) continue;
+    models.push({ id, label: cut(label, maxLabelLength), group: null, efforts: [], defaultEffort: null, isDefault: false });
+  }
+  return kept(models);
+}
+
 // MARK: - Claude Code's fallback
 
 /** Claude Code's `--effort` levels (its help: low, medium, high, xhigh, max). */
@@ -584,7 +675,43 @@ export const claudeFallback: readonly CatalogModel[] = (["fable", "opus", "sonne
   return { id, label, group: null, efforts: claudeLevels, defaultEffort: null, isDefault: false, note: `The latest ${label}` };
 });
 
-/** The catalog an agent has before anything is read: Antigravity's none, the others empty. */
+// MARK: - Antigravity CLI's built-in list
+
+/**
+ * `agy models` (1.5.14) as a signed-in Mac printed it on 2026-11-22: its 23 rows, ids and names as printed, in its order
+ * (fixtures/agy/builtin-1.5.14.txt, which test/agy-list.test.ts keeps identical). Shown only while no list was ever read
+ * for the machine; a read list replaces it, and it is never stored as read.
+ */
+const agyBuiltInRows: readonly (readonly [string, string])[] = [
+  ["gemini-4-neon-high", "Gemini 4 Neon (High)"],
+  ["gemini-4-neon-xhigh", "Gemini 4 Neon (XHigh)"],
+  ["gemini-4-neon-medium", "Gemini 4 Neon (Medium)"],
+  ["gemini-4-neon-low", "Gemini 4 Neon (Low)"],
+  ["gemini-4-argon-medium", "Gemini 4 Argon (Medium)"],
+  ["gemini-4-argon-high", "Gemini 4 Argon (High)"],
+  ["gemini-4-argon-low", "Gemini 4 Argon (Low)"],
+  ["gemini-4-hydrogen-high", "Gemini 4 Hydrogen (High)"],
+  ["gemini-4-hydrogen-xhigh", "Gemini 4 Hydrogen (XHigh)"],
+  ["gemini-4-hydrogen-medium", "Gemini 4 Hydrogen (Medium)"],
+  ["gemini-4-hydrogen-low", "Gemini 4 Hydrogen (Low)"],
+  ["gemini-pro-orchestrator-neon", "Orchestrator (Neon)"],
+  ["gemini-pro-orchestrator-g1-pro", "Orchestrator (Argon)"],
+  ["gemini-3.8-flash-high", "Gemini 3.8 Flash (High)"],
+  ["gemini-3.8-flash-medium", "Gemini 3.8 Flash (Medium)"],
+  ["gemini-3.8-flash-low", "Gemini 3.8 Flash (Low)"],
+  ["claude-opus-5-5-low", "Claude Opus 5.5 (Low)"],
+  ["claude-opus-5-5-medium", "Claude Opus 5.5 (Medium)"],
+  ["claude-opus-5-5-high", "Claude Opus 5.5 (High)"],
+  ["claude-sonnet-5-5-low", "Claude Sonnet 5.5 (Low)"],
+  ["claude-sonnet-5-5-medium", "Claude Sonnet 5.5 (Medium)"],
+  ["claude-sonnet-5-5-high", "Claude Sonnet 5.5 (High)"],
+  ["gpt-oss-120b-medium", "GPT-OSS 120B (Medium)"],
+];
+
+/** Antigravity CLI's built-in list, each row as parseAgyModels reads one (no level claimed: they are read off the labels). */
+export const agyBuiltIn: readonly CatalogModel[] = agyBuiltInRows.map(([id, label]) => ({ id, label, group: null, efforts: [], defaultEffort: null, isDefault: false }));
+
+/** The catalog an agent has before anything is read: Antigravity's none line (no list read), the others empty. */
 export function builtInCatalog(agent: CatalogAgent): CatalogView {
   return { agent, models: [], readAt: null, error: null, loading: false, none: agent === "agy" ? antigravityNoList : null };
 }

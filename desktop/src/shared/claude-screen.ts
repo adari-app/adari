@@ -51,6 +51,19 @@ export interface ClaudeScreenFacts {
   readonly queued: boolean;
 }
 
+/**
+ * The rows Claude Code draws in its box on `screen`, blank ones included (0: no box). The draft
+ * leaves blank rows out (approval-modes.ts reads it so for every feature), but Claude Code draws a message's
+ * blank line as a row of its own and Ctrl+U clears one drawn row, so the keys that empty the box count these
+ * (one row short per blank line left the message's first row behind).
+ */
+export function claudeBoxRows(screen: string): number {
+  const lines = screen.split("\n").map((line) => line.trim());
+  const rules = claudeBoxRules(lines);
+  if (rules === null || readClaudeModeScreen(screen) === null) return 0;
+  return Math.max(1, rules.bottom - rules.top - 1);
+}
+
 export function readClaudeScreenFacts(screen: string): ClaudeScreenFacts {
   const lines = screen.split("\n").map((line) => line.replace(/\s+$/u, ""));
   const box = readClaudeModeScreen(screen);
@@ -258,23 +271,35 @@ export function remnant(draft: string, sent: string): boolean {
   return text !== "" && box.includes(text);
 }
 
-/** The keys that empty a box holding `draft`: per row, Ctrl+U then Backspace (the cursor stands at the end). */
-export function boxClearKeys(draft: string): string[] {
-  const rows = Math.max(1, draft.split("\n").length);
+/**
+ * The rows to clear for a box holding `draft`: the rows the read counted (`drawn`, blank rows
+ * included: claudeBoxRows), never fewer than the draft's own rows.
+ */
+function clearRows(draft: string, drawn: number | undefined): number {
+  return Math.max(1, draft.split("\n").length, drawn ?? 0);
+}
+
+/**
+ * The keys that empty a box holding `draft` over `rows` drawn rows (blank ones included; the draft's
+ * own rows when not given): per row, Ctrl+U then Backspace (the cursor stands at the end).
+ */
+export function boxClearKeys(draft: string, rows?: number): string[] {
+  const count = clearRows(draft, rows);
   const keys: string[] = [];
-  for (let row = 0; row < rows; row += 1) keys.push(clearLineKey, backspaceKey);
+  for (let row = 0; row < count; row += 1) keys.push(clearLineKey, backspaceKey);
   return keys;
 }
 
 /**
  * The keys that empty Claude's input row after Up pulled the queue into it (the cursor at its
  * end): Ctrl+U, and for each row above it Backspace (to the end of that row) and Ctrl+U again. One row is just
- * Ctrl+U (on 2.1.322: Up, then ctrl+u, and the turn runs on with nothing sent).
+ * Ctrl+U (on 2.1.322: Up, then ctrl+u, and the turn runs on with nothing sent). `rows`: the drawn rows, blank
+ * ones included (claudeBoxRows).
  */
-export function pullClearKeys(draft: string): string[] {
-  const rows = Math.max(1, draft.split("\n").length);
+export function pullClearKeys(draft: string, rows?: number): string[] {
+  const count = clearRows(draft, rows);
   const keys = [clearLineKey];
-  for (let row = 1; row < rows; row += 1) keys.push(backspaceKey, clearLineKey);
+  for (let row = 1; row < count; row += 1) keys.push(backspaceKey, clearLineKey);
   return keys;
 }
 
@@ -509,6 +534,16 @@ export const claudeBoxTexts = {
   notSentStillHasText: "Not sent: Claude Code's box still has text. Open Terminal to clear it.",
   /** A take-back left pulled or unknown text in Claude's row; no Send joins it. */
   pulledNotSent: "Not sent: Claude's box still holds the pulled message. Clear it in Terminal first.",
+  /**
+   * An Esc's put-back (the message back in Chat's box) was not read empty in Claude's box after: what is
+   * left there may be a piece of it, so no Send joins it until a read shows the box empty.
+   */
+  leftNotSent: "Not sent: part of your earlier message may still be in Claude Code's box. Clear it in Terminal first. The text is kept.",
+  /**
+   * Your earlier message is still in Claude Code's box after its one corrective Return (its only copy: Chat
+   * did not take it back): another message is never typed after it, and it is never cleared by the app.
+   */
+  stuckNotSent: "Not sent: your earlier message is still in Claude Code's box. Press Return in Terminal to send it, or clear it there. The text is kept.",
 } as const;
 
 /** After Herdr or the screen stops showing working, Esc still goes this long (the turn's edges). */
@@ -516,6 +551,15 @@ export const escGraceMs = 2_000;
 
 /** The backstop: idle or done, no queue on screen, this long: a bubble may no longer say Queued. */
 export const backstopMs = 5_000;
+
+/**
+ * A picture message to Claude Code that nothing has proved yet waits this long from its Return before its bubble
+ * says Adari could not confirm it: the longest check on the screen (claude-box.ts settleMs for four pictures, 15 s,
+ * and afterReturnMs, 5 s) and the Chat feed's longest wait between two reads of the transcript (chat/feed.ts
+ * watchedBackstopMs, 10 s). Main reads Claude Code's record that long (send.ts watchRecord); the page waits that
+ * long for the transcript.
+ */
+export const sendProofBoundMs = 30_000;
 
 /**
  * Esc goes while Herdr's status or Claude's screen shows working, or

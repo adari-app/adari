@@ -45,7 +45,10 @@ export class DemoRemote implements RemoteCommandRunner {
     this.startSeconds = Math.floor(nowMs / 1000);
   }
 
-  /** Capture 202: the agents whose list answers as over SSH with the login keychain locked (none unless a capture says). */
+  /**
+   * Capture 202: the agents whose list answers as over SSH with the login keychain locked (none unless a capture says);
+   * captures 303-304: Antigravity CLI's, as 1.5.14 answers over SSH (its sign-in is in the keychain).
+   */
   readonly keychainLocked = new Set<string>();
 
   async run(command: RemoteCommand, maxOutputBytes: number, signal?: AbortSignal): Promise<RemoteCommandOutput> {
@@ -56,11 +59,14 @@ export class DemoRemote implements RemoteCommandRunner {
       collector.append(encoder.encode(this.gitLog(intent.folder, intent.since, intent.maxCount)));
     } else if (intent.kind === "model-list") {
       // The agent's list as the remote script prints it (between its markers); none: missing.
-      const list = isCatalogAgent(intent.agent) && intent.agent !== "agy" ? demoModelLists[intent.agent] : null;
+      const list = isCatalogAgent(intent.agent) ? demoModelLists[intent.agent] : null;
       // Framed with the read's own token, as the script frames it.
       const marks = listMarkers(intent.token);
       if (list === null) collector.append(encoder.encode(`${marks.missing}\n`));
-      else if (this.keychainLocked.has(intent.agent)) {
+      else if (intent.agent === "agy" && this.keychainLocked.has("agy")) {
+        // Captures 303-304: `agy models` over SSH (fixtures/agy/models-ssh-signin-1.5.14.txt): exit 1, its two stderr lines.
+        collector.append(encoder.encode(`\n${marks.begin}\n\n${marks.exit} 1\n${marks.error} Fetching available models...\n${marks.error} Error: Please sign in to view available models. Launch the CLI without arguments to sign in.\n`));
+      } else if (this.keychainLocked.has(intent.agent)) {
         // Capture 202: Cursor Agent's answer over SSH, its login keychain locked.
         collector.append(encoder.encode(`\n${marks.begin}\n\n${marks.exit} 1\n${marks.error} Error: Your macOS login keychain is locked.\n${marks.error} Run security unlock-keychain and try again.\n`));
       } else collector.append(encoder.encode(`\n${marks.begin}\n${list}\n${marks.exit} 0\n`));

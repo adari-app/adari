@@ -8,10 +8,11 @@
 
 import { describe, expect, it } from "vitest";
 
+import { RequestTimedOutError } from "../src/main/herdr/errors";
 import { codexConfirmShowing, driveModePick, modePickTexts, modeSettleReads, pickModeBound, type ModeIO } from "../src/main/herdr/mode-pick";
 import { cursorPickTexts, pickTypedMeanwhile } from "../src/main/herdr/send";
 import { cursorMenuScreen } from "./support/cursor-menu-fixtures";
-import { FakeClaude, FakeCodex, FakeCursor, FakeGrok, type FakeAgent } from "./support/mode-agents";
+import { FakeAgy, FakeClaude, FakeCodex, FakeCursor, FakeGrok, agyIdleScreen, type FakeAgent } from "./support/mode-agents";
 import { modeScreen } from "./support/mode-fixtures";
 
 /** The pane's IO over a fake agent; `stopAfter`: the user's Terminal input after that many writes. */
@@ -183,6 +184,118 @@ describe("Grok: Shift+Tab, reading its border after each press", () => {
     grok.draft = "ship it";
     expect((await driveModePick(io(grok), "grok", "plan")).result).toEqual({ type: "refused", note: modePickTexts.draft("grok"), mode: "default" });
     expect(grok.writes).toEqual([]);
+  });
+});
+
+describe("Antigravity CLI: Shift+Tab, reading its last row after each press", () => {
+  it.each(cycleCases(FakeAgy.order))("from %s to %s within four presses, a read before each", async (start, target) => {
+    const agy = new FakeAgy(start);
+    const ops = io(agy);
+    const done = await driveModePick(ops, "agy", target);
+    expect(done.result).toEqual({ type: "set", mode: target });
+    expect(agy.writes.every((write) => write === "BTab")).toBe(true);
+    const presses = (FakeAgy.order.indexOf(target) - FakeAgy.order.indexOf(start) + 4) % 4;
+    expect(agy.writes.length).toBe(presses);
+    expect(agy.writes.length).toBeLessThanOrEqual(4);
+    // At least one read before the first press and one fresh read right before each press, one after it.
+    expect(ops.reads).toBeGreaterThanOrEqual(1 + presses * 2);
+  });
+
+  it("Shift+Tab doing nothing: one press, then refused, the mode as read", async () => {
+    const agy = new FakeAgy("auto");
+    agy.stuck = true;
+    const done = await driveModePick(io(agy), "agy", "plan");
+    expect(done.result).toEqual({ type: "refused", note: modePickTexts.cycleStopped("agy"), mode: "auto" });
+    expect(agy.writes).toEqual(["BTab"]);
+  });
+
+  it("a skipping cycle never goes past four presses", async () => {
+    const agy = new FakeAgy("auto");
+    agy.skips = true;
+    const done = await driveModePick(io(agy), "agy", "plan");
+    expect(done.result.type).toBe("refused");
+    expect(agy.presses).toBeLessThanOrEqual(4);
+  });
+
+  it("Accept edits to Plan stopped after the first key: Auto shown with the warning, no further key", async () => {
+    const agy = new FakeAgy("acceptEdits");
+    const done = await driveModePick(io(agy, 1), "agy", "plan");
+    expect(done.result).toEqual({ type: "refused", note: modePickTexts.passed("Auto", "you typed in Terminal"), mode: "auto", warning: true });
+    expect(agy.writes).toEqual(["BTab"]);
+    expect(agy.mode).toBe("auto");
+  });
+
+  // Every start and target whose route passes through Auto, a read failing after each press before the
+  // target. The screen read before that key is never taken as the mode: unknown, the passed-unread warning, no key more.
+  const throughAuto = cycleCases(FakeAgy.order).flatMap(([start, target]) => {
+    const order = FakeAgy.order;
+    const presses = (order.indexOf(target) - order.indexOf(start) + 4) % 4;
+    const route = Array.from({ length: presses - 1 }, (_, at) => order[(order.indexOf(start) + 1 + at) % 4]!);
+    if (!route.includes("auto")) return [];
+    return Array.from({ length: presses - 1 }, (_, at) => [start, target, at + 1] as const);
+  });
+  it("the routes through Auto are the three the cycle has", () => {
+    expect(new Set(throughAuto.map(([start, target]) => `${start}>${target}`))).toEqual(new Set(["acceptEdits>plan", "acceptEdits>default", "default>plan"]));
+  });
+  it.each(throughAuto)("from %s to %s, the read after press %i failing: unknown, warned, no further key", async (start, target, after) => {
+    const agy = new FakeAgy(start);
+    const ops = io(agy);
+    ops.read = async () => {
+      if (agy.writes.length >= after) throw new Error("pane.read failed");
+      return agy.screen();
+    };
+    const done = await driveModePick(ops, "agy", target);
+    expect(done.result).toEqual({ type: "refused", note: modePickTexts.passedUnread("agy", "the pane did not answer"), mode: null, unknown: true, warning: true });
+    expect(done.screen).toBeNull();
+    expect(agy.writes).toEqual(Array.from({ length: after }, () => "BTab"));
+  });
+
+  // The key lands and its reply is lost (the may-have-landed timeout). The mode evidence went stale when the
+  // key was dispatched, so the screen read before it is never the mode: unknown, the passed-unread warning, no key more.
+  it.each(throughAuto)("from %s to %s, press %i landing with its reply lost: unknown, warned, no further key", async (start, target, after) => {
+    const agy = new FakeAgy(start);
+    const ops = io(agy);
+    ops.keys = async (keys) => {
+      agy.keys(keys);
+      if (agy.writes.length >= after) throw new RequestTimedOutError(10, true);
+    };
+    const done = await driveModePick(ops, "agy", target);
+    expect(done.result).toEqual({ type: "refused", note: modePickTexts.passedUnread("agy", "the pane did not answer"), mode: null, unknown: true, warning: true });
+    expect(done.screen).toBeNull();
+    expect(agy.writes).toEqual(Array.from({ length: after }, () => "BTab"));
+    expect(agy.mode).toBe(FakeAgy.order[(FakeAgy.order.indexOf(start) + after) % 4]);
+  });
+  it.each(throughAuto.filter(([, , after]) => after === 1))("from %s to %s, refused before the first press: the known mode, no warning", async (start, target) => {
+    const agy = new FakeAgy(start);
+    const done = await driveModePick(io(agy, 0), "agy", target);
+    expect(done.result).toEqual({ type: "refused", note: modePickTexts.stopped(pickTypedMeanwhile), mode: start });
+    expect(done.screen).not.toBeNull();
+    expect(agy.writes).toEqual([]);
+  });
+
+  it("the user's draft: nothing pressed", async () => {
+    const agy = new FakeAgy("auto");
+    agy.draft = "ship it";
+    expect((await driveModePick(io(agy), "agy", "plan")).result).toEqual({ type: "refused", note: modePickTexts.draft("agy"), mode: "auto" });
+    expect(agy.writes).toEqual([]);
+  });
+
+  it.each(["working", "idle-typed", "idle-two-lines"])("%s: nothing pressed", async (name) => {
+    const agy = new FakeAgy("auto");
+    const ops = io(agy);
+    ops.read = async () => agyIdleScreen(name);
+    const done = await driveModePick(ops, "agy", "plan");
+    expect(done.result.type).toBe("refused");
+    expect(agy.writes).toEqual([]);
+  });
+
+  it("a screen with no box (a question card): nothing pressed", async () => {
+    const agy = new FakeAgy("auto");
+    const ops = io(agy);
+    ops.read = async () => "Accept this file edit?\n1. Yes, accept this change\n2. No, reject this change\n";
+    const done = await driveModePick(ops, "agy", "plan");
+    expect(done.result).toEqual({ type: "refused", note: modePickTexts.noBox("agy"), mode: null });
+    expect(agy.writes).toEqual([]);
   });
 });
 
@@ -595,5 +708,80 @@ describe("the read right before each key is fresh", () => {
     expect(done.result).toEqual({ type: "refused", note: modePickTexts.codexList, mode: null });
     expect(codex.writes).toEqual(["type /permissions", "Enter"]);
     expect(after).toBe(modeSettleReads + 1);
+  });
+});
+
+describe("a mode key whose reply is lost: every agent's pick, the same rule", () => {
+  /** The pane's IO whose `nth` key write lands and then loses its reply. */
+  function lossy(agent: FakeAgent, nth: number): ModeIO & { reads: number } {
+    const ops = io(agent);
+    let count = 0;
+    ops.keys = async (keys) => {
+      agent.keys(keys);
+      count += 1;
+      if (count === nth) throw new RequestTimedOutError(10, true);
+    };
+    return ops;
+  }
+
+  it("Claude Code: Shift+Tab lost after it landed: unknown, the screen not handed on, no further key", async () => {
+    const claude = new FakeClaude("auto");
+    const done = await driveModePick(lossy(claude, 1), "claude", "plan");
+    expect(done.result).toMatchObject({ type: "refused", mode: null, unknown: true });
+    expect(done.screen).toBeNull();
+    expect(claude.writes).toEqual(["BTab"]);
+  });
+
+  it("Grok: Shift+Tab lost after it landed: unknown, no further key", async () => {
+    const grok = new FakeGrok("default");
+    const done = await driveModePick(lossy(grok, 1), "grok", "alwaysApprove");
+    expect(done.result).toMatchObject({ type: "refused", mode: null, unknown: true });
+    expect(done.screen).toBeNull();
+    expect(grok.writes).toEqual(["BTab"]);
+  });
+
+  it("Cursor: the command's Enter lost after it landed: unknown, no further key", async () => {
+    const cursor = new FakeCursor("default");
+    const done = await driveModePick(lossy(cursor, 1), "cursor", "autoReview");
+    expect(done.result).toEqual({ type: "refused", note: modePickTexts.unanswered, mode: null, unknown: true });
+    expect(done.screen).toBeNull();
+    expect(cursor.writes).toEqual(["type /auto-review", "Enter"]);
+    expect(cursor.mode).toBe("autoReview");
+  });
+
+  it("Codex: the digit lost after it landed: unknown, no further key", async () => {
+    const codex = new FakeCodex("ask");
+    // Its keys: /permissions' Enter (opens the list, the mode unchanged), then the digit.
+    const done = await driveModePick(lossy(codex, 2), "codex", "approve");
+    expect(done.result).toEqual({ type: "refused", note: modePickTexts.unanswered, mode: null, unknown: true });
+    expect(done.screen).toBeNull();
+    expect(codex.writes).toEqual(["type /permissions", "Enter", "2"]);
+  });
+
+  it("Codex: Full Access's confirmation lost after it landed: unknown, no further key", async () => {
+    const codex = new FakeCodex("ask");
+    const done = await driveModePick(lossy(codex, 3), "codex", "full");
+    expect(done.result).toEqual({ type: "refused", note: modePickTexts.unanswered, mode: null, unknown: true });
+    expect(done.screen).toBeNull();
+    expect(codex.writes).toEqual(["type /permissions", "Enter", "3", "1"]);
+  });
+
+  it("Cursor: /auto-review's Enter refused before it was written: the known mode, nothing unknown", async () => {
+    const cursor = new FakeCursor("default");
+    const ops = io(cursor, 1);
+    const done = await driveModePick(ops, "cursor", "autoReview");
+    expect(done.result.type).toBe("refused");
+    expect(done.result.type === "refused" && done.result.unknown).toBeFalsy();
+    expect(done.result.type === "refused" && done.result.warning).toBeFalsy();
+    expect(cursor.mode).toBe("default");
+  });
+
+  it("Antigravity CLI refused at the check before its first key (nothing written): the known mode, no warning", async () => {
+    const agy = new FakeAgy("acceptEdits");
+    const ops = io(agy);
+    ops.check = () => "the pane changed";
+    const done = await driveModePick(ops, "agy", "plan");
+    expect(done.result).toEqual({ type: "refused", note: modePickTexts.stopped("the pane changed"), mode: "acceptEdits" });
+    expect(agy.writes).toEqual([]);
   });
 });

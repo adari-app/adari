@@ -91,8 +91,8 @@ export function ContextRing({ host, row }: { host: HostView; row: SidebarRow }) 
       window.removeEventListener("keydown", onKey, true);
     };
   }, [held]);
-  // OpenCode's pane has the Model chip only.
-  if (context === null || context.agent === "opencode") return null;
+  // OpenCode's pane has the Model chip only; Antigravity CLI's its three chips and no ring (none is read for it).
+  if (context === null || context.agent === "opencode" || context.agent === "agy") return null;
   const cursor = context.agent === "cursor";
   const grok = context.agent === "grok";
   if (cursor && agentPicks.cursorFooter(key, context.binding) === null) return null;

@@ -1,0 +1,39 @@
+
+  >_ OpenAI Codex (v0.171.0)
+     ~/work
+
+• Model changed to gpt-6.1-sol medium for Plan mode.
+
+
+• Earlier I listed the names:
+
+  Question 1/2 (2 unanswered)
+  Which name should the tiny note file have?
+
+    1. draft (Recommended)  Use the base name “draft”.
+    2. todo                 Use the base name “todo”.
+    3. None of the above    Optionally, add details in notes (tab)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  Question 1/2 (2 unanswered)
+  Which name should the tiny note file have?
+
+  › 1. note (Recommended)  Use the simple base name “note”.
+    2. quick-note          Use the base name “quick-note”.
+    3. memo                Use the base name “memo”.
+    4. None of the above   Optionally, add details in notes (tab)
+
+  tab to add notes | enter to submit answer | ←/→ to navigate questions | esc to interrupt

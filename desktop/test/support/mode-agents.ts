@@ -1,8 +1,12 @@
 // The four agents as their recorded screens show them (mode-fixtures.ts), answering a pick's keys and text the way they did:
 // Claude Code's and Grok's Shift+Tab cycles, Cursor's two toggles (one
 // three-way setting: Auto-review to Run Everything turns both off), Codex's
-// /permissions list, digits and Full Access confirmation. Each keeps what was
+// /permissions list, digits and Full Access confirmation; Antigravity CLI's
+// Shift+Tab cycle over its idle screens. Each keeps what was
 // written to it, and a few ways to misbehave for the tests.
+
+import { readFileSync } from "node:fs";
+import path from "node:path";
 
 import { modeScreen } from "./mode-fixtures";
 
@@ -258,4 +262,30 @@ export class FakeCodex implements FakeAgent {
   }
 
   private pending: (typeof codexRows)[number] | null = null;
+}
+
+/** Antigravity CLI's idle screens (fixtures/agy-input, the samples' own), one per mode. */
+export function agyIdleScreen(name: string): string {
+  return readFileSync(path.join(__dirname, "..", "fixtures", "agy-input", `${name}.txt`), "utf8");
+}
+
+export class FakeAgy extends CycleAgent {
+  // Shift+Tab from the start screen (auto): plan, then no mode word (asks), then accept-edits (samples README).
+  static readonly order = ["auto", "plan", "default", "acceptEdits"];
+  static readonly frames: Record<string, string> = { auto: "idle-start", plan: "idle-plan", default: "idle-ask-mode", acceptEdits: "idle-accept-edits" };
+  constructor(mode: string) {
+    super(mode, FakeAgy.order);
+  }
+  frame(mode: string): string {
+    return agyIdleScreen(FakeAgy.frames[mode]!);
+  }
+  withDraft(screen: string, draft: string): string {
+    // A draft: the box row holds it and the last row's left part goes blank (idle-typed.txt).
+    const lines = screen.replace(/\n+$/u, "").split("\n");
+    const box = lines.findLastIndex((line) => line.startsWith(">"));
+    if (box >= 0) lines[box] = `> ${draft}`;
+    const last = lines.length - 1;
+    lines[last] = lines[last]!.replace("? for shortcuts", "               ");
+    return lines.join("\n");
+  }
 }

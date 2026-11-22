@@ -56,7 +56,7 @@ const flush = async (): Promise<void> => {
   for (let i = 0; i < 5; i += 1) await Promise.resolve();
 };
 
-function listOf(agent: "claude" | "codex" | "cursor" | "grok") {
+function listOf(agent: "claude" | "codex" | "cursor" | "grok" | "agy") {
   const parsed = parseCatalog(agent, demoModelLists[agent]);
   if (!parsed.ok) throw new Error(parsed.reason);
   return parsed.models;

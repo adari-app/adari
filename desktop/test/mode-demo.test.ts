@@ -132,8 +132,10 @@ describe("captures 91-96", () => {
       "...cursorPickCaptureSteps(demoHostIds)",
       // The three Early kinds' badge, a Claude Code pane without it 230-233.
       "...twotierCaptureSteps(demoHostIds)",
-      // The sidebar's workspaces moved 250-253 (last).
+      // The sidebar's workspaces moved 250-253.
       "...reorderCaptureSteps(demoHostIds)",
+      // Antigravity CLI's New agent rows, its new pane's chips and menus 294-299 (last).
+      "...agyModelsCaptureSteps(demoHostIds)",
     ]);
   });
 });

@@ -45,6 +45,8 @@
 //   live reads' own screens carry it (Grok has none). Its approval mode
 //   (approval-modes.ts: Claude's footer row, Grok's border) goes to the page
 //   only when it changed, with the terminal, session, connection and run.
+//   An Antigravity CLI pane the same (`options.mode`): its last row's mode,
+//   model and level (agy-input.ts readAgyStatusRow), for its three chips.
 //   A screen with no mode that reads (a dialog, an
 //   unknown footer row) sends nothing, so the chip keeps the last mode read
 //   under the same identity; a new identity still starts with none.
@@ -57,6 +59,7 @@ import { ChatLiveReader, PaneReadGate } from "../../shared/chat/live-reader";
 import { ChatLiveScreen, type ChatLiveBlock } from "../../shared/chat/live-screen";
 import type { ChatLiveEvent, CursorFooterEvent, PaneModeEvent } from "../../shared/ipc-contract";
 import { cursorModelLineOf, parseCursorFooter, readGrokScreen, screenMode } from "../../shared/agent-settings";
+import { readAgyStatusRow } from "../../shared/agy-input";
 import { agentKind, agentSession } from "../../shared/send-binding";
 import { agentStatusFromWire } from "../../shared/sidebar-model";
 import { paneBlocked } from "../../shared/prompt/view";
@@ -138,8 +141,8 @@ interface FooterWatch {
   timer: ReturnType<typeof setTimeout> | null;
 }
 
-/** The agents whose shown Chats have their screen watched: Cursor's footer, Claude's and Grok's mode. */
-type WatchKind = "cursor" | "claude" | "grok";
+/** The agents whose shown Chats have their screen watched: Cursor's footer, Claude's, Grok's and Antigravity CLI's mode. */
+type WatchKind = "cursor" | "claude" | "grok" | "agy";
 
 export class LiveReads {
   private readonly follows = new Map<string, LiveFollow>();
@@ -275,7 +278,7 @@ export class LiveReads {
     const pane = this.hosts.pane(chat.hostId, chat.paneId);
     if (pane === null) return null;
     const kind = agentKind(this.hosts.agent(chat.hostId, chat.paneId), pane);
-    const watched = kind === "cursor" ? this.footerSink !== null : (kind === "claude" || kind === "grok") && this.modeSink !== null;
+    const watched = kind === "cursor" ? this.footerSink !== null : (kind === "claude" || kind === "grok" || kind === "agy") && this.modeSink !== null;
     if (!watched) return null;
     const identity = this.identity(chat);
     return identity === null ? null : { identity, kind: kind as WatchKind };
@@ -369,7 +372,9 @@ export class LiveReads {
     // Grok's border's model name with its mode ("Grok 4.7 Fast"). Each goes only when there is one.
     const line = watch.kind === "cursor" && seen === null && screen !== null ? cursorModelLineOf(screen) : null;
     const border = watch.kind === "grok" && screen !== null ? (readGrokScreen(screen)?.borderModel ?? null) : null;
-    const text = JSON.stringify(line === null && border === null ? seen : { seen, line, border });
+    // Antigravity CLI's last row: its model and level with its mode (only when it reads: seen is its mode).
+    const agyRow = watch.kind === "agy" && screen !== null ? readAgyStatusRow(screen) : null;
+    const text = JSON.stringify(line === null && border === null && agyRow === null ? seen : { seen, line, border, agyRow });
     if (text === watch.last) return;
     watch.last = text;
     const { hostId, paneId } = watch.chat;
@@ -378,7 +383,7 @@ export class LiveReads {
     const scope = { terminalID: pane.terminalID, session: agentSession(this.hosts.agent(hostId, paneId)) };
     const run = this.hosts.run?.(hostId, paneId) ?? null;
     if (watch.kind === "cursor") this.footerSink?.(watch.chat, { hostId, paneId, scope, run, footer: seen as CursorFooterEvent["footer"], ...(line === null ? {} : { modelLine: line }) });
-    else this.modeSink?.(watch.chat, { hostId, paneId, agent: watch.kind, scope, run, mode: seen as string | null, ...(border === null ? {} : { borderModel: border }) });
+    else this.modeSink?.(watch.chat, { hostId, paneId, agent: watch.kind, scope, run, mode: seen as string | null, ...(border === null ? {} : { borderModel: border }), ...(agyRow === null ? {} : { agyRow }) });
   }
 
   /** Stops every read (the app quits). */

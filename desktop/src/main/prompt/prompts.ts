@@ -26,11 +26,34 @@
 //   Codex's menus and [y/N] lines, Codex's form, Grok's frame, the box's
 //   "No, tell…". Input from another device, or typed into Herdr on the Mac,
 //   is not seen here.
+// - Antigravity CLI's own questions: an agy pane Herdr says is done or idle
+//   (agy 1.5.13 reports `done` while its create and edit questions show) is
+//   read too, by the same reads and gate: on sight of each new status (its
+//   block, promptEpisode) and then every 2.5 s for its first 10 s, and for as
+//   long as one of agy's questions shows. Only agy panes, never while working.
+//   Its reading is listed (PanePrompt.whileNotBlocked) only while it is one of
+//   agy's questions; the page shows the pane as needing you then
+//   (applyAgyQuestions), and an answer is bound to that done or idle block as a
+//   blocked pane's is to its block.
+// - Codex's "Implement this
+//   plan?" list the same way. Codex 0.171.0 marks its turn done before it draws
+//   the list, and the list reports no blocking, so a Codex pane Herdr says is
+//   done or idle is read on each new status, every 2.5 s for its first 10 s
+//   (four reads), and for as long as the list shows. Its reading is listed only
+//   while it is that list (`codexPlan`); every other screen on such a pane
+//   makes no card and no needs-you mark.
 // - Every read of a Claude pane for the card (the
 //   watch's and an answer's) is readPromptScreen's: 40 lines, then once 200
 //   when the 40 end in Claude's frame cut off at its top (a command or diff
 //   taller than the read). A frame still cut after it is unmatched, so it is
 //   never answered here.
+// - "The same question" is matcher.ts
+//   `sameFingerprint` everywhere here (the card's reading against main's last,
+//   the answerer's fresh read, the claim): the question's words, not how its
+//   rows wrap. Each answer not sent because the question changed is recorded
+//   (`refusals`, the last 50, in memory; Report a Problem carries them):
+//   `shown` (main's last reading is not the card's), `fresh` (the read before
+//   the key), `trustStep` (agy's trust read between the arrow and Return).
 
 import type { HerdrHostBackend, PromptPaneCalls } from "../herdr/backend";
 import { APIError, type AgentInfo, type SessionTopology, type TopologyPaneInfo } from "../herdr/wire";
@@ -40,8 +63,9 @@ import type { HostView } from "../../shared/ipc-contract";
 import { agentKind, agentSession } from "../../shared/send-binding";
 import { PaneReadGate } from "../../shared/chat/live-reader";
 import { episodeOf, type StopBinding } from "../../shared/agent-stop";
-import { answerPrompt } from "../../shared/prompt/answerer";
+import { answerPrompt, readWithColumns } from "../../shared/prompt/answerer";
 import {
+  agyKind,
   matchPrompt,
   optionByKey,
   type PromptFingerprint,
@@ -51,10 +75,12 @@ import {
   readPromptScreen,
   sameFingerprint,
   showsInputPrompt,
+  type PromptMatch,
   type PromptReading,
 } from "../../shared/prompt/matcher";
 import { afterRead, marked, type QuietState } from "../../shared/prompt/quiet";
-import { answerTexts, paneBlocked, promptEpisode, type AnswerRequest, type AnswerResult, type PanePrompt } from "../../shared/prompt/view";
+import { RefusalLog, refusalRecord, type RefusalPlace } from "../../shared/prompt/refusals";
+import { answerTexts, doneAskingPane, paneBlocked, promptEpisode, showsDoneQuestion, type AnswerRequest, type AnswerResult, type PanePrompt } from "../../shared/prompt/view";
 
 /** What the service needs of the machines (HostRegistry has it all). */
 export interface PromptHosts {
@@ -91,6 +117,8 @@ export const promptReadIntervalMs = 2_500;
 /** How long the text after a "No, tell…" option waits for the agent's empty field, and how often it looks. */
 export const fieldWaitMs = 4_000;
 export const fieldPollMs = 250;
+/** How long after an agy pane is seen done or idle (a new block) it is read while none of agy's questions shows. */
+export const agyDoneWindowMs = 10_000;
 
 interface Watch {
   readonly hostId: string;
@@ -108,6 +136,8 @@ interface Watch {
   quiet: QuietState;
   /** A read of it is under way. */
   inFlight: boolean;
+  /** An agy or Codex pane read while Herdr says done or idle (doneAskingPane), not blocked. */
+  readonly whileNotBlocked: boolean;
 }
 
 const keyOf = (hostId: string, paneId: string): string => `${hostId}\u0000${paneId}`;
@@ -126,12 +156,29 @@ interface Claim {
   readonly fingerprint: PromptFingerprint;
 }
 
-function blockedPanes(topology: SessionTopology): { pane: TopologyPaneInfo; agent: AgentInfo | null }[] {
-  return topology.panes
-    .map((pane) => ({ pane, agent: topology.agents.find((candidate) => candidate.paneID === pane.paneID) ?? null }))
-    .filter(({ pane, agent }) => paneBlocked(pane, agent));
+/**
+ * The panes read: every blocked one, and every agy or Codex pane Herdr says is done or idle (agy's own questions show
+ * then; Codex's "Implement this plan?" list does). No other pane, and no other kind's done or idle pane.
+ */
+function readPanes(topology: SessionTopology): { pane: TopologyPaneInfo; agent: AgentInfo | null; whileNotBlocked: boolean }[] {
+  return topology.panes.flatMap((pane): { pane: TopologyPaneInfo; agent: AgentInfo | null; whileNotBlocked: boolean }[] => {
+    const agent = topology.agents.find((candidate) => candidate.paneID === pane.paneID) ?? null;
+    if (paneBlocked(pane, agent)) return [{ pane, agent, whileNotBlocked: false }];
+    return doneAskingPane(pane, agent) ? [{ pane, agent, whileNotBlocked: true }] : [];
+  });
 }
 
+
+/**
+ * The pane's width in columns around a read, for the readers that use it (Codex's, whose
+ * frame shows no width): its cell rectangle in `pane.layout` (Herdr's panes tile the tab with no border, so a pane's
+ * rectangle is its terminal). Undefined for any other agent's pane, so no layout call is made for it.
+ */
+function paneColumns(calls: PromptPaneCalls, paneId: string, kind: string | null): (() => Promise<number | null>) | undefined {
+  const layout = calls.paneLayout;
+  if (kind?.toLowerCase() !== "codex" || layout === undefined) return undefined;
+  return async () => (await layout.call(calls, paneId)).panes.find((pane) => pane.paneId === paneId)?.rect.width ?? null;
+}
 export class PromptService {
   private readonly watches = new Map<string, Watch>();
   /** Per pane: the answer under way (a second one is refused). */
@@ -140,6 +187,8 @@ export class PromptService {
   private readonly claims = new Map<string, Claim>();
   private stopTimer: (() => void) | null = null;
   private last = "[]";
+  /** Each answer not sent because the question changed (counts only), for Report a Problem. */
+  readonly refusals = new RefusalLog();
 
   constructor(
     private readonly hosts: PromptHosts,
@@ -164,17 +213,21 @@ export class PromptService {
   }
 
   list(): PanePrompt[] {
-    return [...this.watches.values()].map((watch) => ({
-      hostId: watch.hostId,
-      paneId: watch.paneId,
-      episode: watch.episode,
-      incarnation: watch.incarnation,
-      connection: watch.connection,
-      epoch: watch.epoch,
-      reading: watch.reading,
-      quiet: watch.quiet.lastQuietAt !== null,
-      cleared: watch.quiet.cleared,
-    }));
+    // A done or idle agy pane's reading only while it is one of agy's questions; a Codex pane's while it is the plan list.
+    return [...this.watches.values()]
+      .filter((watch) => !watch.whileNotBlocked || showsDoneQuestion(watch.reading))
+      .map((watch) => ({
+        hostId: watch.hostId,
+        paneId: watch.paneId,
+        episode: watch.episode,
+        incarnation: watch.incarnation,
+        connection: watch.connection,
+        epoch: watch.epoch,
+        reading: watch.reading,
+        quiet: watch.quiet.lastQuietAt !== null,
+        cleared: watch.quiet.cleared,
+        ...(watch.whileNotBlocked ? { whileNotBlocked: true as const } : {}),
+      }));
   }
 
   private emit(): void {
@@ -198,7 +251,7 @@ export class PromptService {
       const connection = this.hosts.connection(view.id);
       if (view.state !== "connected" || connection === null || view.topology === null) continue;
       answering.add(view.id);
-      for (const { pane, agent } of blockedPanes(view.topology)) {
+      for (const { pane, agent, whileNotBlocked } of readPanes(view.topology)) {
         const key = keyOf(view.id, pane.paneID);
         seen.add(key);
         const episode = promptEpisode(pane, agent);
@@ -223,10 +276,13 @@ export class PromptService {
             reading: null,
             quiet: marked,
             inFlight: false,
+            whileNotBlocked,
           };
           this.watches.set(key, watch);
         }
-        if (!watch.inFlight) reads.push(this.read(watch));
+        // A done or idle agy or Codex pane: in its first 10 s, and while its question (agy's, Codex's plan list) shows.
+        const due = !watch.whileNotBlocked || showsDoneQuestion(watch.reading) || this.clock.now() - watch.since < agyDoneWindowMs;
+        if (!watch.inFlight && due) reads.push(this.read(watch));
       }
     }
     for (const key of this.watches.keys()) if (!seen.has(key)) this.watches.delete(key);
@@ -236,6 +292,36 @@ export class PromptService {
     }
     this.emit();
     await Promise.all(reads);
+  }
+
+  /**
+   * A Send's own read of an agy pane Herdr says is idle or done (send.ts sendBoundNow, before any text), through the
+   * pane's read gate (waiting its turn, never two reads of a pane at once): the text, or null when there is no reader,
+   * the read failed or it crossed a reconnect. A question it shows becomes the pane's card as the watch's own read
+   * would (the watch of this block, on this connection, takes the reading).
+   */
+  async sendRead(hostId: string, paneId: string): Promise<string | null> {
+    const calls = this.hosts.backend(hostId)?.promptIO?.();
+    const before = this.hosts.connectionIdentity(hostId);
+    const connection = this.hosts.connection(hostId);
+    if (calls === undefined || before === null || connection === null) return null;
+    const startedAt = this.clock.now();
+    let text: string | null;
+    try {
+      text = await this.gate.reading(keyOf(hostId, paneId), () => readPromptScreen((lines) => calls.paneRead(paneId, lines), agyKind));
+    } catch {
+      text = null;
+    }
+    const after = this.hosts.connectionIdentity(hostId);
+    if (text === null || after === null || after.incarnation !== before.incarnation || after.epoch !== before.epoch || this.hosts.connection(hostId) !== connection) return null;
+    const watch = this.watches.get(keyOf(hostId, paneId));
+    const pane = this.hosts.pane(hostId, paneId);
+    const agent = this.hosts.agent(hostId, paneId);
+    if (watch !== undefined && watch.whileNotBlocked && watch.connection === connection && pane !== null && promptEpisode(pane, agent) === watch.episode) {
+      this.observe(watch, text, startedAt);
+      this.emit();
+    }
+    return text;
   }
 
   /** Reads the pane once; a read that crossed a reconnect, or a block that changed meanwhile, counts as failed. */
@@ -249,9 +335,12 @@ export class PromptService {
     const before = this.hosts.connectionIdentity(watch.hostId);
     const startedAt = this.clock.now();
     let text: string | null;
+    let columns: number | null = null;
     try {
-      // A Claude frame cut off at its top is read again, taller, once.
-      text = await readPromptScreen((lines) => calls.paneRead(watch.paneId, lines), watch.kind);
+      // A Claude frame cut off at its top is read again, taller, once; the pane's width around it.
+      const screen = await readWithColumns(() => readPromptScreen((lines) => calls.paneRead(watch.paneId, lines), watch.kind), paneColumns(calls, watch.paneId, watch.kind));
+      text = screen.text;
+      columns = screen.columns;
     } catch {
       text = null;
     }
@@ -265,15 +354,15 @@ export class PromptService {
       before.incarnation === after.incarnation &&
       before.epoch === after.epoch &&
       this.hosts.connection(watch.hostId) === watch.connection;
-    this.observe(watch, sameConnection ? text : null, startedAt);
+    this.observe(watch, sameConnection ? text : null, startedAt, columns);
     this.emit();
   }
 
   /** A read's text (null: it failed or proves nothing). */
-  private observe(watch: Watch, text: string | null, startedAt: number): void {
+  private observe(watch: Watch, text: string | null, startedAt: number, columns: number | null = null): void {
     if (text !== null) {
       // The pane's agent picks the reader (a Grok pane reads Grok 1.0.70's approval frame).
-      watch.reading = readingForAgent(matchPrompt(text, watch.paneId, watch.kind), watch.kind);
+      watch.reading = readingForAgent(matchPrompt(text, watch.paneId, watch.kind, columns), watch.kind);
       // A whole frame of another question ends the claim; anything else keeps it.
       const key = keyOf(watch.hostId, watch.paneId);
       const claim = this.claims.get(key);
@@ -304,14 +393,15 @@ export class PromptService {
   }
 
   /** Why the agent the page saw waiting is not the one in the pane now; null when it is. */
-  private refusal(expected: StopBinding, pane: TopologyPaneInfo | null, agent: AgentInfo | null): string | null {
+  private refusal(expected: StopBinding, pane: TopologyPaneInfo | null, agent: AgentInfo | null, whileNotBlocked = false): string | null {
     if (pane === null) return answerTexts.paneGone;
     if (expected.terminalID !== "" && pane.terminalID !== expected.terminalID) return answerTexts.otherAgent;
     const kind = agentKind(agent, pane);
     if (kind === null || (expected.kind !== null && kind !== expected.kind)) return answerTexts.otherAgent;
     const session = agentSession(agent);
     if (expected.session !== null && session !== expected.session) return answerTexts.otherAgent;
-    if (!paneBlocked(pane, agent)) return answerTexts.notAsking(expected.name);
+    // A done or idle pane's question (agy's, Codex's plan list): the pane still done or idle; else blocked.
+    if (!(whileNotBlocked ? doneAskingPane(pane, agent) : paneBlocked(pane, agent))) return answerTexts.notAsking(expected.name);
     return null;
   }
 
@@ -331,12 +421,17 @@ export class PromptService {
     }
     const pane = this.hosts.pane(hostId, paneId);
     const agent = this.hosts.agent(hostId, paneId);
-    const refusal = this.refusal(expected, pane, agent);
+    const refusal = this.refusal(expected, pane, agent, watch.whileNotBlocked);
     if (refusal !== null) return refusal;
     const now = episodeOf(pane, agent);
     const same = now.status === expected.episode.status && now.seq === expected.episode.seq && now.since === expected.episode.since;
     if (!same || pane === null || promptEpisode(pane, agent) !== watch.episode) return answerTexts.notAsking(expected.name);
     return null;
+  }
+
+  /** One record of an answer not sent because the question changed: the part that differed and the two readings' shapes. */
+  private noteRefusal(agent: string | null, place: RefusalPlace, shown: Pick<PromptMatch, "kind" | "fingerprint">, now: Pick<PromptMatch, "kind" | "fingerprint"> | null): void {
+    this.refusals.record(refusalRecord(this.clock.now(), agent, place, shown, now));
   }
 
   /** Answers from the page: one at a time per pane. */
@@ -372,7 +467,12 @@ export class PromptService {
     const named = watch !== undefined && watch.episode === request.episode;
     const shown = !named || watch.reading === null ? null : readingMatch(watch.reading);
     const option = shown === null || !sameFingerprint(shown.fingerprint, fingerprint) ? null : optionByKey(shown, request.key);
-    if (watch === undefined || shown === null || option === null) return { type: "changed", note: answerTexts.changed, now: watch?.reading ?? { type: "unmatched", lines: [] } };
+    if (watch === undefined || shown === null || option === null) {
+      // The page's question is known by its fingerprint alone: compared as one of the same kind (a kind of its own shows in its words).
+      const kind = shown?.kind ?? "menu";
+      this.noteRefusal(watch?.kind ?? binding.kind, "shown", { kind, fingerprint }, shown);
+      return { type: "changed", note: answerTexts.changed, now: watch?.reading ?? { type: "unmatched", lines: [] } };
+    }
     // A choice answered in the Terminal (Codex's update question): nothing is ever sent for it.
     if (option.inTerminal === true || option.keys.length === 0) return { type: "refused", note: answerTexts.inTerminal, terminal: true };
     if (text !== undefined) {
@@ -397,6 +497,8 @@ export class PromptService {
         sendKeys: (keys, pane) => calls.paneSendKeys(pane, keys),
         // Grok's wait between its key and the read that checks it, on the service's clock.
         sleep: (ms) => this.clock.sleep(ms),
+        // The pane's width around each read, for the readers that use it.
+        columns: (pane) => paneColumns(calls, pane, watch.kind)?.() ?? Promise.resolve(null),
       },
       option,
       shown,
@@ -410,6 +512,8 @@ export class PromptService {
         typed = typedAt !== undefined && this.inputs?.generation(hostId, paneId) !== typedAt;
         return !typed;
       },
+      // Each refusal because the question changed: recorded, counts only.
+      (place, now) => this.noteRefusal(watch.kind ?? binding.kind, place, shown, now),
     );
     switch (outcome.type) {
       case "changed": {

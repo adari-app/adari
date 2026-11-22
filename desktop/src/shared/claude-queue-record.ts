@@ -178,6 +178,54 @@ function deliveredRun(content: string, asked: readonly string[], proved: Readonl
   return [];
 }
 
+/**
+ * What Claude Code's own record says of `sent`, a message Chat just sent to `session`, in `lines` (whole lines written
+ * past the baseline taken right before the write): `queued` when an enqueue line holds exactly it (Claude worked and
+ * queued it), `taken` when your prompt line or a mid-turn absorb line holds exactly it, null when no line does. Only a
+ * line whose own session id is `session` counts (a line with another or none is not this send's). This is the proof
+ * a send went (the screen only says what it shows); a bare dequeue proves nothing about any text.
+ */
+export function recordShows(lines: readonly string[], sent: string, session: string): "queued" | "taken" | null {
+  if (sent.trim() === "" || session === "") return null;
+  let queued = false;
+  for (const line of lines) {
+    if (lineSession(line) !== session) continue;
+    const enqueued = enqueuedContent(line);
+    if (enqueued !== null) {
+      if (queuedAs(enqueued, [sent])) queued = true;
+      continue;
+    }
+    const event = queueEventOf(line);
+    if (event === null) continue;
+    if (event.kind === "user" && queuedAs(event.text, [sent])) return "taken";
+    if (event.kind === "absorbed" && event.content !== null && queuedAs(event.content, [sent])) return "taken";
+  }
+  return queued ? "queued" : null;
+}
+
+/** A record line's own session id (`sessionId`); null when it has none or is not a JSON object. */
+function lineSession(line: string): string | null {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(line);
+  } catch {
+    return null;
+  }
+  return isRecord(parsed) && typeof parsed.sessionId === "string" ? parsed.sessionId : null;
+}
+
+/** An enqueue line's content (a message Claude queued while it worked); null for any other line (a take-back reads none). */
+function enqueuedContent(line: string): string | null {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(line);
+  } catch {
+    return null;
+  }
+  if (!isRecord(parsed) || parsed.type !== "queue-operation" || parsed.operation !== "enqueue") return null;
+  return typeof parsed.content === "string" ? parsed.content : null;
+}
+
 /** The session transcript as a take-back reads it: where it ends, and the whole lines written past a point. */
 export interface QueueRecord {
   /** The record's length now, in bytes (the baseline); null when it cannot be read. */

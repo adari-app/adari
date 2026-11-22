@@ -76,14 +76,15 @@ export const chatReadsKind = chatReads;
 export const chatReadKinds = chatKinds;
 
 /**
- * The kinds Chat supports for 0.1.0: Claude Code and Codex. Every other kind in chatKinds keeps its Chat, marked
- * Early (T3 Code's "Early Access" badge as the model). Antigravity CLI (`agy`) is Early until it is tested live.
+ * The kinds Chat supports: Claude Code, Codex and Antigravity CLI (`agy`, first class since 0.1.2: its conversation
+ * and tools read, its questions answered from Chat, its model, level and mode picked while it runs). Every other kind
+ * in chatKinds keeps its Chat, marked Early (T3 Code's "Early Access" badge as the model).
  * Gemini CLI is deprecated (Antigravity CLI is the agent for Google's models) and is early too. Grok Build, Cursor
  * Agent and OpenCode are Early as well: their screens change with every CLI update. A kind moves to supported by
  * adding it here. Only the Early badge and the early line follow this list; every kind's Chat, chips and Model
  * picks work the same either way.
  */
-export const chatSupportedKinds: readonly string[] = ["claude", "codex"];
+export const chatSupportedKinds: readonly string[] = ["claude", "codex", "agy"];
 
 /** How Chat stands for a kind: "supported", "early" (Chat reads it, not run live), or null (Chat doesn't read it). */
 export type ChatSupport = "supported" | "early";

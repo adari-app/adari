@@ -26,7 +26,11 @@
 // - the Dock badge: how many agents need you across machines, whether the
 //   window has focus or not, none at zero (T3's badge counts unread ones and
 //   clears on focus; this one is the number waiting);
-// - the menu bar item while "Show Adari in the menu bar" is on, gone at once when it is turned off.
+// - the menu bar item while "Show Adari in the menu bar" is on, gone at once when it is turned off;
+// - what became of the last notification (shown, or failed: on the Mac, macOS did not show it, as when Adari is
+//   switched off in System Settings › Notifications), kept in memory only for Settings › Notifications; a later one
+//   that shows clears a failure. Nothing is retried and nothing else about when or what Adari notifies depends on it
+//   (the Dock badge and the menu bar item do not need the permission).
 //
 // The Electron parts (Notification, app.dock, Tray, the window) are behind
 // NotifyPort, so the rules are tested with a fake one (as updates.ts takes its
@@ -46,11 +50,17 @@ import {
   testNotification,
   testSentText,
   testUnsupportedText,
+  notifyTexts,
   type MenuBarView,
   type NeedsYouReport,
   type NotificationContent,
+  type NotifyDelivery,
+  type NotifyOutcome,
   type NotifySettings,
 } from "../shared/needs-notify";
+
+/** How long Send a test notification waits for the system's answer before it says "Sent." as it always did. */
+export const testAnswerWaitMs = 5_000;
 
 /** A notification on screen (or in Notification Center): closed when its agent stops needing you. */
 export interface ShownNotification {
@@ -68,8 +78,11 @@ export type MenuBarPick =
 export interface NotifyPort {
   /** Whether this system shows notifications (Electron's Notification.isSupported()). */
   canNotify(): boolean;
-  /** Shows one; `onClick` when it is clicked. */
-  notify(content: NotificationContent, onClick: () => void): ShownNotification;
+  /**
+   * Shows one; `onClick` when it is clicked; `onOutcome` once, with the system's answer (on the Mac: shown, or failed
+   * when macOS refused it; "unknown" where the system does not say). The error's own words go to the log, not here.
+   */
+  notify(content: NotificationContent, onClick: () => void, onOutcome: (outcome: NotifyOutcome) => void): ShownNotification;
   /** The Dock icon's badge (0: none). A no-op where there is no Dock. */
   setBadge(count: number): void;
   /** The menu bar item as `view` says (null: none); `onPick` for its menu's clicks. A no-op where there is none. */
@@ -80,6 +93,8 @@ export interface NotifyPort {
   reveal(target: { readonly hostId: string; readonly paneId: string } | null): void;
   /** The window in front with Settings open. */
   openSettings(): void;
+  /** macOS's System Settings › Notifications (macNotificationSettingsUrl, the one fixed address). A no-op off the Mac. */
+  openSystemSettings(): void;
   /** Quit Adari. */
   quit(): void;
 }
@@ -152,10 +167,13 @@ export class NeedsNotifier {
   private badge: number | null = null;
   private stopped = false;
   private reports = 0;
+  /** What became of the last notification the system answered for (null: none yet, or none that says). */
+  private delivered: NotifyDelivery | null = null;
 
   constructor(
     private readonly port: NotifyPort,
     private readonly store: NotifySettingsStore = memoryNotifySettings(),
+    private readonly now: () => number = Date.now,
   ) {
     this.current = store.load();
   }
@@ -228,10 +246,14 @@ export class NeedsNotifier {
         // Past the rows sent for showing there are no words to show: quiet (it counts; the sidebar lists it).
         const row = rows.get(key);
         if (row === undefined) continue;
-        const notification = this.port.notify(needsNotification(row, this.current.sound), () => {
-          if (this.shown.get(key)?.wait === wait) this.shown.delete(key);
-          this.open(wait);
-        });
+        const notification = this.port.notify(
+          needsNotification(row, this.current.sound),
+          () => {
+            if (this.shown.get(key)?.wait === wait) this.shown.delete(key);
+            this.open(wait);
+          },
+          (outcome) => this.answered(outcome),
+        );
         this.shown.set(key, { wait, notification });
       }
     }
@@ -244,11 +266,41 @@ export class NeedsNotifier {
     this.closeShown();
   }
 
-  /** Settings' Send a test notification (it also has macOS ask for permission the first time); what to say. */
-  test(): string {
-    if (!this.port.canNotify()) return testUnsupportedText;
-    this.tested = this.port.notify(testNotification(this.current.sound), () => this.port.reveal(null));
-    return testSentText;
+  /**
+   * Settings' Send a test notification (it also has macOS ask for permission the first time); what to say, once the
+   * system answered: "Sent." as before, or, when macOS did not show it, the line that it is off (after
+   * testAnswerWaitMs with no answer: "Sent."). One notification, never sent again.
+   */
+  test(): Promise<string> {
+    if (!this.port.canNotify()) return Promise.resolve(testUnsupportedText);
+    return new Promise((resolve) => {
+      let said = false;
+      const say = (text: string): void => {
+        if (said) return;
+        said = true;
+        clearTimeout(timer);
+        resolve(text);
+      };
+      const timer = setTimeout(() => say(testSentText), testAnswerWaitMs);
+      this.tested = this.port.notify(
+        testNotification(this.current.sound),
+        () => this.port.reveal(null),
+        (outcome) => {
+          this.answered(outcome);
+          say(outcome === "failed" ? notifyTexts.offLine : testSentText);
+        },
+      );
+    });
+  }
+
+  /** What became of the last notification (Settings › Notifications reads it): shown or failed, and when; null: nothing known. */
+  delivery(): NotifyDelivery | null {
+    return this.delivered;
+  }
+
+  /** Settings' Open Notification Settings: macOS's own pane (the port opens the one fixed address). */
+  openSystemSettings(): void {
+    this.port.openSystemSettings();
   }
 
   /** Quitting: every notification closed, the badge and the menu bar item gone, no more reports taken. */
@@ -267,6 +319,12 @@ export class NeedsNotifier {
   /** The last report and how many came (the capture's proof that the list keeps coming with the window away). */
   seen(): { readonly report: NeedsYouReport; readonly reports: number; readonly shown: readonly string[] } {
     return { report: this.report, reports: this.reports, shown: [...this.shown.values()].map((shown) => entryKey(shown.wait)) };
+  }
+
+  /** The system's answer for one notification: the last one known ("unknown" changes nothing). */
+  private answered(outcome: NotifyOutcome): void {
+    if (outcome === "unknown") return;
+    this.delivered = { outcome, at: this.now() };
   }
 
   /** A click made for `wait`: that agent, if it is still that same wait; else just the window, on nothing. */
@@ -333,7 +391,9 @@ export class NeedsNotifier {
 export class RecordedNotifyPort implements NotifyPort {
   focused = false;
   supported = true;
-  readonly notifications: { content: NotificationContent; closed: boolean; click: () => void }[] = [];
+  /** The system's answer each notification gets at once ("unknown", as a recording says nothing); null: held until `answer` is called. */
+  outcome: NotifyOutcome | null = "unknown";
+  readonly notifications: { content: NotificationContent; closed: boolean; click: () => void; answer: (outcome: NotifyOutcome) => void }[] = [];
   readonly badges: number[] = [];
   menuBar: MenuBarView | null = null;
   menuBarSets = 0;
@@ -341,6 +401,7 @@ export class RecordedNotifyPort implements NotifyPort {
   readonly menuPickers: ((pick: MenuBarPick) => void)[] = [];
   readonly reveals: ({ readonly hostId: string; readonly paneId: string } | null)[] = [];
   settingsOpened = 0;
+  systemSettingsOpened = 0;
   quits = 0;
 
   constructor(private readonly log: (line: string) => void = () => undefined) {}
@@ -349,10 +410,17 @@ export class RecordedNotifyPort implements NotifyPort {
     return this.supported;
   }
 
-  notify(content: NotificationContent, onClick: () => void): ShownNotification {
-    const record = { content, closed: false, click: onClick };
+  notify(content: NotificationContent, onClick: () => void, onOutcome: (outcome: NotifyOutcome) => void): ShownNotification {
+    let answered = false;
+    const answer = (outcome: NotifyOutcome): void => {
+      if (answered) return;
+      answered = true;
+      onOutcome(outcome);
+    };
+    const record = { content, closed: false, click: onClick, answer };
     this.notifications.push(record);
     this.log(`notification (recorded, not shown): ${JSON.stringify(content)}`);
+    if (this.outcome !== null) answer(this.outcome);
     return {
       close: () => {
         record.closed = true;
@@ -388,6 +456,11 @@ export class RecordedNotifyPort implements NotifyPort {
 
   openSettings(): void {
     this.settingsOpened += 1;
+  }
+
+  openSystemSettings(): void {
+    this.systemSettingsOpened += 1;
+    this.log("system notification settings (recorded, not opened)");
   }
 
   quit(): void {

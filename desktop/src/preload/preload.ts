@@ -26,6 +26,7 @@ import type { AwayViewState } from "../shared/away/digest";
 import type { SearchViewState } from "../shared/search/view";
 import type { PanePrompt } from "../shared/prompt/view";
 import type { DraftsChangedEvent } from "../shared/drafts";
+import type { NewAgentProgress } from "../shared/new-agent";
 import type { UpdateView } from "../shared/updates";
 import type { NeedsYouReport, NotifySettings } from "../shared/needs-notify";
 
@@ -58,6 +59,10 @@ const bridge: HerdrDesktopBridge = {
   onTerminalData: (listener) => subscribe<TerminalDataEvent>(IPC.terminalData, listener),
   onTerminalExit: (listener) => subscribe<TerminalExitEvent>(IPC.terminalExit, listener),
   sendToPane: (hostId, paneId, text, binding) => ipcRenderer.invoke(IPC.paneSend, hostId, paneId, text, binding),
+  sendCheck: (checkId) => ipcRenderer.invoke(IPC.paneSendCheck, checkId),
+  sendCheckEnd: (checkId) => ipcRenderer.invoke(IPC.paneSendCheckEnd, checkId),
+  unprovedRelease: (id) => ipcRenderer.invoke(IPC.unprovedRelease, id),
+  unprovedHistory: (id, anchor) => ipcRenderer.invoke(IPC.unprovedHistory, id, anchor),
   stopAgent: (hostId, paneId, binding) => ipcRenderer.invoke(IPC.paneStop, hostId, paneId, binding),
   stopIfWorking: (hostId, paneId, binding) => ipcRenderer.invoke(IPC.paneStopIfWorking, hostId, paneId, binding),
   afterStop: (hostId, paneId, binding) => ipcRenderer.invoke(IPC.paneAfterStop, hostId, paneId, binding),
@@ -66,9 +71,13 @@ const bridge: HerdrDesktopBridge = {
   takeBackQueued: (hostId, paneId, binding, texts) => ipcRenderer.invoke(IPC.paneTakeBack, hostId, paneId, binding, texts),
   restartAgent: (hostId, paneId, binding) => ipcRenderer.invoke(IPC.paneRestart, hostId, paneId, binding),
   onRestartNote: (listener) => subscribe<RestartNoteEvent>(IPC.paneRestartNote, listener),
-  // Integrations: Install or Update, and Settings' fresh read.
+  // Integrations: Install or Update, Settings' fresh read, Chat's Retry and the install-before-start switch.
   installIntegration: (hostId, target, binding) => ipcRenderer.invoke(IPC.integrationInstall, hostId, target, binding),
+  updateAllIntegrations: (hostId, binding) => ipcRenderer.invoke(IPC.integrationUpdateAll, hostId, binding),
   refreshIntegrations: () => ipcRenderer.invoke(IPC.integrationsRefresh),
+  retryIntegrations: (hostId, binding) => ipcRenderer.invoke(IPC.integrationsRetry, hostId, binding),
+  integrationAutoInstall: () => ipcRenderer.invoke(IPC.integrationAutoInstall),
+  setIntegrationAutoInstall: (on) => ipcRenderer.invoke(IPC.integrationAutoInstallSet, on === true),
   listPrompts: () => ipcRenderer.invoke(IPC.promptsList),
   onPromptsChanged: (listener) => subscribe<PanePrompt[]>(IPC.promptsChanged, listener),
   answerPrompt: (request) => ipcRenderer.invoke(IPC.promptAnswer, request),
@@ -98,7 +107,12 @@ const bridge: HerdrDesktopBridge = {
   clipboardFiles: () => ipcRenderer.invoke(IPC.clipboardFiles),
   startCommands: (hostId) => ipcRenderer.invoke(IPC.startCommands, hostId),
   saveStartCommand: (hostId, kind, command) => ipcRenderer.invoke(IPC.startCommandSave, hostId, kind, command),
-  newAgent: (hostId, request) => ipcRenderer.invoke(IPC.newAgent, hostId, request),
+  saveUpdateCommand: (hostId, kind, command) => ipcRenderer.invoke(IPC.updateCommandSave, hostId, kind, command),
+  runAgentUpdate: (hostId, request) => ipcRenderer.invoke(IPC.agentUpdateRun, hostId, request),
+  newAgent: (hostId, request, startId) =>
+    startId === undefined ? ipcRenderer.invoke(IPC.newAgent, hostId, request) : ipcRenderer.invoke(IPC.newAgent, hostId, request, startId),
+  onNewAgentProgress: (listener) => subscribe<NewAgentProgress>(IPC.newAgentProgress, listener),
+  newAgentShown: (startId, paneId) => ipcRenderer.invoke(IPC.newAgentShown, startId, paneId),
   // An agent's model list on a machine, and each change of one.
   modelCatalog: (hostId, agent) => ipcRenderer.invoke(IPC.modelCatalog, hostId, agent),
   onModelCatalog: (listener) => subscribe<ModelCatalogChange>(IPC.modelCatalogChanged, listener),
@@ -151,6 +165,9 @@ const bridge: HerdrDesktopBridge = {
   notifySettings: () => ipcRenderer.invoke(IPC.notifySettings),
   setNotifySettings: (change: Partial<NotifySettings>) => ipcRenderer.invoke(IPC.notifySettingsSet, change),
   testNotification: () => ipcRenderer.invoke(IPC.notifyTest),
+  notifyDelivery: () => ipcRenderer.invoke(IPC.notifyDelivery),
+  // Which pane only: main holds the address.
+  openNotificationSettings: () => ipcRenderer.send(IPC.notifyOpenSystemSettings),
 };
 
 contextBridge.exposeInMainWorld("herdrDesktop", bridge);

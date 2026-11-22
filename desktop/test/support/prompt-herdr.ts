@@ -50,8 +50,28 @@ export class FakeHerdr extends FixtureTransport {
     super(json, screens);
   }
 
+  /**
+   * The pane widths `pane.layout` answers, one per call (the last one stays), for every pane; null (the default):
+   * `pane.layout` fails, so the readers get no width.
+   */
+  columns: number[] | null = null;
+
   override roundTrip(line: string): Promise<string> {
-    const method = (JSON.parse(line) as { method: string }).method;
+    const request = JSON.parse(line) as { id: unknown; method: string; params?: { pane_id?: string } };
+    const method = request.method;
+    if (method === "pane.layout") {
+      this.requests.push(line);
+      if (this.columns === null || this.columns.length === 0) return Promise.reject(new Error("no layout here"));
+      const width = this.columns.length > 1 ? this.columns.shift()! : this.columns[0]!;
+      const paneId = request.params?.pane_id ?? "w1:p1";
+      const rect = { x: 0, y: 0, width, height: 40 };
+      return Promise.resolve(
+        JSON.stringify({
+          id: request.id,
+          result: { type: "pane_layout", layout: { area: rect, focused_pane_id: paneId, panes: [{ focused: true, pane_id: paneId, rect }], splits: [], tab_id: "w1:t1", workspace_id: "w1", zoomed: false } },
+        }),
+      );
+    }
     if (method === "pane.read" && this.readFails) {
       this.requests.push(line);
       return Promise.reject(new Error("the pane could not be read"));

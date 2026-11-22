@@ -315,6 +315,18 @@ export function ghosttyLinkBuffer(terminal: GhosttyLinkSource): LinkBuffer {
   };
 }
 
+/**
+ * Whether the cell (0-based column, absolute row) is in a link the provider offers on that row. The provider
+ * answers at once (provideLinks calls back before it returns), so a press can ask before it goes anywhere.
+ */
+export function hasLinkAt(provider: { provideLinks(y: number, callback: (links: TerminalLink[] | undefined) => void): void }, x: number, y: number): boolean {
+  let found = false;
+  provider.provideLinks(y, (links) => {
+    found = links?.some(({ range: { start, end } }) => (y > start.y || (y === start.y && x >= start.x)) && (y < end.y || (y === end.y && x <= end.x))) ?? false;
+  });
+  return found;
+}
+
 /** ghostty-web's link detector, by shape (it is private there). */
 interface DetectorLike {
   providers?: unknown[];

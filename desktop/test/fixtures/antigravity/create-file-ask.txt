@@ -1,0 +1,40 @@
+      ▄▀▀▄        Antigravity CLI 1.5.13
+     ▀▀▀▀▀▀       user.name@example.test (Google AI Pro)
+    ▀▀▀▀▀▀▀▀      Gemini 4 Hydrogen (Low)
+   ▄▀▀    ▀▀▄     /tmp/demo/sample-folder/work
+  ▄▀▀      ▀▀▄
+
+────────────────────────────────────────────────────────────
+> Read notes.txt in this folder and tell me its second line in one short sentence.
+
+● Explored 1 file (notes.txt) (ctrl+o to expand)
+
+  The second line of notes.txt:2 is beta.
+
+────────────────────────────────────────────────────────────
+> Do three things in this folder: run ls -la, append the line delta to notes.txt, then create hello.py that prints hi and run it with python3. Answer in two short sentences.
+
+○ Thought for 3.2s (Initial plan is to execute three operations. First, list directory contents. Then append data to a specific file, ensuring the append operation is correctly configured. Finally...)
+● Ran (ls -la)
+● Edited 2 files (notes.txt, hello.py)
+● Ran (python3 hello.py) (ctrl+o to expand)
+
+  I ran ls -la (which showed only notes.txt initially) and appended delta to notes.txt. I also created hello.py and ran it with python3, which printed hi.
+
+────────────────────────────────────────────────────────────
+> Create the file ask.txt containing the single word hello.
+
+● Edited 1 file (ask.txt) (ctrl+o to expand)
+
+Create file
+─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+/tmp/demo/sample-folder/work/ask.txt  +1
+  1  +  hello
+
+Allow creation of this file?
+> 1. Yes, allow creation
+  2. No, deny creation
+
+  ↑/↓ Navigate · f full diff
+esc to cancel                                                                                                                                                                     Gemini 4 Hydrogen · low

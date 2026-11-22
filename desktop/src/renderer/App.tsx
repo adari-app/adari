@@ -9,6 +9,7 @@ import { needsCards } from "./chat/needs-card-store";
 import { needsPillKinds } from "../shared/needs-pill";
 import { useNeedsYouReport } from "./needs-report";
 import { applyCleared } from "../shared/prompt/quiet";
+import { applyAgyQuestions } from "../shared/prompt/view";
 import { applyStartScreens } from "../shared/prompt/start-screen";
 import { attachSources } from "./components/attachments";
 import { draftKey } from "./components/composer-drafts";
@@ -29,7 +30,7 @@ import { pendingScopes, restartHolds } from "../shared/chat/pending";
 import { agentRestarts } from "./components/restart";
 import { HandoffRecents, handoffList, listRows, type HandoffAction, type HandoffTarget } from "../shared/handoff";
 import { appShortcut, tileShortcut } from "../shared/app-keys";
-import { newAgentPlaces, type NewAgentSplitTarget, type NewAgentWhereChoice } from "../shared/new-agent";
+import { madePaneKeptMs, newAgentPlaces, newStartId, withMadePanes, type MadePane, type NewAgentProgress, type NewAgentSplitTarget, type NewAgentWhereChoice } from "../shared/new-agent";
 import { defaultWorkspaceName, newWorkspaceMachines, type NewWorkspaceResult } from "../shared/new-workspace";
 import { decideTiles, neighbourTile, ratioRequest, sameArrangement, splitRefusal, type TileDecision } from "../shared/pane-layout";
 import { bindingTexts, paneBindingOf, rowBindingOf, rowRefusal, workspaceBindingOf, workspaceRefusal, type PaneBinding, type WorkspaceBinding } from "../shared/pane-binding";
@@ -52,7 +53,7 @@ import { PaneViews, lastPaneRestore, loadLastPane, saveLastPane, type PaneRef } 
 import { DrawerToggleGate, TerminalDrawers, drawerShellBelongs, drawerShellLabel, drawerShellsCapacity, withShellsBeingMade, type DrawerShellMaking } from "../shared/terminal-drawer";
 import { changesToggled, coveredAfter } from "../shared/changes/tabs";
 import { loadFontSize, nextFontSize, saveFontSize, type ViewCommand } from "../shared/view-commands";
-import { pendingMessages } from "./chat/chat-state";
+import { attachSendKeeping, pendingMessages, restoreUnproved } from "./chat/chat-state";
 import { ChangesOverview } from "./changes/ChangesOverview";
 import { AwayScreen, useAwayState } from "./away/Away";
 import { revealRequests } from "./search/reveal";
@@ -234,7 +235,7 @@ function updateReadyPanes(hosts: readonly HostView[]): UpdateReadyPane[] {
   for (const host of hosts) {
     for (const paneId of host.updateReady ?? []) {
       const row = findRow(hosts, host.id, paneId, { nowUnixMs: Date.now(), seenDone: {} });
-      if (row !== null) panes.push({ hostId: host.id, paneId, name: row.name, place: `${row.workspaceLabel} · ${host.name}`, kind: row.kind });
+      if (row !== null) panes.push({ hostId: host.id, paneId, name: row.name, place: `${row.workspaceLabel} · ${host.name}`, kind: row.kind, workspaceId: row.workspaceID });
     }
   }
   return panes;
@@ -347,10 +348,19 @@ export function App() {
   // own; a new terminal or agent session drops them with a quiet line.
   // The machines as Herdr sent them; the page shows them with the cleared panes working.
   const herdrHosts = useRef<HostView[] | null>(null);
-  const receiveHosts = useCallback((incoming: HostView[]) => {
+  // New agent's panes made and not listed yet, shown from Herdr's own answer
+  // until a snapshot lists them, main lets them go (its lists' madePanes), their machine's connection changes, their
+  // start failed and closed them, or madePaneKeptMs passed (shared/new-agent.ts withMadePanes). `lists`: how many
+  // machine lists main sent this page so far.
+  const madePanes = useRef<MadePane[]>([]);
+  const lists = useRef(0);
+  const applyHosts = useCallback((incoming: HostView[], fromMain: boolean) => {
+    if (fromMain) lists.current += 1;
     herdrHosts.current = incoming;
-    // And a pane showing Codex's hook review as needing you.
-    const next = applyStartScreens(applyCleared(incoming, needsCards.all()));
+    const made = withMadePanes(incoming, madePanes.current, Date.now(), lists.current);
+    madePanes.current = made.kept;
+    // And a pane showing Codex's hook review as needing you, and a done or idle agy pane showing one of agy's questions.
+    const next = applyStartScreens(applyAgyQuestions(applyCleared(made.hosts, needsCards.all()), needsCards.all()));
     hostsRef.current = next;
     handoffStore.setHosts(next);
     views.prune(next);
@@ -363,6 +373,11 @@ export function App() {
     // A Model or Effort pick held for its pane's next turn goes, or is dropped, by this snapshot.
     agentPicks.syncHosts(next);
   }, [views, drawers]);
+  const receiveHosts = useCallback((incoming: HostView[]) => applyHosts(incoming, true), [applyHosts]);
+  // The page's own change (a cleared pane, a made pane heard or let go): the lists as main last sent them, again.
+  const reapplyHosts = useCallback(() => {
+    if (herdrHosts.current !== null) applyHosts(herdrHosts.current, false);
+  }, [applyHosts]);
 
   useEffect(() => {
     void bridge.appInfo().then((value) => {
@@ -378,9 +393,7 @@ export function App() {
     needsCards.attach(bridge);
     // A restart's note while it still runs (Codex's lock wait).
     agentRestarts.attach(bridge);
-    const offCleared = needsCards.onCleared(() => {
-      if (herdrHosts.current !== null) receiveHosts(herdrHosts.current);
-    });
+    const offCleared = needsCards.onCleared(reapplyHosts);
     // The shown Cursor panes' footers, as main reads them (their chips and ring).
     const offFooters = agentPicks.attach(bridge);
     // Adari's own update state (the footer's pill, Settings › Updates, the toast).
@@ -388,11 +401,23 @@ export function App() {
     // Every draft change is kept by the main process; the kept ones come back into their boxes.
     // (A bridge without them, as the older tests' fakes, keeps drafts in memory only.)
     const keepsDrafts = typeof bridge.saveDraft === "function" && typeof bridge.loadDrafts === "function";
+    // A picture message past its Return that nothing proved yet is kept with the drafts: its bubble comes back after a
+    // reload or a start, and its copy goes once the transcript settles it, Put back or Dismiss.
+    const offKeeping = attachSendKeeping(bridge);
     if (keepsDrafts) {
       draftPersistence.attach(bridge);
-      void bridge.loadDrafts().then((state) => draftPersistence.restore(state));
+      void bridge.loadDrafts().then((state) => {
+        draftPersistence.restore(state);
+        restoreUnproved(state.unproved ?? []);
+      });
     }
-    const offDrafts = keepsDrafts ? bridge.onDraftsChanged((event) => draftPersistence.changed(event)) : () => undefined;
+    const offDrafts = keepsDrafts
+      ? bridge.onDraftsChanged((event) => {
+          draftPersistence.changed(event);
+          // Main's newer word for the bubbles shown (a reloaded page learns its check's outcome); none is added here.
+          restoreUnproved(event.state.unproved ?? [], false);
+        })
+      : () => undefined;
     // The window closing lets every Send still waiting for its uploads go, unsent (its draft is kept).
     const leave = (): void => composerDrafts.leaveAll();
     const listens = typeof window.addEventListener === "function";
@@ -404,12 +429,13 @@ export function App() {
       offFooters();
       offUpdates();
       offDrafts();
+      offKeeping();
       agentRestarts.attach(null);
       if (listens) window.removeEventListener("pagehide", leave);
       if (keepsDrafts) draftPersistence.detach();
       clearInterval(clock);
     };
-  }, [bridge, receiveHosts]);
+  }, [bridge, receiveHosts, reapplyHosts]);
 
   useEffect(() => {
     localStorage.setItem(foldKey, JSON.stringify(foldState));
@@ -460,6 +486,14 @@ export function App() {
   const selectedHost = selection === null ? null : (hosts?.find((host) => host.id === selection.hostId) ?? null);
   const selectedRow =
     selection === null || hosts === null ? null : findRow(hosts, selection.hostId, selection.paneId, { nowUnixMs: now, seenDone });
+  // New agent's pane on screen (its row found and selected): main hears it once, for the record's shown.
+  useEffect(() => {
+    const made = shownMade.current;
+    if (made === null || selection === null || selectedRow === null) return;
+    if (selection.hostId !== made.hostId || selection.paneId !== made.paneId || selectedRow.paneID !== made.paneId) return;
+    shownMade.current = null;
+    void bridge.newAgentShown?.(made.startId, made.paneId).catch(() => undefined);
+  }, [bridge, selection, selectedRow]);
   const selectedKey = selection === null ? null : rowKey(selection.hostId, selection.paneId);
   // The open pane's view: your pick on it, else Chat for an agent and Terminal for a shell (on start, a reconnect, every open).
   const tab: MainTab = selection === null || selectedRow === null ? "terminal" : views.view(selection.hostId, selectedRow);
@@ -511,6 +545,33 @@ export function App() {
       show({ hostId, paneId });
     },
     [show],
+  );
+  // New agent's pane, made: its row from Herdr's answer at once, the window on it,
+  // and main told once it is on screen (the record's shown). Kept past its start's answer, until
+  // withMadePanes lets it go; looked at again once madePaneKeptMs passed; let go at once when its failed start closed it.
+  const shownMade = useRef<{ readonly startId: string; readonly hostId: string; readonly paneId: string } | null>(null);
+  const showMade = useCallback(
+    (hostId: string, made: Extract<NewAgentProgress, { readonly type: "pane" }>) => {
+      const connection = hostsRef.current.find((host) => host.id === hostId)?.connection ?? 0;
+      madePanes.current = [
+        ...madePanes.current.filter((entry) => entry.pane.paneID !== made.paneId),
+        { hostId, connection, tab: made.tab, pane: made.pane, at: Date.now(), heard: lists.current },
+      ];
+      reapplyHosts();
+      setTimeout(reapplyHosts, madePaneKeptMs + 50);
+      shownMade.current = { startId: made.startId, hostId, paneId: made.paneId };
+      select(hostId, made.paneId);
+    },
+    [reapplyHosts, select],
+  );
+  const closedMade = useCallback(
+    (hostId: string, paneId: string) => {
+      if (shownMade.current?.hostId === hostId && shownMade.current.paneId === paneId) shownMade.current = null;
+      const before = madePanes.current.length;
+      madePanes.current = madePanes.current.filter((entry) => !(entry.hostId === hostId && entry.pane.paneID === paneId));
+      if (madePanes.current.length !== before) reapplyHosts();
+    },
+    [reapplyHosts],
   );
   // Settings opens over the main area at its last section (or `section`); the away, search and
   // Changes screens close (Settings goes back to the pane). The focus to go back to is noted as it opens.
@@ -1158,7 +1219,7 @@ export function App() {
           copy: (text) => bridge.copyText(text),
           open: openTarget,
           // The main process's bound Send, with no pending bubble (a hand-off is not your message in that chat).
-          send: (hostId, paneId, text, binding) => bridge.sendToPane(hostId, paneId, text, binding),
+          send: (hostId, paneId, text, binding) => bridge.sendToPane(hostId, paneId, text, binding).then(() => undefined),
         },
         request.payload,
         target,
@@ -1559,10 +1620,29 @@ export function App() {
         break;
       case "start-new-agent": {
         setNewAgent(null);
+        // Its pane opens once made (the start carries on), else with the answer.
+        const startId = newStartId();
+        let shown = false;
+        let madeId: string | null = null;
+        const stop = bridge.onNewAgentProgress?.((said) => {
+          if (said.startId !== startId) return;
+          // Its failed start closed the pane it showed: let it go before the answer says why.
+          if (said.type === "closed") {
+            if (said.paneId === madeId) closedMade(command.hostId, said.paneId);
+            return;
+          }
+          if (said.type !== "pane" || shown) return;
+          shown = true;
+          madeId = said.paneId;
+          showMade(command.hostId, said);
+        });
         const started = bridge
-          .newAgent(command.hostId, { workspaceId: command.workspaceId, folder: command.folder, kind: command.kind })
-          .then((result) => select(command.hostId, result.paneId))
-          .catch((failure: unknown) => setNotice(`Not started: ${String(failure)}`));
+          .newAgent(command.hostId, { workspaceId: command.workspaceId, folder: command.folder, kind: command.kind }, startId)
+          .then((result) => {
+            if (!shown) select(command.hostId, result.paneId);
+          })
+          .catch((failure: unknown) => setNotice(`Not started: ${String(failure)}`))
+          .finally(() => stop?.());
         void started.then(() => wait(600)).then(afterPaint).then(() => bridge.appCommandDone(command.id));
         return;
       }
@@ -1869,6 +1949,7 @@ export function App() {
           onClose={(kept) => askClosePane(selectedHost.id, kept === undefined ? paneContextOf(selectedHost.id, selectedRow.paneID) : kept)}
           onRename={(kept) => beginPaneRename(selectedHost.id, kept === undefined ? paneContextOf(selectedHost.id, selectedRow.paneID) : kept)}
           drawer={drawerViewFor(selectedHost, selectedRow)}
+          onOpenPane={select}
         />
       ) : (
         <EmptyState needsYou={sidebar.badge} hosts={hosts.length} />
@@ -1900,6 +1981,7 @@ export function App() {
             bridge.removeHost(hostId).then(receiveHosts, (error: unknown) => setNotice(`Not removed: ${failureText(error)}`))
           }
           updateReady={updateReady}
+          inView={selection === null || selectedRow === null ? null : { hostId: selection.hostId, workspaceId: selectedRow.workspaceID }}
           onOpenPane={select}
           update={updateView}
           onUpdateAction={updateAction}
@@ -1948,22 +2030,37 @@ export function App() {
           {...(newAgent.folder === undefined ? {} : { initialFolder: newAgent.folder })}
           {...(newAgent.exact === true ? { exact: true } : {})}
           folders={folderCalls}
-          start={(place, folder, kind, where, models) =>
-            bridge.newAgent(place.hostId, {
-              workspaceId: place.workspaceId,
-              folder,
-              kind,
-              ...(where.type === "split" ? { where } : {}),
-              // New agent's Model and Effort (none: the agent's defaults, no flag).
-              ...(models === undefined || (models.model === null && models.effort === null) ? {} : { model: models.model, effort: models.effort }),
-            })
+          start={(place, folder, kind, where, models, startId) =>
+            bridge.newAgent(
+              place.hostId,
+              {
+                workspaceId: place.workspaceId,
+                folder,
+                kind,
+                ...(where.type === "split" ? { where } : {}),
+                // New agent's Model and Effort (none: the agent's defaults, no flag).
+                ...(models === undefined || (models.model === null && models.effort === null) ? {} : { model: models.model, effort: models.effort }),
+              },
+              startId,
+            )
           }
-          onStarted={(place, result) => {
+          {...(bridge.onNewAgentProgress === undefined ? {} : { progress: (listener: (progress: NewAgentProgress) => void) => bridge.onNewAgentProgress!(listener) })}
+          onShown={(place, made) => {
+            // The pane exists: the window goes to it (its terminal while the agent starts, its row from Herdr's answer)
+            // and the start carries on.
             setNewAgent(null);
-            // Its view by its kind: Chat for an agent that answered, the terminal for a shell (or a command no agent came from).
-            select(place.hostId, result.paneId);
+            showMade(place.hostId, made);
+          }}
+          onStarted={(place, result, shown) => {
+            if (!shown) {
+              setNewAgent(null);
+              // Its view by its kind: Chat for an agent that answered, the terminal for a shell (or a command no agent came from).
+              select(place.hostId, result.paneId);
+            }
             if (result.summary !== null) setNotice(result.summary);
           }}
+          onFailed={(_place, failed) => setNotice(`Not started: ${failed}`)}
+          onClosed={(place, paneId) => closedMade(place.hostId, paneId)}
           onClose={() => setNewAgent(null)}
         />
       )}

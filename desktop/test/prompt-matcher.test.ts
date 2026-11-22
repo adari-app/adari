@@ -347,6 +347,22 @@ describe("CompanionLiveClaudePromptTests, ported (Claude Code 2.1.303 read live)
         "3. Yes, and switch to auto mode · auto mode handles these prompts for you",
         "4. No",
       ],
+      // Each part as the one text it stands for (`words`): the frame's indent and the option marks off.
+      words: {
+        question: "Do you want to proceed?",
+        body: [
+          "Bash command",
+          'Tip: auto mode handles these prompts for you — choose "switch to auto mode" below',
+          "Write shapes-c to c.txt in z-shapes directory",
+          "echo shapes-c > /private/tmp/z-shapes/c.txt",
+        ].join("\n"),
+        options: [
+          "1. Yes",
+          "2. Yes, and always allow access to /private/tmp/z-shapes from this project",
+          "3. Yes, and switch to auto mode · auto mode handles these prompts for you",
+          "4. No",
+        ].join("\n"),
+      },
     });
   });
 
@@ -483,6 +499,14 @@ describe("CompanionLiveCodexPromptTests, ported (Codex 0.163.0 read live)", () =
         "     day-one/evidence/shapes/codex-probe-out.txt` (p)",
         "3. No, and tell Codex what to do differently (esc)",
       ],
+      // Each part as the one text it stands for (`words`). The options' row end after `results-` the frame cannot tell
+      // (textwrap breaks after `-` with no blank, or at a blank there), and the command it quotes does
+      // not settle it (Codex builds the quoted prefix from its own token list): no text, compared by its rows.
+      words: {
+        question: "Would you like to run the following command?",
+        body: `Environment: local\nReason: Do you approve running this exact command to write shapes-3 to codex-probe-out.txt?\n$ ${command}`,
+        options: null,
+      },
     });
   });
 

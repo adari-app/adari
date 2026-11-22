@@ -27,6 +27,13 @@
 // rules as the others' (only at the prompt, else held for the next turn, the
 // newest winning; once on its way, not twice) and settles on the mode the
 // screen showed at its end; a refusal is a note.
+//
+// An Antigravity CLI pane's three chips show its last row (main's mode watch
+// sends its mode, model and level: PaneModeEvent's agyRow). A model or level
+// pick is one typed `/model <id>` made in main (IPC.modelPick, agyAfterPick):
+// proved when the last row names it (the row shows on the chips at once), not
+// proved: the chips keep what they showed and the note says so; nothing is
+// typed again.
 
 import type { CursorFooterEvent, CursorPickResult, GrokPickResult, HerdrDesktopBridge, HostView, ModelPickOutcome, ModePickResult, OpenCodePickResult, PaneModeEvent } from "../../shared/ipc-contract";
 import { approvalMode, bypassStartNote, isOfferedMode, unknownModeLabel, type ModeAgent, type ModeIcon } from "../../shared/approval-modes";
@@ -57,13 +64,15 @@ import {
   type PaneSettings,
   type SettingsScope,
 } from "../../shared/agent-settings";
-import { cursorFamilyName, sameCursorFamily, type ModelPick } from "../../shared/model-choices";
+import { agyLevels, cursorFamilyName, sameCursorFamily, type ModelPick } from "../../shared/model-choices";
 import { isModelId } from "../../shared/model-catalog";
+import type { AgyStatusRow } from "../../shared/agy-input";
+import type { ChatTurn } from "../../shared/chat/model";
 import { composerDrafts } from "./composer-drafts";
 import { draftPersistence } from "./draft-persistence";
 
 /** The agents whose panes get chips: Claude and Codex (their transcripts), Cursor (its footer). */
-export type PickAgent = ChipAgent | "cursor" | "grok" | "opencode";
+export type PickAgent = ChipAgent | "cursor" | "grok" | "opencode" | "agy";
 
 /** After this long without the transcript confirming a pick, the chip shows what the transcript says. */
 export const confirmWaitMs = 10_000;
@@ -171,13 +180,19 @@ const isModelPickRequest = (request: PickRequest): boolean =>
   request.modelPick !== undefined &&
   request.command !== undefined &&
   (modelLineCommand.test(request.command) || (request.modelPick.agent === "cursor" && cursorFamilyCommand.test(request.command))) &&
-  (request.kind === "model" || (request.kind === "effort" && request.modelPick.agent === "codex"));
+  (request.kind === "model" || (request.kind === "effort" && (request.modelPick.agent === "codex" || request.modelPick.agent === "agy")));
 
 /** Cursor's `/model <family name>` line, as shown and copied (main makes the one that goes). */
 const cursorFamilyCommand = /^\/model [A-Za-z0-9][A-Za-z0-9 .-]{0,63}$/;
 
 /** A model pick main types for Grok or Cursor (one at a time per pane). */
-const typedLivePick = (agent: PickAgent, request: PickRequest): boolean => (agent === "grok" || agent === "cursor") && request.kind === "model" && isModelPickRequest(request);
+const typedLivePick = (agent: PickAgent, request: PickRequest): boolean =>
+  ((agent === "grok" || agent === "cursor") && request.kind === "model" && isModelPickRequest(request)) || (agent === "agy" && isModelPickRequest(request));
+
+/** An Antigravity CLI model or level pick its last row did not show (nothing typed again, the chips as they were). */
+export function agyNotConfirmedText(label: string): string {
+  return `Not confirmed yet: Antigravity CLI's last row did not show ${label}, so the chips show what its screen says.`;
+}
 
 /** The line when a model pick for the pane is still on its way. */
 export const pickOnItsWayText = "Not set: the last model pick is still on its way.";
@@ -329,12 +344,22 @@ export interface ModeChipView extends ChipView {
   readonly warning: boolean;
 }
 
-/** A Claude or Grok pane's mode as main read it off its screen, with the identity it was read under. */
+/** A Claude, Grok or Antigravity CLI pane's mode as main read it off its screen, with the identity it was read under. */
 interface ModeSeen {
   readonly scope: SettingsScope;
   readonly run: { readonly connection: number; readonly arrival: number } | null;
-  readonly agent: "claude" | "grok";
+  readonly agent: ScreenModeAgent;
   readonly mode: string | null;
+}
+
+/** The agents whose mode main reads off their screen. */
+type ScreenModeAgent = "claude" | "grok" | "agy";
+
+/** An Antigravity CLI pane's last row as main read it, with the identity it was read under. */
+interface AgyRowSeen {
+  readonly scope: SettingsScope;
+  readonly run: { readonly connection: number; readonly arrival: number } | null;
+  readonly row: AgyStatusRow;
 }
 
 /** A Codex pick's mode as its screen showed it, the identity, and the rollout's newest turn then (a newer one retires it). */
@@ -452,8 +477,10 @@ export class AgentPicks {
   private readonly values = new Map<string, PaneSettings>();
   /** Each Cursor pane's footer as main last read it, with the terminal and session it was read under. */
   private readonly footers = new Map<string, FooterSeen>();
-  /** Each Claude or Grok pane's mode as main last read it off its screen. */
+  /** Each Claude, Grok or Antigravity CLI pane's mode as main last read it off its screen. */
   private readonly modes = new Map<string, ModeSeen>();
+  /** Each Antigravity CLI pane's last row (its model and level) as main last read it. */
+  private readonly agyRows = new Map<string, AgyRowSeen>();
   /** Each Codex pane's mode as a pick's screen showed it, until a newer turn. */
   private readonly codexModes = new Map<string, CodexModeSeen>();
   /** Each pane's Codex model and effort line typed last (CodexTyped). */
@@ -466,8 +493,12 @@ export class AgentPicks {
    * that did not finish): kept while the pane's note is still that text.
    */
   private readonly keptNotes = new Map<string, string>();
-  private readonly confirmed = new Map<string, Map<ChipKind, { readonly text: string; readonly turn: string | null }>>();
-  /** The newest turn of each pane's transcript as last received (a confirmation's turn). */
+  /**
+   * Per pane, the Model and Effort lines the transcript confirmed, each tied to its turn's anchor (turnAnchor) and,
+   * once a Chat view showed it, to that view (`shownBy`): a later view drops it (shown once).
+   */
+  private readonly confirmed = new Map<string, Map<ChipKind, { readonly text: string; readonly turn: string | null; shownBy?: object }>>();
+  /** The newest turn of each pane's transcript as last received (its anchor: a confirmation's turn). */
   private readonly turns = new Map<string, string | null>();
   private readonly listeners = new Set<() => void>();
   private revision = 0;
@@ -494,6 +525,14 @@ export class AgentPicks {
 
   /** The transcript's values for the pane shown with `binding`, or the empty ones (a Cursor pane's: its footer's). */
   settings(key: string, binding: SendBinding): AgentSettings {
+    // Antigravity CLI's last row: its model's name and its level (the list's row id is the chips' to find). A word
+    // after the name that is no level ("Orchestrator · neon") is part of the model's name, in its bracket: no level.
+    if (binding.kind === "agy") {
+      const row = this.agyRow(key, binding);
+      if (row === null) return emptySettings;
+      if (row.level !== null && !agyLevels.includes(row.level)) return { model: null, modelLabel: `${row.model} (${row.level})`, effort: null };
+      return { model: null, modelLabel: row.model, effort: row.level };
+    }
     if (binding.kind === "cursor") {
       const footer = this.cursorFooter(key, binding);
       return footer === null ? emptySettings : cursorFooterSettings(footer);
@@ -716,8 +755,34 @@ export class AgentPicks {
     };
   }
 
-  /** A mode main read off a Claude or Grok pane's screen (null: none that reads), with the identity it was read under. */
-  receiveMode(key: string, event: { readonly scope: SettingsScope; readonly run?: ModeSeen["run"]; readonly agent: "claude" | "grok"; readonly mode: string | null; readonly borderModel?: string | null }): void {
+  /** The Antigravity CLI pane's last row for the pane shown with `binding`, or null (none read, another identity). */
+  agyRow(key: string, binding: SendBinding): AgyStatusRow | null {
+    const seen = this.agyRows.get(key);
+    return seen === undefined || binding.kind !== "agy" || !footerFits(seen, binding) ? null : seen.row;
+  }
+
+  /** An Antigravity CLI pane's last row as read (a watch's read or a pick's last); true when it changed. */
+  private applyAgyRow(key: string, seen: AgyRowSeen | null): boolean {
+    const before = this.agyRows.get(key);
+    if (seen === null) return before !== undefined && this.agyRows.delete(key);
+    if (before !== undefined && JSON.stringify(before) === JSON.stringify(seen)) return false;
+    this.agyRows.set(key, seen);
+    return true;
+  }
+
+  /** A mode main read off a Claude, Grok or Antigravity CLI pane's screen (null: none that reads), with the identity it was read under. */
+  receiveMode(
+    key: string,
+    event: { readonly scope: SettingsScope; readonly run?: ModeSeen["run"]; readonly agent: ScreenModeAgent; readonly mode: string | null; readonly borderModel?: string | null; readonly agyRow?: AgyStatusRow | null },
+  ): void {
+    // Antigravity CLI's row with its mode; a new identity's first send (no mode, no row) clears the one held.
+    if (event.agent === "agy") {
+      const row = event.agyRow ?? null;
+      const rowChanged = row !== null ? this.applyAgyRow(key, { scope: event.scope, run: event.run ?? null, row }) : event.mode === null ? this.applyAgyRow(key, null) : false;
+      const retired = event.mode !== null && this.modeWarnings.delete(key);
+      if (!this.applyMode(key, event) && (rowChanged || retired)) this.changed();
+      return;
+    }
     // A screen a mode reads on retires a pick's warning, one showing the same mode too. Main
     // sends a pick's own last screen before its answer, and the next read after it even when unchanged
     // (live-reads.ts notePick); the pick's own result is applied below without it (goMode).
@@ -738,7 +803,7 @@ export class AgentPicks {
   }
 
   /** The pane's mode as seen (a pick's own result too; its warning stays); true when it changed. */
-  private applyMode(key: string, event: { readonly scope: SettingsScope; readonly run?: ModeSeen["run"]; readonly agent: "claude" | "grok"; readonly mode: string | null }): boolean {
+  private applyMode(key: string, event: { readonly scope: SettingsScope; readonly run?: ModeSeen["run"]; readonly agent: ScreenModeAgent; readonly mode: string | null }): boolean {
     const seen: ModeSeen = { scope: event.scope, run: event.run ?? null, agent: event.agent, mode: event.mode };
     const before = this.modes.get(key);
     if (before !== undefined && JSON.stringify(before) === JSON.stringify(seen)) return false;
@@ -756,7 +821,7 @@ export class AgentPicks {
       const footer = this.cursorFooter(key, binding);
       return footer === null ? null : cursorFooterMode(footer);
     }
-    if (binding.kind === "claude" || binding.kind === "grok") {
+    if (binding.kind === "claude" || binding.kind === "grok" || binding.kind === "agy") {
       const seen = this.modes.get(key);
       return seen !== undefined && seen.agent === binding.kind && footerFits(seen, binding) ? seen.mode : null;
     }
@@ -820,6 +885,13 @@ export class AgentPicks {
       this.codexTyped.delete(key);
       changed = true;
     }
+    // A line whose turn is no longer the last goes.
+    const shownLines = this.confirmed.get(key);
+    for (const [kind, line] of Array.from(shownLines?.entries() ?? [])) {
+      if (line.turn === turn) continue;
+      shownLines!.delete(kind);
+      changed = true;
+    }
     const picks = this.picks.get(key);
     for (const [kind, pick] of Array.from(picks?.entries() ?? [])) {
       if (pick.state !== "sent" || !inScope(settings, pick.binding)) continue;
@@ -832,12 +904,13 @@ export class AgentPicks {
         continue;
       }
       picks!.delete(kind);
-      const said =
-        kind === "model" ? `Model: ${settings.modelLabel ?? pick.request.label}` : kind === "effort" ? `Effort: ${effortLabel(settings.effort)}` : "Compacted";
+      changed = true;
+      // A Compact has no line of its own: the record's "Conversation compacted" row says it where it happened.
+      if (kind === "compact") continue;
+      const said = kind === "model" ? `Model: ${settings.modelLabel ?? pick.request.label}` : `Effort: ${effortLabel(settings.effort)}`;
       const lines = this.confirmed.get(key) ?? new Map();
       lines.set(kind, { text: said, turn });
       this.confirmed.set(key, lines);
-      changed = true;
     }
     // Claude's word that its compaction failed ends the wait.
     const compact = picks?.get("compact");
@@ -915,14 +988,35 @@ export class AgentPicks {
     return false;
   }
 
-  /** Chat's quiet lines for the pane: the picks the transcript confirmed in the turn it ends with. */
+  /**
+   * Chat's quiet lines for the pane: the Model and Effort picks the transcript confirmed in the turn it ends with
+   * (`turn`: that turn's anchor, turnAnchor).
+   */
   confirmations(key: string, turn: string | null): string[] {
     const lines = this.confirmed.get(key);
     if (lines === undefined) return [];
-    return (["model", "effort", "compact"] as const).flatMap((kind) => {
+    return (["model", "effort"] as const).flatMap((kind) => {
       const line = lines.get(kind);
       return line !== undefined && line.turn === turn ? [line.text] : [];
     });
+  }
+
+  /** The Chat view `view` shows the pane's lines for `turn`: each is its own from now on (`viewing` drops it later). */
+  markShown(key: string, turn: string | null, view: object): void {
+    for (const line of this.confirmed.get(key)?.values() ?? []) if (line.turn === turn && line.shownBy === undefined) line.shownBy = view;
+  }
+
+  /** A Chat view `view` opened on the pane: the lines an earlier view already showed go (each is shown once). */
+  viewing(key: string, view: object): void {
+    const lines = this.confirmed.get(key);
+    if (lines === undefined) return;
+    let changed = false;
+    for (const [kind, line] of Array.from(lines.entries())) {
+      if (line.shownBy === undefined || line.shownBy === view) continue;
+      lines.delete(kind);
+      changed = true;
+    }
+    if (changed) this.changed();
   }
 
   /** Why the last pick did not go, or null. */
@@ -965,7 +1059,7 @@ export class AgentPicks {
     }
     const typed = request.kind === "compact" && request.command !== undefined ? request.command.trim() : null;
     // A model, and Codex's Effort (it names the model), only as a model pick main checks; nothing else builds one.
-    const namesModel = request.kind === "model" || (context.agent === "codex" && request.kind === "effort");
+    const namesModel = request.kind === "model" || ((context.agent === "codex" || context.agent === "agy") && request.kind === "effort");
     const command =
       typed !== null
         ? isCompactLine(typed)
@@ -975,7 +1069,7 @@ export class AgentPicks {
           ? request.command!
           : namesModel
             ? null
-            : context.agent === "cursor" || context.agent === "grok"
+            : context.agent === "cursor" || context.agent === "grok" || context.agent === "agy"
               ? null
               : pickCommand(context.agent, request.kind, request.value, this.settings(key, context.binding));
     this.notes.delete(key);
@@ -985,7 +1079,9 @@ export class AgentPicks {
         about,
         context.agent === "codex" && request.kind === "effort"
           ? "Not set: Codex's model is not known yet. Pick one on the Model chip."
-          : "Not set: that is not one of the menu's choices.",
+          : context.agent === "agy" && request.kind === "effort"
+            ? "Not set: Antigravity CLI's model is not known yet, or its list does not name this level."
+            : "Not set: that is not one of the menu's choices.",
       );
       this.changed();
       return;
@@ -1247,7 +1343,7 @@ export class AgentPicks {
         if (result.type === "refused" && result.warning === true) this.modeWarnings.set(key, { binding: pick.binding, mode: result.mode });
         if (agent === "cursor") {
           if (result.footer !== undefined && result.footer !== null) this.receiveFooter(key, { scope, run, footer: result.footer });
-        } else if (agent === "claude" || agent === "grok") {
+        } else if (agent === "claude" || agent === "grok" || agent === "agy") {
           // The screen's word (main noted each screen it read; a pick refused before reading leaves the chip as it was).
           // An unknown result clears it (never the word from before the pick).
           // Applied, not observed: the warning set above shows first.
@@ -1381,6 +1477,12 @@ export class AgentPicks {
       this.cursorLines.delete(key);
       this.changed();
     }
+    // The pane gone, or another identity in it: Antigravity CLI's last row read for the last one goes.
+    const agyRow = this.agyRows.get(key);
+    if (agyRow !== undefined && (context === null || !footerFits(agyRow, context.binding))) {
+      this.agyRows.delete(key);
+      this.changed();
+    }
     // The pane gone, or a new run in it: the Grok pick kept for the last one goes.
     const grokKept = this.grokKept.get(key);
     if (grokKept !== undefined && (context === null || !footerFits(grokKept, context.binding))) {
@@ -1500,6 +1602,15 @@ export class AgentPicks {
           } else {
             this.grokKept.delete(key);
           }
+        }
+        // Antigravity CLI's last row named the pick: it shows on the chips now. Not named: the chips keep what they
+        // showed and the note says so (nothing is typed again, nothing cleared).
+        if (outcome !== undefined && outcome.type === "agy" && pick.agent === "agy") {
+          this.drop(key, pick);
+          if (outcome.confirmed && outcome.row !== null) this.applyAgyRow(key, { ...seenOf(pick.binding), row: outcome.row });
+          else this.say(key, pick, agyNotConfirmedText(pick.request.label));
+          this.changed();
+          return;
         }
         // Codex's line went: what it runs now, until a newer turn_context or another run.
         if (codexNamed(pick)) this.typedCodex(key, pick);
@@ -1712,6 +1823,7 @@ export class AgentPicks {
     this.values.clear();
     this.footers.clear();
     this.modes.clear();
+    this.agyRows.clear();
     this.codexModes.clear();
     this.codexTyped.clear();
     this.modeWarnings.clear();
@@ -1751,7 +1863,9 @@ export function pickContext(host: HostView, paneId: string): PickContext | null 
   const binding = runBindingOf(host, paneId, isAgent);
   // OpenCode's Model chip too.
   const agent =
-    isAgent && (binding.kind === "claude" || binding.kind === "codex" || binding.kind === "cursor" || binding.kind === "grok" || binding.kind === "opencode") ? binding.kind : null;
+    isAgent && (binding.kind === "claude" || binding.kind === "codex" || binding.kind === "cursor" || binding.kind === "grok" || binding.kind === "opencode" || binding.kind === "agy")
+      ? binding.kind
+      : null;
   if (agent === null) return null;
   let status = agentStatusFromWire(pane.agentStatus);
   if (agentInfo !== null && (agentInfo.agentStatus === "blocked" || agentInfo.inputPending === true)) status = "blocked";
@@ -1770,9 +1884,18 @@ export function cursorPickOf(request: PickRequest): CursorPick | null {
   return null;
 }
 
+/**
+ * What a confirmed pick's line is tied to: the last turn's start and its first item's id (the transcript's own
+ * ids), never the serial turn id, which starts over at each fresh load of the chat. Null: no turn.
+ */
+export function turnAnchor(turns: readonly ChatTurn[]): string | null {
+  const turn = turns.at(-1);
+  return turn === undefined ? null : JSON.stringify([turn.startedAt, turn.items[0]?.value.id ?? null]);
+}
+
 /** The app's picks (renderer-wide), sent through the page's bridge. */
 export const agentPicks = new AgentPicks({
-  send: (hostId, paneId, text, binding) => window.herdrDesktop.sendToPane(hostId, paneId, text, binding),
+  send: (hostId, paneId, text, binding) => window.herdrDesktop.sendToPane(hostId, paneId, text, binding).then(() => undefined),
   // A model pick, checked and made into its line in main.
   modelPick: (hostId, paneId, pick, binding) =>
     window.herdrDesktop.modelPick === undefined ? Promise.reject(new Error("Not sent: this window cannot send a model pick.")) : window.herdrDesktop.modelPick(hostId, paneId, pick, binding),

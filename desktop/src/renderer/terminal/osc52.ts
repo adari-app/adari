@@ -4,7 +4,9 @@
 // and copy it this way. Ghostty's VT core (ghostty-web's WASM build) drops the
 // write and never answers a read, so the pane's bytes are read here as they
 // arrive (they still go to the terminal whole), and a write is honoured only:
-// - within 2 s after your own mouse or key action in that tile (a program
+// - within 2 s after your own mouse or key action in that tile (a key, a
+//   press, or the release of a press that went to the program, so a slow drag
+//   in a program that takes the mouse still copies as it ends; a program
 //   cannot set your clipboard on its own), and only while the tile is on show;
 // - for the clipboard (c), primary (p) or selection (s) target, or none
 //   (xterm's default "s 0"): all are the clipboard here; the secondary (q)
@@ -199,7 +201,7 @@ export class Osc52Clipboard {
 
   constructor(private readonly deps: Osc52ClipboardDeps) {}
 
-  /** Your own key or mouse in this tile. */
+  /** Your own key or mouse in this tile (a key, a press, the release of a press that went to the program). */
   action(): void {
     this.lastAction = this.deps.now();
   }

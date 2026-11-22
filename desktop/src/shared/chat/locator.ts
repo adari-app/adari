@@ -18,6 +18,7 @@ import {
   geminiFamilyLocateCommand,
   geminiFamilyParseLocateOutput,
   isGeminiFamilyFormat,
+  isUUID,
   qwenLookupExcludes,
   qwenSessionIDOf,
 } from "./agents/gemini-family";
@@ -305,6 +306,16 @@ export function sessionFromArgv(argv: readonly string[], kind: string): AgentSes
       }
       if (id === null || !isGrokSessionID(id)) return null;
       break;
+    // Antigravity CLI's own resume, `agy --conversation <id>` / `--conversation=<id>` (it prints the `=` form on quit;
+    // a UUID). `-c` / `--continue` name none. As Herdr's report, the source `herdr:antigravity_cli`.
+    case "antigravity":
+      for (let index = 0; index < argv.length; index += 1) {
+        const word = argv[index]!;
+        if (word === "--conversation" && index + 1 < argv.length) id = argv[index + 1]!;
+        else if (word.startsWith("--conversation=")) id = word.slice("--conversation=".length);
+      }
+      if (id === null || !isUUID(id)) return null;
+      return { source: "herdr:antigravity_cli", agent: "agy", kind: "id", value: id };
     case "copilot": id = copilotResumeID(argv); break; // `copilot --resume=<id>`
     case "droid": id = droidResumeID(argv); break; // `droid --resume <id>`
     // `maki --session-id <id>`, else `-r`/`-s`/`--resume`/`--session <id>` (not forked); `-c` names none.

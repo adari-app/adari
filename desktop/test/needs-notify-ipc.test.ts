@@ -2,12 +2,13 @@
 // every payload is (types, lengths, at most 100 rows and 2000 identities, no row or identity twice, every row among
 // the identities, every index of every array so a structured clone's holes are refused, nothing extra) and dropped
 // otherwise, only from the app's own page; the switches take booleans only; a test notification takes no arguments.
-// Nothing the page sends on the four channels throws in main past the handles' own "bad request".
+// What became of the last notification reaches the page; Open Notification Settings takes nothing (main opens its own
+// fixed address). Nothing the page sends on the six channels throws in main past the handles' own "bad request".
 
 import { describe, expect, it, vi } from "vitest";
 
 import { IPC } from "../src/shared/ipc-contract";
-import { isNeedsYouReport, maxReportRows, maxReportWaiting, type NeedsYouEntry, type NeedsYouReport } from "../src/shared/needs-notify";
+import { isNeedsYouReport, maxReportRows, maxReportWaiting, notifyTexts, type NeedsYouEntry, type NeedsYouReport } from "../src/shared/needs-notify";
 
 const registered = vi.hoisted(() => ({
   handles: new Map<string, (...args: unknown[]) => unknown>(),
@@ -155,14 +156,15 @@ describe("a report with holes, through the real handler", () => {
 
   it("a notifier that throws all the same: the report is dropped and logged, the listener does not throw", () => {
     const lines: string[] = [];
-    const throwing = { update: () => { throw new TypeError("boom"); }, settings: () => ({ notify: true, sound: true, menuBar: true }), setSettings: () => ({ notify: true, sound: true, menuBar: true }), test: () => "" };
+    const throwing = { update: () => { throw new TypeError("boom"); }, settings: () => ({ notify: true, sound: true, menuBar: true }), setSettings: () => ({ notify: true, sound: true, menuBar: true }), test: () => Promise.resolve(""), delivery: () => null, openSystemSettings: () => undefined };
     registerNotifyIpc(throwing, (line) => lines.push(line));
     expect(() => registered.ons.get(IPC.needsYouReport)!(event, good)).not.toThrow();
     expect(lines).toEqual(["a Needs you report was dropped: boom"]);
   });
 
-  it("nothing the page sends on the four channels throws past the handles' own bad request (a seeded fuzz of 3000 payloads)", () => {
-    const { send, invoke } = setup();
+  it("nothing the page sends on the six channels throws past the handles' own bad request (a seeded fuzz of 3000 payloads)", () => {
+    const { port, send, invoke } = setup();
+    const open = (...args: unknown[]) => registered.ons.get(IPC.notifyOpenSystemSettings)!(event, ...args);
     let seed = 7;
     const random = () => ((seed = (seed * 1_103_515_245 + 12_345) % 2_147_483_648) / 2_147_483_648);
     const leaf = (): unknown => [null, undefined, 0, -1, 1.5, Number.NaN, "", "x", "mini", "w1:p1", "Pending Approval", true, false, 2 ** 53, "1:1"][Math.floor(random() * 15)];
@@ -182,7 +184,8 @@ describe("a report with holes, through the real handler", () => {
       const payload = structuredClone(value(0));
       expect(() => send(payload)).not.toThrow();
       expect(() => send(payload, payload)).not.toThrow();
-      for (const channel of [IPC.notifySettings, IPC.notifySettingsSet, IPC.notifyTest]) {
+      expect(() => open(payload)).not.toThrow();
+      for (const channel of [IPC.notifySettings, IPC.notifySettingsSet, IPC.notifyTest, IPC.notifyDelivery]) {
         try {
           invoke(channel, payload);
         } catch (error) {
@@ -191,6 +194,8 @@ describe("a report with holes, through the real handler", () => {
         }
       }
     }
+    // Every payload carried an argument: Open Notification Settings opened nothing.
+    expect(port.systemSettingsOpened).toBe(0);
   });
 });
 
@@ -205,7 +210,7 @@ describe("the notifications' IPC", () => {
     expect(port.badges.at(-1)).toBe(1);
   });
 
-  it("reads and changes the switches (booleans of the three only), and sends a test notification", () => {
+  it("reads and changes the switches (booleans of the three only), and sends a test notification", async () => {
     const { port, invoke } = setup();
     expect(invoke(IPC.notifySettings)).toEqual({ notify: true, sound: true, menuBar: true });
     expect(invoke(IPC.notifySettingsSet, { sound: false })).toEqual({ notify: true, sound: false, menuBar: true });
@@ -213,9 +218,47 @@ describe("the notifications' IPC", () => {
       expect(() => invoke(IPC.notifySettingsSet, change)).toThrow("bad request");
     }
     expect(() => invoke(IPC.notifySettings, "extra")).toThrow("bad request");
-    expect(invoke(IPC.notifyTest)).toContain("Sent.");
+    await expect(invoke(IPC.notifyTest)).resolves.toContain("Sent.");
     expect(port.notifications).toHaveLength(1);
     expect(() => invoke(IPC.notifyTest, 1)).toThrow("bad request");
     expect(() => registered.handles.get(IPC.notifyTest)!(stranger)).toThrow("untrusted sender");
+  });
+
+  it("says what became of the last notification: nothing known, failed, then shown again (no arguments taken)", async () => {
+    const { port, send, invoke } = setup();
+    port.outcome = null;
+    expect(invoke(IPC.notifyDelivery)).toBeNull();
+    send({ ...good, live: [{ hostId: "mini", epoch: "1:1" }], rows: [], waiting: [], total: 0 });
+    send(good);
+    expect(port.notifications).toHaveLength(1);
+    port.notifications[0]!.answer("failed");
+    expect(invoke(IPC.notifyDelivery)).toMatchObject({ outcome: "failed" });
+    const test = invoke(IPC.notifyTest) as Promise<string>;
+    port.notifications[1]!.answer("shown");
+    await expect(test).resolves.toContain("Sent.");
+    expect(invoke(IPC.notifyDelivery)).toMatchObject({ outcome: "shown" });
+    expect(port.notifications).toHaveLength(2);
+    expect(() => invoke(IPC.notifyDelivery, "extra")).toThrow("bad request");
+    expect(() => registered.handles.get(IPC.notifyDelivery)!(stranger)).toThrow("untrusted sender");
+  });
+
+  it("a failed test answers with the off line, not Sent.", async () => {
+    const { port, invoke } = setup();
+    port.outcome = "failed";
+    await expect(invoke(IPC.notifyTest)).resolves.toBe(notifyTexts.offLine);
+    expect(invoke(IPC.notifyDelivery)).toMatchObject({ outcome: "failed" });
+    expect(port.notifications).toHaveLength(1);
+  });
+
+  it("Open Notification Settings: only with no arguments and only from the app's page; nothing the page sends is an address", () => {
+    const { port } = setup();
+    const listener = registered.ons.get(IPC.notifyOpenSystemSettings)!;
+    listener(event, "https://example.invalid");
+    listener(event, "x-apple.systempreferences:com.apple.preference.security");
+    listener(event, undefined);
+    listener(stranger);
+    expect(port.systemSettingsOpened).toBe(0);
+    listener(event);
+    expect(port.systemSettingsOpened).toBe(1);
   });
 });

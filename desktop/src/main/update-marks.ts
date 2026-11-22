@@ -5,7 +5,9 @@
 // `pane.read` of the last lines, and the panes showing Claude Code's
 // "Update installed" line go on the machine's HostView (`updateReady`),
 // and so do the Codex panes showing Codex's "Update available!"
-// notice (readAgentUpdate picks the reader by the pane's agent).
+// notice (readAgentUpdate picks the reader by the pane's agent); with them,
+// per CLI, the update command Codex's notice named (a suggestion
+// Settings offers; HostView.updateSuggestions).
 // Nothing is ever written to a pane; an offline machine is never read.
 
 import { PaneReadGate } from "../shared/chat/live-reader";
@@ -19,8 +21,8 @@ export interface UpdateMarkHosts {
   list(): readonly HostView[];
   /** The machine's backend: its `pane.read` (absent: it cannot read a pane). */
   backend(id: string): { paneText?(paneId: string, lines: number): Promise<string> } | null;
-  /** The panes marked on the machine now (HostView.updateReady). */
-  setUpdateReady(hostId: string, panes: readonly string[]): void;
+  /** The panes marked on the machine now (HostView.updateReady), and per CLI the update command a notice named. */
+  setUpdateReady(hostId: string, panes: readonly string[], suggestions?: Readonly<Record<string, string>>): void;
 }
 
 /** Each pane of the snapshot as the watch takes it: its agent, its session, idle or done. */
@@ -110,9 +112,11 @@ export class UpdateMarkService {
 
   private publish(hostId: string, held: { watch: UpdateWatch; shown: string }): void {
     const marked = [...held.watch.marked()].sort();
-    const key = marked.join("\n");
+    const suggestions = held.watch.suggestions();
+    const key = `${marked.join("\n")}\u0000${JSON.stringify(Object.entries(suggestions).sort())}`;
     if (key === held.shown) return;
     held.shown = key;
-    this.hosts.setUpdateReady(hostId, marked);
+    if (Object.keys(suggestions).length === 0) this.hosts.setUpdateReady(hostId, marked);
+    else this.hosts.setUpdateReady(hostId, marked, suggestions);
   }
 }

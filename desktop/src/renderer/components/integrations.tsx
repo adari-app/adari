@@ -1,21 +1,26 @@
 // Herdr's agent integrations on the page.
 // Chat's no-session state names a missing or old integration with Install or
-// Update (ChatIntegration), and Settings › Machines lists each connected
-// machine's on one line (IntegrationsLine). Both read the machine's
+// Update (ChatIntegration), or, for a machine whose list was not read on this
+// connection, says so with a Retry (IntegrationUnread); Settings › Machines
+// lists each connected machine's on one line (IntegrationsLine) and has the
+// install-before-start switch (useAutoInstall). Both read the machine's
 // HostView.integrations (the main process's list, read on that connection,
 // and the last click's outcome) and send the same click: bound to the machine
 // as the window shows it, never on its own (src/main/integrations.ts).
 
-import { useSyncExternalStore } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 
 import type { HerdrDesktopBridge, HostView } from "../../shared/ipc-contract";
 import {
+  autoInstallTexts,
   integrationActionOf,
   integrationButton,
   integrationItem,
   integrationStateWords,
   integrationTargetOf,
   integrationTexts,
+  updateAllTargets,
+  updateAllTexts,
   type IntegrationBinding,
   type IntegrationItem,
   type IntegrationOutcome,
@@ -87,6 +92,32 @@ export async function clickInstall(bridge: Pick<HerdrDesktopBridge, "installInte
     if (!reply.sent) integrationNotes.set(host.id, target, reply.note);
   } catch (error) {
     integrationNotes.set(host.id, target, `Not installed: ${reason(error)}`);
+  } finally {
+    integrationNotes.asking.delete(key);
+  }
+}
+
+/**
+ * Settings' Update all on `host`: one ask to the main process, bound to `host` as shown, which updates each
+ * out-of-date integration in turn through the same install; each refusal is kept as its own row's note (each failure
+ * is its row's outcome, from the main process). A click while one runs on the machine asks nothing more here.
+ */
+export async function clickUpdateAll(bridge: Pick<HerdrDesktopBridge, "updateAllIntegrations">, host: HostView): Promise<void> {
+  const key = `${host.id}|*all`;
+  if (integrationNotes.asking.has(key)) return;
+  const targets = updateAllTargets(host.integrations?.items ?? []);
+  for (const target of targets) integrationNotes.set(host.id, target, null);
+  if (typeof bridge.updateAllIntegrations !== "function") {
+    for (const target of targets) integrationNotes.set(host.id, target, integrationTexts.unavailable);
+    return;
+  }
+  integrationNotes.asking.add(key);
+  try {
+    const reply = await bridge.updateAllIntegrations(host.id, integrationBindingOf(host));
+    if (reply.note !== null) for (const target of targets) integrationNotes.set(host.id, target, reply.note);
+    for (const { target, reply: one } of reply.results) if (!one.sent) integrationNotes.set(host.id, target, one.note);
+  } catch (error) {
+    for (const target of targets) integrationNotes.set(host.id, target, `Not updated: ${reason(error)}`);
   } finally {
     integrationNotes.asking.delete(key);
   }
@@ -214,12 +245,17 @@ export function settingsIntegrationItems(host: HostView): IntegrationItem[] {
   return (host.integrations?.items ?? []).filter((item) => item.available);
 }
 
-/** One line under a connected machine in Settings › Machines: "Codex: not installed · Install", with the outcomes under it. */
-export function IntegrationsLine({ host, bridge }: { host: HostView; bridge: Pick<HerdrDesktopBridge, "installIntegration"> }) {
+/**
+ * One line under a connected machine in Settings › Machines: "Codex: not installed · Install", with the outcomes under
+ * it; above it, while any shown one is out of date, Update all with the count (clickUpdateAll).
+ */
+export function IntegrationsLine({ host, bridge }: { host: HostView; bridge: Pick<HerdrDesktopBridge, "installIntegration" | "updateAllIntegrations"> }) {
   useSyncExternalStore(integrationNotes.subscribe, integrationNotes.version);
   const items = settingsIntegrationItems(host);
   if (items.length === 0) return null;
   const outcomes = host.integrations?.outcomes ?? {};
+  const outdated = updateAllTargets(items);
+  const updatingAll = host.integrations?.updatingAll === true;
   const notes = items.flatMap((item) => {
     const outcome = outcomes[item.target];
     const note = integrationNotes.note(host.id, item.target);
@@ -228,6 +264,19 @@ export function IntegrationsLine({ host, bridge }: { host: HostView; bridge: Pic
   });
   return (
     <div className="set-int" data-integrations={host.id}>
+      {outdated.length === 0 ? null : (
+        <div className="set-int-all">
+          <button
+            className="btn sm"
+            data-integrations-update-all={host.id}
+            title={updateAllTexts.title(outdated.length)}
+            disabled={updatingAll}
+            onClick={() => void clickUpdateAll(bridge, host)}
+          >
+            {updateAllTexts.button(outdated.length)}
+          </button>
+        </div>
+      )}
       <div className="set-int-line">
         {items.map((item) => {
           const action = integrationActionOf(item.state);
@@ -259,4 +308,73 @@ export function IntegrationsLine({ host, bridge }: { host: HostView; bridge: Pic
       ))}
     </div>
   );
+}
+
+/**
+ * Chat's added sentence for an agent of a shown kind with no session on a machine whose
+ * Herdr has the integration calls but whose list was not read on this connection (null: not so, today's line alone).
+ */
+export function chatUnreadIntegrationLine(host: HostView, kind: string | null | undefined): string | null {
+  if (host.state !== "connected" || host.integrations !== undefined || host.integrationsUnread === undefined) return null;
+  if (integrationTargetOf(kind) === null) return null;
+  return autoInstallTexts.unread(host.name);
+}
+
+/** Retries under way, per machine (one click, one ask). */
+const retrying = new Set<string>();
+
+/** Chat's Retry: the machine's list asked again on the connection the window showed as not read. */
+export async function clickRetry(bridge: Pick<HerdrDesktopBridge, "retryIntegrations">, host: HostView): Promise<void> {
+  const binding = host.integrationsUnread;
+  if (binding === undefined || retrying.has(host.id) || typeof bridge.retryIntegrations !== "function") return;
+  retrying.add(host.id);
+  try {
+    await bridge.retryIntegrations(host.id, binding);
+  } catch {
+    // Nothing more to say: the line stays until a list is read.
+  } finally {
+    retrying.delete(host.id);
+  }
+}
+
+/** The sentence and Retry under Chat's no-session line (nothing when chatUnreadIntegrationLine has none). */
+export function IntegrationUnread({ host, kind }: { host: HostView; kind: string | null | undefined }) {
+  const line = chatUnreadIntegrationLine(host, kind);
+  if (line === null) return null;
+  const bridge = window.herdrDesktop;
+  return (
+    <div className="chat-int-unread" data-integrations-unread={host.id}>
+      <div className="chat-int-note">{line}</div>
+      <button className="btn sm" data-integrations-retry="" disabled={typeof bridge?.retryIntegrations !== "function"} onClick={() => void clickRetry(bridge, host)}>
+        {autoInstallTexts.retry}
+      </button>
+    </div>
+  );
+}
+
+/** Settings' install-before-start switch as the main process keeps it (on until it says otherwise), and its change. */
+export function useAutoInstall(bridge: Pick<HerdrDesktopBridge, "integrationAutoInstall" | "setIntegrationAutoInstall">): readonly [boolean, (on: boolean) => void] {
+  const [on, setOn] = useState(true);
+  useEffect(() => {
+    let live = true;
+    void bridge.integrationAutoInstall?.().then(
+      (value) => {
+        if (live && typeof value === "boolean") setOn(value);
+      },
+      () => undefined,
+    );
+    return () => {
+      live = false;
+    };
+  }, [bridge]);
+  const change = (next: boolean): void => {
+    setOn(next);
+    void bridge.setIntegrationAutoInstall?.(next).then(
+      (value) => {
+        if (typeof value === "boolean") setOn(value);
+      },
+      () => undefined,
+    );
+  };
+  return [on, change] as const;
 }

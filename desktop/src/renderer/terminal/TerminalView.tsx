@@ -4,10 +4,13 @@
 // own window does (no column cap, no centring, Ghostty's 2-point padding);
 // every size change, and every text size change (⌘+ / ⌘- / ⌘0), is passed on
 // so the remote PTY follows. The wheel, ⌘C, a paste and a drop go through
-// terminal-input.ts, by Ghostty's rules. What you
+// terminal-input.ts, by Ghostty's rules. A press, a drag and a release go to a
+// program that asked for the mouse, Shift held keeping them the app's, as in
+// Ghostty (terminal-mouse.ts). What you
 // select is copied as the selection ends (terminal-copy.ts), with a "Copied" note in the tile's corner;
-// a program's own copy (an OSC 52 write) only right after your own key or
-// mouse in the tile on show (osc52.ts). A web address is a link that
+// a program's own copy (an OSC 52 write) only right after your own key,
+// press, or release of a press that went to the program, in the tile on show
+// (osc52.ts). A web address is a link that
 // ⌘-click opens in the default browser (terminal-links.ts).
 // Each terminal runs on a Ghostty engine of its own, so a new one never shows
 // a closed one's text (terminal-core.ts).
@@ -21,8 +24,9 @@ import { openLink } from "../open-link";
 import { Osc52Clipboard } from "./osc52";
 import { installSelectionCopy, type SelectionCopy } from "./terminal-copy";
 import { newTerminalCore, openTerminal } from "./terminal-core";
-import { ghosttyLinkBuffer, replaceUrlProvider, terminalLinkProvider } from "./terminal-links";
+import { ghosttyLinkBuffer, hasLinkAt, isTerminalLinkActivation, replaceUrlProvider, terminalLinkProvider } from "./terminal-links";
 import { TerminalInput, type TerminalSurface, type WheelEventLike } from "./terminal-input";
+import { installTerminalMouse, MouseReports, pointIn, type MouseSurface, type PointerLike } from "./terminal-mouse";
 import { darkPastel, terminalFontFamily, terminalFontSize } from "./theme";
 
 /** Where a terminal's bytes come from and its keys go. */
@@ -38,6 +42,11 @@ export interface TerminalPort {
    * write parses before it returns). Bytes kept while the engine loads are not parsed until written.
    */
   parsed?(bytes: number): void;
+  /**
+   * Runs `finish` first when the port is disposed, while it still takes input (a press the program holds gets its
+   * release before the attach closes); returns the function that takes it back. Absent where a port has no end.
+   */
+  beforeDispose?(finish: () => void): () => void;
 }
 
 const noClipboardFiles: ClipboardFiles = { files: [], refused: [], excess: [], failures: [] };
@@ -71,6 +80,15 @@ function surfaceOf(terminal: Terminal, host: HTMLElement, copy: SelectionCopy | 
         y,
       };
     },
+  };
+}
+
+/** ghostty-web's Terminal as the mouse reports need it: the cell under the pointer held inside the grid. */
+function mouseSurfaceOf(terminal: Terminal, canvas: HTMLCanvasElement): MouseSurface {
+  return {
+    getMode: (mode) => terminal.getMode(mode),
+    pointAt: (event: PointerLike) =>
+      pointIn(event, canvas.getBoundingClientRect(), terminal.renderer?.charWidth ?? 8, terminal.renderer?.charHeight ?? 17, terminal.cols, terminal.rows),
   };
 }
 
@@ -138,6 +156,7 @@ export function TerminalView({ port, autoFocus = true, onSize, fontSize = termin
     // What the terminal's open left listening, taken back after its dispose (terminal-core.ts).
     let closeTerminal: (() => void) | null = null;
     let selectionCopy: SelectionCopy | null = null;
+    let closeMouse: (() => void) | null = null;
     const markCopied = (): void => setCopied((n) => (n ?? 0) + 1);
     // A program's OSC 52 write: honoured right after your own action here, while the tile is on show.
     const programCopy = new Osc52Clipboard({
@@ -201,11 +220,8 @@ export function TerminalView({ port, autoFocus = true, onSize, fontSize = termin
       terminal.onData((data) => port.input(data));
       const term = terminal;
       // Http and https URLs are links; ⌘-click opens one in the default browser (terminal-links.ts).
-      replaceUrlProvider(
-        term,
-        terminalLinkProvider(() => ghosttyLinkBuffer(term), (url) => void openLink(url)),
-        (provider) => provider instanceof UrlRegexProvider,
-      );
+      const urls = terminalLinkProvider(() => ghosttyLinkBuffer(term), (url) => void openLink(url));
+      replaceUrlProvider(term, urls, (provider) => provider instanceof UrlRegexProvider);
       const bridge = window.herdrDesktop;
       const canvas = term.renderer?.getCanvas();
       // Copy on select, by Ghostty's rules, in place of ghostty-web's own copy (terminal-copy.ts).
@@ -232,6 +248,45 @@ export function TerminalView({ port, autoFocus = true, onSize, fontSize = termin
         clipboardFiles: () => bridge.clipboardFiles?.() ?? Promise.resolve(noClipboardFiles),
         prepareImage,
       });
+      // A press, a drag and a release to a program that asked for the mouse; ghostty-web's selection keeps the rest.
+      if (canvas !== undefined) {
+        const mouseSurface = mouseSurfaceOf(term, canvas);
+        const close = installTerminalMouse({
+          reports: new MouseReports(mouseSurface, (data) => port.input(data)),
+          frame: frameElement,
+          canvas,
+          document,
+          // Close Window on the Mac hides the window and keeps this terminal attached: its blur, and the page
+          // hidden (what SplitView's drag also ends on), finish a press the program holds; the listeners stay. (A
+          // stand-in window with no events, as some tests give, has nothing to finish on.)
+          window: typeof window.addEventListener === "function" ? window : undefined,
+          isHidden: () => document.visibilityState === "hidden",
+          hasKeyboard: () => {
+            const active = document.activeElement ?? null;
+            return (typeof document.hasFocus !== "function" || document.hasFocus()) && active !== null && hostElement.contains(active);
+          },
+          focus: () => term.focus(),
+          onLink: (event) => {
+            if (!isTerminalLinkActivation(event)) return false;
+            const point = mouseSurface.pointAt(event);
+            // The row ghostty-web's own click asks its link providers about (its handleClick), so what is a link
+            // here is what that click opens.
+            const y = (term.wasmTerm?.getScrollbackLength() ?? 0) - Math.max(0, Math.floor(term.getViewportY())) + point.row - 1;
+            // A program's own hyperlink (OSC 8), which ghostty-web's provider opens, or a web address.
+            if ((term.buffer.active.getLine(y)?.getCell(point.col - 1)?.getHyperlinkId() ?? 0) > 0) return true;
+            return hasLinkAt(urls, point.col - 1, y);
+          },
+          // The release of a press the program took is your own action: its copy (OSC 52) as the drag ends is honoured.
+          released: () => programCopy.action(),
+        });
+        // The view going away (a tab switch, the drawer hidden, the tile or the port replaced) finishes a press the
+        // program holds: when the port is disposed, before it closes, whichever of the two goes first.
+        const unhook = port.beforeDispose?.(close);
+        closeMouse = () => {
+          unhook?.();
+          close();
+        };
+      }
       term.attachCustomWheelEventHandler((event) => input.wheel(event));
       term.attachCustomKeyEventHandler((event) => input.key(event));
       // Before ghostty-web's own two paste handlers (its box and the hidden textarea, which would both
@@ -275,6 +330,7 @@ export function TerminalView({ port, autoFocus = true, onSize, fontSize = termin
       live.current = null;
       observer?.disconnect();
       detach?.();
+      closeMouse?.();
       selectionCopy?.dispose();
       for (const type of ["keydown", "mousedown"] as const) frameElement.removeEventListener(type, onAction, { capture: true });
       unsubscribe?.();

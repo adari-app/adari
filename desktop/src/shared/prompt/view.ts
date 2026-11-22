@@ -5,10 +5,11 @@
 // pane still shows that question (answerer.ts), bound to the agent and the
 // connection the page saw (the Stop binding, agent-stop.ts).
 
-import type { AgentInfo, TopologyPaneInfo } from "../../main/herdr/wire";
+import type { AgentInfo, SessionTopology, TopologyPaneInfo } from "../../main/herdr/wire";
+import type { HostView } from "../ipc-contract";
 import { agentKind, agentSession } from "../send-binding";
 import { isStopBinding, type StopBinding } from "../agent-stop";
-import type { PromptFingerprint, PromptReading } from "./matcher";
+import { agyKind, readingMatch, type PromptFingerprint, type PromptReading } from "./matcher";
 
 /** One blocked pane as main last read it. */
 export interface PanePrompt {
@@ -30,6 +31,15 @@ export interface PanePrompt {
    * until Herdr's status changes.
    */
   readonly cleared: boolean;
+  /**
+   * Read while Herdr says the pane is done or idle, not blocked: an agy pane
+   * showing one of Antigravity CLI's own questions (agy 1.5.13 reports `done`
+   * while its file questions show), or a Codex pane showing its "Implement
+   * this plan?" list (Codex 0.171.0 reports `done` then). Listed only while the
+   * reading is one of them; the page shows the pane as needing you then
+   * (applyAgyQuestions).
+   */
+  readonly whileNotBlocked?: true;
 }
 
 /** An answer from the card (an option's key) or from the box (the "No, tell…" option and the text). */
@@ -99,6 +109,98 @@ export function paneBlocked(pane: Pick<TopologyPaneInfo, "agent" | "agentStatus"
   return isAgent && agent !== null && (agent.agentStatus === "blocked" || agent.inputPending === true);
 }
 
+/**
+ * A pane of `kind` Herdr says is done or idle (not working, not blocked), with both of Herdr's records agreeing:
+ * neither the agent's nor the pane's says working, and neither names another kind.
+ */
+function doneOrIdlePane(
+  kind: string,
+  pane: Pick<TopologyPaneInfo, "agent" | "agentStatus">,
+  agent: Pick<AgentInfo, "agent" | "agentStatus" | "inputPending"> | null,
+): boolean {
+  if (agentKind(agent, pane) !== kind || paneBlocked(pane, agent)) return false;
+  const kinds = [agent?.agent, pane.agent].filter((name): name is string => name !== undefined && name !== "");
+  if (kinds.some((name) => name.toLowerCase() !== kind)) return false;
+  if (agent?.agentStatus === "working" || pane.agentStatus === "working") return false;
+  const status = agent?.agentStatus ?? pane.agentStatus;
+  return status === "done" || status === "idle";
+}
+
+/**
+ * An agy pane Herdr says is done or idle (not working, not blocked): Antigravity CLI 1.5.13's create and edit
+ * questions show while Herdr reports `done`, so its screen is read for them (prompts.ts). Both of Herdr's records
+ * must agree: neither the agent's nor the pane's says working, and neither names another kind.
+ */
+export function agyAskingPane(
+  pane: Pick<TopologyPaneInfo, "agent" | "agentStatus">,
+  agent: Pick<AgentInfo, "agent" | "agentStatus" | "inputPending"> | null,
+): boolean {
+  return doneOrIdlePane(agyKind, pane, agent);
+}
+
+/**
+ * A Codex pane Herdr says is done or idle, by the same rule. Codex
+ * 0.171.0 marks its turn done before it draws "Implement this plan?", and that list reports no blocking, so the pane
+ * is read for that one list (prompts.ts; matcher.ts `codexPlan`), nothing else.
+ */
+export function codexPlanPane(
+  pane: Pick<TopologyPaneInfo, "agent" | "agentStatus">,
+  agent: Pick<AgentInfo, "agent" | "agentStatus" | "inputPending"> | null,
+): boolean {
+  return doneOrIdlePane("codex", pane, agent);
+}
+
+/** A done or idle pane read for its agent's own question: agy's questions, or Codex's plan list. */
+export function doneAskingPane(
+  pane: Pick<TopologyPaneInfo, "agent" | "agentStatus">,
+  agent: Pick<AgentInfo, "agent" | "agentStatus" | "inputPending"> | null,
+): boolean {
+  return agyAskingPane(pane, agent) || codexPlanPane(pane, agent);
+}
+
+/** The reading is one of Antigravity CLI's own questions, read whole. */
+export function showsAgyQuestion(reading: PromptReading | null): boolean {
+  const match = readingMatch(reading);
+  return match !== null && (match.kind === "agyAsk" || match.kind === "agyTrust");
+}
+
+/**
+ * The reading is what a done or idle pane is read for (`doneAskingPane`), read whole: one of agy's questions, or
+ * Codex's "Implement this plan?" list (each reader runs only on its own agent's pane).
+ */
+export function showsDoneQuestion(reading: PromptReading | null): boolean {
+  return showsAgyQuestion(reading) || readingMatch(reading)?.kind === "codexPlan";
+}
+
+/**
+ * The machines as the page shows them: an agy pane main read while Herdr says it is done or idle, showing one of
+ * Antigravity CLI's questions, or a Codex pane so read showing its "Implement this plan?" list
+ * (on the machine's entry, connection and epoch now, the pane in the same block: promptEpisode), shows
+ * as needing you, as a blocked pane's question does: its agent with input pending, so the
+ * sidebar, Priority, the header, the notification and the card follow. Its status stays Herdr's (an answer is bound
+ * to it). Every other pane is as given.
+ */
+export function applyAgyQuestions<H extends Pick<HostView, "id" | "topology" | "incarnation" | "connection" | "epoch">>(hosts: readonly H[], prompts: readonly PanePrompt[]): H[] {
+  const asking = prompts.filter((prompt) => prompt.whileNotBlocked === true && showsDoneQuestion(prompt.reading));
+  if (asking.length === 0) return [...hosts];
+  return hosts.map((host) => {
+    const topology: SessionTopology | null = host.topology;
+    if (topology === null) return host;
+    const still = new Set(
+      asking
+        .filter((prompt) => {
+          if (prompt.hostId !== host.id || prompt.incarnation !== (host.incarnation ?? 0) || prompt.connection !== (host.connection ?? 0) || prompt.epoch !== (host.epoch ?? null)) return false;
+          const pane = topology.panes.find((candidate) => candidate.paneID === prompt.paneId);
+          const agent = topology.agents.find((candidate) => candidate.paneID === prompt.paneId) ?? null;
+          return pane !== undefined && agent !== null && doneAskingPane(pane, agent) && promptEpisode(pane, agent) === prompt.episode;
+        })
+        .map((prompt) => prompt.paneId),
+    );
+    if (still.size === 0) return host;
+    return { ...host, topology: { ...topology, agents: topology.agents.map((agent) => (still.has(agent.paneID) ? { ...agent, inputPending: true } : agent)) } };
+  });
+}
+
 const wide = (value: unknown): string | null => (typeof value === "number" || typeof value === "bigint" ? String(value) : null);
 
 /** One block of one agent: its terminal, kind and session, Herdr's status and when it began. A change is a new block. */
@@ -121,6 +223,16 @@ const isText = (value: unknown, max: number): value is string => typeof value ==
 const isTexts = (value: unknown, count: number, max: number): boolean =>
   Array.isArray(value) && value.length <= count && value.every((item) => isText(item, max));
 
+/** A fingerprint's `words` (matcher.ts `FingerprintWords`): absent, or each part a text no longer than its rows, or null. */
+function isFingerprintWords(value: unknown): boolean {
+  if (value === undefined) return true;
+  if (typeof value !== "object" || value === null) return false;
+  const w = value as Record<string, unknown>;
+  const part = (item: unknown, max: number): boolean => item === null || isText(item, max);
+  const rows = w["questionRows"];
+  return part(w["question"], 4_096) && part(w["body"], 201 * 4_097) && part(w["options"], 101 * 4_097) && (rows === undefined || isTexts(rows, 200, 4_096));
+}
+
 /** A well-formed answer from the page (anything else is refused). */
 export function isAnswerRequest(value: unknown): value is AnswerRequest {
   if (typeof value !== "object" || value === null) return false;
@@ -137,6 +249,7 @@ export function isAnswerRequest(value: unknown): value is AnswerRequest {
     isText(p["question"], 4_096) &&
     isTexts(p["body"], 200, 4_096) &&
     isTexts(p["options"], 100, 4_096) &&
+    isFingerprintWords(p["words"]) &&
     isText(v["episode"], 4_096) &&
     isText(v["key"], 4) &&
     v["key"] !== "" &&

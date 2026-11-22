@@ -39,7 +39,9 @@ export class TerminalSessions {
 
   async open(owner: WebContents, request: TerminalOpenRequest): Promise<{ sessionId: string }> {
     const backend = this.hosts.backend(request.hostId);
-    const pane = this.hosts.pane(request.hostId, request.paneId);
+    // A pane New agent just made may not be in the snapshot yet: Herdr's own answer for it, only while the machine's
+    // entry, connection and command connection are still those its start was bound to (hosts.ts madePane).
+    const pane = (this.hosts as Partial<Pick<HostRegistry, "madePane">>).madePane?.(request.hostId, request.paneId) ?? this.hosts.pane(request.hostId, request.paneId);
     if (backend === null || pane === null) throw new Error("That pane is no longer listed.");
     const sessionId = randomUUID();
     const session: OpenTerminal = { owner, hostId: request.hostId, paneId: request.paneId, handle: null, closed: false, opening: new AbortController() };

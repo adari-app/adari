@@ -33,14 +33,13 @@ export class ModelCatalogStore {
 
   /** The list as the page holds it (null: not asked for yet, or no answer yet). */
   view(hostId: string, agent: CatalogAgent): CatalogView | null {
-    if (agent === "agy") return builtInCatalog("agy");
     return this.views.get(keyOf(hostId, agent)) ?? null;
   }
 
   /** Asks main for the list (each open of a picker: main answers from its cache and reads again behind when old). */
   load(hostId: string, agent: CatalogAgent): void {
     const bridge = this.bridge();
-    if (agent === "agy" || bridge?.modelCatalog === undefined) return;
+    if (bridge?.modelCatalog === undefined) return;
     this.listen(bridge);
     const key = keyOf(hostId, agent);
     this.asked.add(key);
@@ -50,7 +49,10 @@ export class ModelCatalogStore {
       },
       (failure: unknown) => {
         const reason = failure instanceof Error ? failure.message.replace(/^Error invoking remote method '[^']+': (Error: )?/, "") : "it did not answer";
-        this.set(hostId, { ...builtInCatalog(agent), ...this.views.get(key), loading: false, error: `Could not read ${catalogAgentNames[agent]}'s models: ${reason.replace(/\.$/, "")}.` });
+        const held = this.views.get(key);
+        // Antigravity CLI with no list: today's line alone (no Model row), as main says it.
+        if (agent === "agy" && (held === undefined || held.models.length === 0)) this.set(hostId, { ...builtInCatalog(agent), loading: false });
+        else this.set(hostId, { ...builtInCatalog(agent), ...held, loading: false, error: `Could not read ${catalogAgentNames[agent]}'s models: ${reason.replace(/\.$/, "")}.` });
       },
     );
   }

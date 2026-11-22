@@ -17,6 +17,8 @@ import { shown, timelineOf } from "./support/chat-lines";
 import { claudeScreen } from "./support/claude-screens";
 import { checkHerdrKeys } from "./support/herdr-keys";
 import { beforeGlued, escMs, escTimes, firstPending, gluedLines, gluedText } from "./support/esc-queue-lines";
+import { blankLineMessages } from "./support/blank-lines";
+import { FakeClaudeQueue } from "./support/claude-queue-screens";
 
 /** A pane whose screens come one per read (the last repeats); keys are logged. */
 function boxSite(screens: readonly string[], log: unknown[][] = []): ClaudeBoxSite & { log: unknown[][] } {
@@ -182,5 +184,26 @@ describe("the whole flow", () => {
     expect(prompts).toEqual([`${firstPending}\ni have to press 3-4 times on chat pane`]);
     expect(keys).toEqual([]);
     expect(await beforeSend(boxSite([claudeScreen()]), [firstPending])).toEqual({ type: "go", cleared: null });
+  });
+});
+
+// MARK: - a message with blank lines, back in Claude's box after Esc
+
+describe("a message with blank lines back in Claude's box", () => {
+  for (const [shape, text] of blankLineMessages) {
+    it(`${shape}: every drawn row cleared, blank ones included, and a fresh read shows the box empty`, async () => {
+      const claude = new FakeClaudeQueue({ input: text, working: false });
+      const site: ClaudeBoxSite = { read: async () => claude.read(), keys: async (keys) => claude.keys(keys), wait: async () => undefined };
+      expect(await afterStop(site, text)).toEqual({ cancelled: text, cleared: true });
+      expect(claude.state.input).toBe("");
+    });
+  }
+
+  it("clearClaudeBox keeps clearing while what is left is a start of our message, never past its bound", async () => {
+    const claude = new FakeClaudeQueue({ input: "first line\n\nsecond line", working: false });
+    const site: ClaudeBoxSite = { read: async () => claude.read(), keys: async (keys) => claude.keys(keys), wait: async () => undefined };
+    // Told one row (as a reader that drops blank rows would): the first round leaves the start, the next clears it.
+    expect(await clearClaudeBox(site, "first line\nsecond line", "first line\n\nsecond line", undefined, 1)).toBe(true);
+    expect(claude.state.input).toBe("");
   });
 });

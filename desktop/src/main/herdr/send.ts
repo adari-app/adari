@@ -40,14 +40,20 @@ import {
   boxBefore,
   BoxKeysCalledOff,
   composerWrites,
+  recordProofGapMs,
   sameBoxRun,
+  sameLeftoverRun,
+  steadyNow,
   type BoxBefore,
   type BoxRun,
   type ClaudeBoxSite,
+  type LeftoverRun,
   type PulledRow,
   type TakeBackTurn,
 } from "./claude-box";
-import { claudeBoxTexts, imagePaths } from "../../shared/claude-screen";
+import { agyBoxEmpty, agyInputClear, agySendReadMs } from "../../shared/agy-input";
+import { agyAskingPane } from "../../shared/prompt/view";
+import { claudeBoxTexts, imagePaths, sendProofBoundMs } from "../../shared/claude-screen";
 import { startScreenKinds, startScreenNotSent, startScreenWhy } from "../../shared/prompt/start-screen";
 import type { StartScreenGuard } from "../start-screens";
 import {
@@ -59,7 +65,8 @@ import {
   type CursorPick,
   type CursorScreen,
 } from "../../shared/agent-settings";
-import type { CursorPickResult, GrokPickResult } from "../../shared/ipc-contract";
+import type { CursorPickResult, GrokPickResult, SendCheck, SendReceipt } from "../../shared/ipc-contract";
+import { recordShows, type QueueRecord } from "../../shared/claude-queue-record";
 import {
   grokFilesAgree,
   grokFilesTuple,
@@ -292,6 +299,25 @@ export interface SendSite {
    * (StartScreenService.sendGuard); absent where the screen is not read for it.
    */
   startScreen?(): StartScreenGuard;
+  /**
+   * Told once, right after Herdr took a prompt whose check follows (a picture message to Claude): the keys and
+   * their Return went with no transport error, so the message is no longer the composer's. The check's outcome is
+   * what the Send resolves with. Absent: nobody is told before the end.
+   */
+  typed?(): void;
+  /** Told the outcome of that check, once, before the Send resolves (none for a send with no check). */
+  checked?(outcome: SendCheck): void;
+  /**
+   * The page ended the check (its bubble settled, was put back or dismissed, or its pane went): the record is read no
+   * more. Absent: never.
+   */
+  stopped?(): boolean;
+  /**
+   * An Antigravity CLI pane's screen, read now through the pane's read gate (PromptService.sendRead: a question it
+   * shows whole becomes its card); null when the read failed or crossed a reconnect. Asked only for a Send to an agy
+   * pane Herdr says is idle or done. Absent: no read here, so nothing is written to such a pane.
+   */
+  agyScreen?(): Promise<string | null>;
 }
 
 /** What a Send to a Claude pane needs of its box. */
@@ -318,6 +344,19 @@ export interface SendBox {
   pulled?(): PulledRow | null;
   /** A read showed that row empty, or the cleanup emptied it. */
   resolved?(): void;
+  /** The pane's run now as an Esc's leftover is bound to it (terminal, agent session, Terminal input); absent: not known. */
+  pulledRun?(): LeftoverRun | null;
+  /**
+   * Claude Code's own record for the session the Send is bound to (its transcript: claude-queue-record.ts),
+   * the proof a picture message went; absent or undefined: no session named, or no transcript reader.
+   */
+  record?(session: string | null): QueueRecord | undefined;
+  /** Our sends to `run` still in Claude's box with no other copy (SentTexts.stuck); absent: none kept here. */
+  stuck?(run: BoxRun | null): readonly string[];
+  /** The picture check saw `text` still in Claude's box after its corrective Return (SentTexts.markStuck). */
+  markStuck?(text: string): void;
+  /** A read showed Claude's box without `text`: it is not stuck there any more (SentTexts.unstuck). */
+  unstuck?(text: string): void;
 }
 
 /** A picked connection and run (a hand-off's binding) still the same now; true for a binding without one. */
@@ -386,8 +425,11 @@ export const noReturnWhy: Record<Mismatch, string> = {
  * the note says to check the terminal. Resolves when sent;
  * throws the note.
  */
-export function sendBound(site: SendSite, paneID: string, text: string, expected: SendBinding, command?: TypedCommand): Promise<void> {
-  return inPaneTurn(site.writer, paneID, () => sendBoundNow(site, paneID, text, expected, command));
+export async function sendBound(site: SendSite, paneID: string, text: string, expected: SendBinding, command?: TypedCommand): Promise<void> {
+  const after: { watch?: () => Promise<SendCheck> } = {};
+  await inPaneTurn(site.writer, paneID, () => sendBoundNow(site, paneID, text, expected, command, after));
+  // A check that ended unknown: Claude Code's record is read on past the pane's turn (the next Send need not wait).
+  if (after.watch !== undefined) site.checked?.(await after.watch());
 }
 
 /**
@@ -594,7 +636,14 @@ async function sendChecks(site: SendSite, expected: SendBinding, name: string): 
   return found === null ? null : refusalFor(found, found === "sessionUnknown" ? name : displayName(name));
 }
 
-async function sendBoundNow(site: SendSite, paneID: string, text: string, expected: SendBinding, command?: TypedCommand): Promise<void> {
+async function sendBoundNow(
+  site: SendSite,
+  paneID: string,
+  text: string,
+  expected: SendBinding,
+  command: TypedCommand | undefined,
+  after: { watch?: () => Promise<SendCheck> },
+): Promise<void> {
   const typedCommand = command !== undefined;
   const early = planSend(text, { isAgent: expected.isAgent, kind: expected.kind }, typedCommand);
   if (typedCommand && early.kind !== "typed") throw new Error("Not sent: that command cannot be typed.");
@@ -604,7 +653,12 @@ async function sendBoundNow(site: SendSite, paneID: string, text: string, expect
   const name = expected.kind ?? "the agent";
   // A take-back left text in Claude's row: a command line typed into it
   // would join it, so none goes; a prompt goes only once its read below shows the row resolved.
-  const pulled = expected.isAgent && expected.kind === "claude" ? (site.box?.pulled?.() ?? null) : null;
+  // An Esc's leftover from another run (terminal, session or Terminal input changed) is stale: dropped, it never refuses.
+  let pulled = expected.isAgent && expected.kind === "claude" ? (site.box?.pulled?.() ?? null) : null;
+  if (pulled !== null && pulled.loose === true && !sameLeftoverRun(pulled.run ?? null, site.box?.pulledRun?.() ?? null)) {
+    site.box?.resolved?.();
+    pulled = null;
+  }
   if (pulled !== null && box === undefined) throw new Error(claudeBoxTexts.pulledNotSent);
   // The box is read only when due (Stop, Esc or a failed send since its last read).
   if (box !== undefined && ((box.due?.() ?? true) || pulled !== null)) {
@@ -627,7 +681,10 @@ async function sendBoundNow(site: SendSite, paneID: string, text: string, expect
       boundBoxSite(box.site, keysHold),
       box.own(bound.run),
       () => sendChecks(site, expected, name),
-      pulled === null ? undefined : { left: pulled, resolved: () => box.resolved?.() },
+      pulled === null ? undefined : { left: pulled, resolved: () => box.resolved?.(), runNow: box.pulledRun?.() ?? null },
+      // Our earlier message still in the box with no other copy, whole or a start of it: never typed after, never
+      // cleared (the same words replace it); a read without it drops its mark.
+      { texts: box.stuck?.(bound.run) ?? [], sending: text, gone: (left) => box.unstuck?.(left) },
     );
     if (allowed.type === "refused") throw new Error(intoDialog ? promptRefusal(new APIError("agent_blocked", "agent is blocked")) : allowed.note);
     // Only a read that lets the send go retires the check; a refusal (thrown above) or a box
@@ -645,6 +702,9 @@ async function sendBoundNow(site: SendSite, paneID: string, text: string, expect
   // unless the reads see it taken.
   const pictured = box !== undefined && imagePaths(text).length > 0;
   const baselineBound = pictured ? bindingNow(site, expected, box, paneID) : null;
+  // Claude Code's record for the session the Send is bound to (only a named session has one): its end, read right
+  // before the write (below), is where the proof that it went is looked for.
+  const record = pictured && expected.session !== null ? box.record?.(expected.session) : undefined;
   let baseline: BoxBefore | null = pictured ? await boxBefore(box.site) : null;
   if (!(await site.fresh())) throw new Error(expected.isAgent ? guardTexts.unchecked(name) : guardTexts.uncheckedPane);
   // Nothing awaited between this check and the write (the hook review's read below checks it again after).
@@ -680,6 +740,27 @@ async function sendBoundNow(site: SendSite, paneID: string, text: string, expect
     // The read was awaited: the snapshot's checks again, nothing awaited from here to the write.
     plan = checkNow();
   }
+  // Antigravity CLI says done (or idle) while one of its questions shows, where a digit or a Return answers it. On an
+  // agy pane Herdr says is idle or done (by the snapshot just checked: nothing awaited since), its screen is read now,
+  // the last thing awaited before the text: only a read that shows agy's input box whole at the bottom
+  // (agyInputClear) lets it go. A read that failed, answered later than agySendReadMs, or showed anything else
+  // writes nothing and keeps the text, in the words for a pane that is asking. A working agy pane: no read.
+  const agyPane = site.pane();
+  if (expected.isAgent && agyPane !== null && agyAskingPane(agyPane, site.agent())) {
+    const seen = await agyRead(site);
+    if (seen === null || !agyInputClear(seen)) throw new Error(promptRefusal(new APIError("agent_blocked", "agent is blocked")));
+    // A typed command (a model pick) goes only into the box this last read shows empty and idle: a draft that came
+    // since the pick's own read is never written into (an ordinary Send keeps its own treatment of drafts).
+    if (command !== undefined && !agyBoxEmpty(seen)) throw new Error(agyPickDraftText);
+    plan = checkNow();
+  }
+  // The record's end, read after every wait of the staging and right before the write (nothing awaited after it):
+  // only a line written after this read can stand for this prompt.
+  let recordFrom: number | null = null;
+  if (record !== undefined && plan.kind === "prompt") {
+    recordFrom = await record.end().catch(() => null);
+    plan = checkNow();
+  }
   // The run (or its input) changed between the baseline read and this snapshot: not its baseline.
   if (baselineBound !== null && !baselineBound.holds()) baseline = null;
   if (plan.kind === "prompt" || !expected.isAgent) {
@@ -701,7 +782,27 @@ async function sendBoundNow(site: SendSite, paneID: string, text: string, expect
       throw error;
     }
     if (plan.kind === "prompt") box?.sent(plan.text, sentRun);
-    if (pictures !== null && box !== undefined) await confirmPictures(site, box, plan.text, baseline, pictures.bound, pictures.idleBefore);
+    if (pictures === null || box === undefined) return;
+    // The keys and their Return went with no transport error: the message is not the composer's any more.
+    site.typed?.();
+    const clock = box.site.now === undefined ? steadyNow : () => box.site.now!();
+    const typedAt = clock();
+    // The record's reads for this send, in the check and the watch after it: one count, one deadline, each answer
+    // taken only while the pane's binding still holds after the read (a session named, so the record alone proves it;
+    // an end that could not be read proves nothing).
+    const watch =
+      record === undefined || expected.session === null
+        ? undefined
+        : recordWatch(record, recordFrom, plan.text, expected.session, typedAt + sendProofBoundMs, clock, recordLive(site, expected, box), () => site.stopped?.() === true);
+    // Whether the record alone settles it is whether the session is named, not whether a reader could be made: with
+    // a name and no reader nothing proves it here (unknown, never taken), and the screen is never the proof.
+    const found = await confirmPictures(site, box, plan.text, baseline, pictures.bound, pictures.idleBefore, watch?.proof, expected.session !== null);
+    // Nothing proved it yet: the record may still (Claude reads each picture before it writes the line).
+    if (found === "unknown" && watch !== undefined && watch.open() && site.checked !== undefined) {
+      after.watch = () => watchRecord(box.site, watch, typedAt + sendProofBoundMs);
+      return;
+    }
+    site.checked?.(found);
     return;
   }
   // A hidden command (a pick, Compact) goes only while the agent is at its prompt now:
@@ -783,6 +884,180 @@ async function sendBoundNow(site: SendSite, paneID: string, text: string, expect
   }
 }
 
+/**
+ * A Send as the page gets it (IPC.paneSend): answered once its keys and Return went. A send with no check after it
+ * answers when it ends (its failure is the answer, with its note); a picture message to Claude Code answers at its
+ * Return with the id of the check that runs on (`checks`), so the composer empties then. A check never fails the
+ * Send: an error in it reads as unknown.
+ */
+export async function sendWithReceipt(checks: SendChecks, send: (follow: Pick<SendSite, "typed" | "checked" | "stopped">) => Promise<void>): Promise<SendReceipt> {
+  let typedNow: () => void = () => undefined;
+  const typed = new Promise<"typed">((resolve) => {
+    typedNow = () => resolve("typed");
+  });
+  let outcome: SendCheck = "unknown";
+  let stopped = false;
+  const sending = send({
+    typed: typedNow,
+    checked: (found) => {
+      outcome = found;
+    },
+    stopped: () => stopped,
+  });
+  const first = await Promise.race([sending.then(() => "done" as const), typed]);
+  if (first === "done") return { check: null };
+  return {
+    check: checks.open(
+      sending.then((): SendCheck => outcome, (): SendCheck => "unknown"),
+      () => {
+        stopped = true;
+      },
+    ),
+  };
+}
+
+/**
+ * The checks that follow a Send's Return, by id until the page asks for one (once). One that ended is kept a minute
+ * (a page that went never asks), and at most `kept` at a time.
+ */
+export class SendChecks {
+  static readonly kept = 64;
+  static readonly keptMs = 60_000;
+  private serial = 0;
+  private readonly checks = new Map<string, Promise<SendCheck>>();
+  /** Per check still running, what stops its record reads (the page ended it); gone once it answered. */
+  private readonly stops = new Map<string, () => void>();
+
+  static isId(id: string): boolean {
+    return /^check-[0-9]{1,15}$/.test(id);
+  }
+
+  open(outcome: Promise<SendCheck>, stop?: () => void): string {
+    this.serial += 1;
+    const id = `check-${this.serial}`;
+    this.checks.set(id, outcome);
+    if (stop !== undefined) this.stops.set(id, stop);
+    for (const oldest of this.checks.keys()) {
+      if (this.checks.size <= SendChecks.kept) break;
+      this.checks.delete(oldest);
+    }
+    void outcome.then(() => {
+      this.stops.delete(id);
+      const timer = setTimeout(() => this.checks.delete(id), SendChecks.keptMs);
+      timer.unref?.();
+    });
+    return id;
+  }
+
+  /** The page is done with check `id` (its bubble settled, put back or dismissed, its pane gone): its record reads stop. */
+  end(id: string): void {
+    const stop = this.stops.get(id);
+    this.stops.delete(id);
+    stop?.();
+  }
+
+  /** The outcome for `id` (waiting for it), once; null when none is kept. */
+  async take(id: string): Promise<SendCheck | null> {
+    const outcome = this.checks.get(id);
+    if (outcome === undefined) return null;
+    this.checks.delete(id);
+    return outcome;
+  }
+}
+
+/** At most this many reads of the record for one send, the check's and the watch's together (one a second to the bound). */
+export const recordWatchReads = Math.ceil(sendProofBoundMs / recordProofGapMs);
+
+/** One send's reads of Claude Code's record (recordWatch). */
+interface RecordWatch {
+  /** One read: true when the record shows the message and the pane's binding still held after the read. */
+  readonly proof: () => Promise<boolean>;
+  /** Reads may go on: none ended it (a changed binding, the page's stop), the count and the deadline not spent. */
+  readonly open: () => boolean;
+}
+
+/**
+ * The reads of `record` past `from` (its end right before the write) for `sent`, sent to `session`: at most
+ * recordWatchReads in all (the check's and the watch's), none starting at or past `by` on `clock`, none once the page
+ * stopped the check (`stopped`). The pane's binding (`live`) is asked before each read and again after it: changed,
+ * the reads end and that read's answer is never taken. A `from` that could not be read proves nothing.
+ */
+function recordWatch(
+  record: QueueRecord,
+  from: number | null,
+  sent: string,
+  session: string,
+  by: number,
+  clock: () => number,
+  live: () => boolean,
+  stopped: () => boolean,
+): RecordWatch {
+  let reads = 0;
+  let ended = from === null;
+  const open = (): boolean => {
+    if (!ended && (stopped() || !live() || reads >= recordWatchReads || clock() >= by)) ended = true;
+    return !ended;
+  };
+  const proof = async (): Promise<boolean> => {
+    if (!open() || from === null) return false;
+    reads += 1;
+    const lines = await record.since(from).catch(() => null);
+    if (stopped() || !live()) {
+      ended = true;
+      return false;
+    }
+    return lines !== null && recordShows(lines, sent, session) !== null;
+  };
+  return { proof, open };
+}
+
+/**
+ * The pane's binding a record answer is taken under: the machine's entry still this Send's, the run and connection
+ * it was written on, the pane there with the same terminal, agent and session (mismatch). Asked after every read.
+ */
+function recordLive(site: SendSite, expected: SendBinding, box: SendBox): () => boolean {
+  const connection = site.run?.()?.connection ?? null;
+  return () =>
+    (box.machine?.() ?? true) &&
+    sameRun(expected, site) &&
+    (site.run?.()?.connection ?? null) === connection &&
+    mismatch(expected, site.pane(), site.agent()) === null;
+}
+
+/**
+ * After a check that ended unknown, Claude Code's record is read once a second (recordProofGapMs) while the send's
+ * reads may go on (`watch.open`: its count, the deadline `by`, its binding and the page's stop): `taken` once it
+ * shows the message, `unknown` when the reads end. No key, no screen read: only the record.
+ */
+async function watchRecord(site: ClaudeBoxSite, watch: RecordWatch, by: number): Promise<SendCheck> {
+  const clock = site.now === undefined ? steadyNow : () => site.now!();
+  while (watch.open()) {
+    await site.wait(Math.min(recordProofGapMs, Math.max(0, by - clock())));
+    if (await watch.proof()) return "taken";
+  }
+  return "unknown";
+}
+
+/** A typed model pick on an Antigravity pane whose last read before the write shows text in its box. */
+export const agyPickDraftText = "Not sent: Antigravity CLI's box has text in it. Send or clear it, then pick again.";
+
+/**
+ * A Send's read of an idle or done agy pane (SendSite.agyScreen): its text, or null when there is no reader, the
+ * read failed, or it did not answer within agySendReadMs (its turn at the pane's read gate included).
+ */
+async function agyRead(site: SendSite): Promise<string | null> {
+  if (site.agyScreen === undefined) return null;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const late = new Promise<null>((resolve) => {
+    timer = setTimeout(() => resolve(null), agySendReadMs);
+  });
+  try {
+    return await Promise.race([site.agyScreen().catch(() => null), late]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 /** Why no Return went after the text (guardTexts.noReturn). */
 export const hookReviewWhy = "Codex is asking whether to trust Herdr's hook in its terminal";
 
@@ -817,12 +1092,14 @@ function startScreenGuard(site: SendSite, expected: SendBinding): { readonly gua
 
 /**
  * As the Swift app's CompanionInboxStore.confirm: after Herdr took a prompt that carries pictures,
- * Claude's box is read on a steady clock (claude-box.ts afterPrompt) and its one corrective Return goes only
- * once every picture shows as a chip new since the write, Claude idle, the binding holding and the run known
- * (checked again on a fresh snapshot right before the key). Sent (resolves) only when the reads say it went;
- * anything else (still in the box, a piece of it, the user's text, nothing read, no run id) throws the unconfirmed
- * note: the composer keeps the text and the pictures, Chat's bubble goes, nothing is sent again by itself, and
- * the next Send reads the box first.
+ * Claude's box is read on a steady clock (claude-box.ts afterPrompt), beside Claude Code's own record when the
+ * session is known (`proof`), and its one corrective Return goes only once every picture shows as a chip new
+ * since the write, Claude idle, the binding holding and the run known (checked again on a fresh snapshot right
+ * before the key). The outcome is the Send's answer, never a failure: the keys went, so nothing comes back to the
+ * composer on a screen guess. `taken` (the record or a read proved it), `unknown` (nothing proved it: the page's
+ * bubble waits for the transcript, then says it could not confirm it), `stillInBox` (seen in the box after the one
+ * Return: its only copy is there, so no other message is typed after it, SentTexts.markStuck). Anything but taken
+ * marks the box due, so the next Send reads it first. Nothing is ever typed again by the app.
  */
 async function confirmPictures(
   site: SendSite,
@@ -831,17 +1108,21 @@ async function confirmPictures(
   before: BoxBefore | null,
   bound: PromptBinding,
   idleBefore: boolean,
-): Promise<void> {
+  proof: (() => Promise<boolean>) | undefined,
+  named: boolean,
+): Promise<SendCheck> {
   const found = await afterPrompt(promptBoxSite(box, bound), sent, {
     idleBefore,
     before,
     holds: bound.holds,
     mayPress: async () => (await site.fresh()) && bound.known(),
+    ...(proof === undefined ? {} : { record: proof }),
+    named,
   });
-  // Sent only on what the reads saw take it; a box empty all along is not.
-  if (found === "taken") return;
+  if (found === "taken") return found;
   box.failed?.();
-  throw new Error(guardTexts.returnUnconfirmed(takerName("claude")));
+  if (found === "stillInBox") box.markStuck?.(sent);
+  return found;
 }
 
 /** At its prompt by this snapshot: the pane idle or done, the agent not working and no dialog. */

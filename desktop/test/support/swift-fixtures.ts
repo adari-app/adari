@@ -66,6 +66,13 @@ export const copiedFixtures: readonly { readonly file: string; readonly source: 
     file: "replay/claude-2.1.303-bash-dialog.txt",
     source: "Tests/HerdrCompanionTests/Fixtures/Live/claude-2.1.303-bash-dialog.txt",
   },
+  // Antigravity CLI 1.5.14's `agy models` and its answer to an unknown --model (the samples, read live 2026-11-21).
+  { file: "agy/models-1.5.14.txt", source: "Tests/Fixtures/agy-models/models-1.5.14.txt" },
+  { file: "agy/model-unknown-1.5.14.txt", source: "Tests/Fixtures/agy-models/model-unknown-1.5.14.txt" },
+  // 1.5.14's `agy models` stderr inside an SSH session (exit 1, no row) and the list a signed-in Mac printed
+  // on 2026-11-22, Antigravity CLI's built-in list (the samples, read live).
+  { file: "agy/models-ssh-signin-1.5.14.txt", source: "Tests/Fixtures/agy-models/models-ssh-signin-1.5.14.txt" },
+  { file: "agy/builtin-1.5.14.txt", source: "Tests/Fixtures/agy-models/builtin-1.5.14.txt" },
 ];
 
 /**

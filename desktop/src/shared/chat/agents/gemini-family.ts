@@ -117,7 +117,7 @@ function usableFolder(value: string): string | null {
 }
 
 /** A UUID (Qwen Code's `randomUUID()` session ids, config/config.ts:3487; Antigravity's conversation ids). */
-const isUUID = (value: string): boolean => /^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}$/.test(value);
+export const isUUID = (value: string): boolean => /^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}$/.test(value);
 
 /** Qwen Code's project folder name for a working folder: every character but A–Z, a–z, 0–9 becomes `-` (utils/paths.ts:388-392). */
 export const qwenProjectName = (folder: string): string => folder.replace(/[^A-Za-z0-9]/g, "-");

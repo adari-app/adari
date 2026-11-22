@@ -401,7 +401,7 @@ describe("Updates and About", () => {
     expect(words(group("claude"))).toContain("claude --resume <session>");
     expect(words(group("codex"))).toContain("codex resume <session> --no-daemon"); // what restart types
     expect(words(group("codex"))).toContain("1 agent");
-    expect(words(run.view.tree)).toContain("Not listed: Grok Build and Cursor Agent. They print no update notice Adari can read.");
+    expect(words(run.view.tree)).toContain("No mark for Grok Build and Cursor Agent: they print no update notice Adari can read. Their update commands are under Other agents.");
     (elements(group("codex")).find((element) => element.props["className"] === "set-upd")!.props["onClick"] as () => void)();
     expect(events).toEqual([["onOpenPane", "box", "w2:p1"]]);
     // The marks in the rows say each CLI's own words.

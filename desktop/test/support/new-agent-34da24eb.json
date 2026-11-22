@@ -1,0 +1,297 @@
+{
+ "Herdr's own start, integration current": {
+  "log": [
+   "(read agents.json)",
+   "agent.list {}",
+   "tab.create {\"workspace_id\":\"w1\",\"focus\":false,\"cwd\":\"/fixture\",\"label\":\"claude\"}",
+   "agent.start {\"name\":\"claude\",\"kind\":\"claude\",\"pane_id\":\"w1:pn1\"}",
+   "pane.read {\"pane_id\":\"w1:pn1\",\"source\":\"recent\",\"lines\":20,\"format\":\"text\",\"strip_ansi\":true}",
+   "agent.list {}",
+   "session.snapshot {}"
+  ],
+  "result": {
+   "paneId": "w1:pn1",
+   "tabId": "w1:tn1",
+   "name": "claude",
+   "kind": "claude",
+   "start": {
+    "type": "herdr"
+   },
+   "summary": null
+  }
+ },
+ "Herdr's own start, integration outdated (updated first)": {
+  "log": [
+   "(read agents.json)",
+   "integration.install {\"target\":\"claude\"}",
+   "integration.list {}",
+   "agent.list {}",
+   "tab.create {\"workspace_id\":\"w1\",\"focus\":false,\"cwd\":\"/fixture\",\"label\":\"claude\"}",
+   "agent.start {\"name\":\"claude\",\"kind\":\"claude\",\"pane_id\":\"w1:pn1\"}",
+   "pane.read {\"pane_id\":\"w1:pn1\",\"source\":\"recent\",\"lines\":20,\"format\":\"text\",\"strip_ansi\":true}",
+   "agent.list {}",
+   "session.snapshot {}"
+  ],
+  "result": {
+   "paneId": "w1:pn1",
+   "tabId": "w1:tn1",
+   "name": "claude",
+   "kind": "claude",
+   "start": {
+    "type": "herdr"
+   },
+   "summary": "Updated Herdr's Claude Code integration on Mac mini."
+  }
+ },
+ "Herdr's own start, integration missing (installed first)": {
+  "log": [
+   "(read agents.json)",
+   "integration.install {\"target\":\"codex\"}",
+   "integration.list {}",
+   "agent.list {}",
+   "tab.create {\"workspace_id\":\"w1\",\"focus\":false,\"cwd\":\"/fixture\",\"label\":\"codex\"}",
+   "agent.start {\"name\":\"codex\",\"kind\":\"codex\",\"pane_id\":\"w1:pn1\",\"args\":[\"--no-daemon\"]}",
+   "pane.read {\"pane_id\":\"w1:pn1\",\"source\":\"recent\",\"lines\":20,\"format\":\"text\",\"strip_ansi\":true}",
+   "agent.list {}",
+   "session.snapshot {}"
+  ],
+  "result": {
+   "paneId": "w1:pn1",
+   "tabId": "w1:tn1",
+   "name": "codex",
+   "kind": "codex",
+   "start": {
+    "type": "herdr"
+   },
+   "summary": "Installed Herdr's Codex integration on Mac mini."
+  }
+ },
+ "Herdr's own start, integration install stalled past its bound": {
+  "log": [
+   "(read agents.json)",
+   "integration.install {\"target\":\"codex\"}",
+   "agent.list {}",
+   "tab.create {\"workspace_id\":\"w1\",\"focus\":false,\"cwd\":\"/fixture\",\"label\":\"codex\"}",
+   "agent.start {\"name\":\"codex\",\"kind\":\"codex\",\"pane_id\":\"w1:pn1\",\"args\":[\"--no-daemon\"]}",
+   "pane.read {\"pane_id\":\"w1:pn1\",\"source\":\"recent\",\"lines\":20,\"format\":\"text\",\"strip_ansi\":true}",
+   "agent.list {}",
+   "session.snapshot {}",
+   "integration.list {}"
+  ],
+  "result": {
+   "paneId": "w1:pn1",
+   "tabId": "w1:tn1",
+   "name": "codex",
+   "kind": "codex",
+   "start": {
+    "type": "herdr"
+   },
+   "summary": "Not installed yet: Herdr had not finished installing its Codex integration after 35 seconds, so New agent did not wait for it."
+  }
+ },
+ "Herdr's own start, integration install refused": {
+  "log": [
+   "(read agents.json)",
+   "integration.install {\"target\":\"codex\"}",
+   "integration.list {}",
+   "agent.list {}",
+   "tab.create {\"workspace_id\":\"w1\",\"focus\":false,\"cwd\":\"/fixture\",\"label\":\"codex\"}",
+   "agent.start {\"name\":\"codex\",\"kind\":\"codex\",\"pane_id\":\"w1:pn1\",\"args\":[\"--no-daemon\"]}",
+   "pane.read {\"pane_id\":\"w1:pn1\",\"source\":\"recent\",\"lines\":20,\"format\":\"text\",\"strip_ansi\":true}",
+   "agent.list {}",
+   "session.snapshot {}"
+  ],
+  "result": {
+   "paneId": "w1:pn1",
+   "tabId": "w1:tn1",
+   "name": "codex",
+   "kind": "codex",
+   "start": {
+    "type": "herdr"
+   },
+   "summary": "Not installed: settings.json is not writable"
+  }
+ },
+ "Herdr refuses the start: its pane closed": {
+  "log": [
+   "(read agents.json)",
+   "agent.list {}",
+   "tab.create {\"workspace_id\":\"w1\",\"focus\":false,\"cwd\":\"/fixture\",\"label\":\"claude\"}",
+   "agent.start {\"name\":\"claude\",\"kind\":\"claude\",\"pane_id\":\"w1:pn1\"}",
+   "(refused launch_failed)",
+   "pane.close {\"pane_id\":\"w1:pn1\"}"
+  ],
+  "result": {
+   "error": "Herdr did not start Claude Code: the pane is gone"
+  }
+ },
+ "Herdr's own start, the program not installed": {
+  "log": [
+   "(read agents.json)",
+   "agent.list {}",
+   "tab.create {\"workspace_id\":\"w1\",\"focus\":false,\"cwd\":\"/fixture\",\"label\":\"claude\"}",
+   "agent.start {\"name\":\"claude\",\"kind\":\"claude\",\"pane_id\":\"w1:pn1\"}",
+   "pane.read {\"pane_id\":\"w1:pn1\",\"source\":\"recent\",\"lines\":20,\"format\":\"text\",\"strip_ansi\":true}",
+   "session.snapshot {}"
+  ],
+  "result": {
+   "paneId": "w1:pn1",
+   "tabId": "w1:tn1",
+   "name": "claude",
+   "kind": "claude",
+   "start": {
+    "type": "herdr"
+   },
+   "summary": "Claude Code is not installed on Mac mini: its shell says “zsh: command not found: claude”."
+  }
+ },
+ "a typed start, integration current": {
+  "log": [
+   "(read agents.json)",
+   "agent.list {}",
+   "tab.create {\"workspace_id\":\"w1\",\"focus\":false,\"cwd\":\"/fixture\",\"label\":\"claude\"}",
+   "pane.send_input {\"pane_id\":\"w1:pn1\",\"text\":\"cl\",\"keys\":[\"Enter\"]}",
+   "agent.list {}",
+   "session.snapshot {}"
+  ],
+  "result": {
+   "paneId": "w1:pn1",
+   "tabId": "w1:tn1",
+   "name": "claude",
+   "kind": "claude",
+   "start": {
+    "type": "typed",
+    "command": "cl"
+   },
+   "summary": null
+  }
+ },
+ "a typed start whose agent comes on the third look": {
+  "log": [
+   "(read agents.json)",
+   "agent.list {}",
+   "tab.create {\"workspace_id\":\"w1\",\"focus\":false,\"cwd\":\"/fixture\",\"label\":\"claude\"}",
+   "pane.send_input {\"pane_id\":\"w1:pn1\",\"text\":\"cl\",\"keys\":[\"Enter\"]}",
+   "agent.list {}",
+   "pane.read {\"pane_id\":\"w1:pn1\",\"source\":\"recent\",\"lines\":20,\"format\":\"text\",\"strip_ansi\":true}",
+   "agent.list {}",
+   "pane.read {\"pane_id\":\"w1:pn1\",\"source\":\"recent\",\"lines\":20,\"format\":\"text\",\"strip_ansi\":true}",
+   "agent.list {}",
+   "session.snapshot {}"
+  ],
+  "result": {
+   "paneId": "w1:pn1",
+   "tabId": "w1:tn1",
+   "name": "claude",
+   "kind": "claude",
+   "start": {
+    "type": "typed",
+    "command": "cl"
+   },
+   "summary": null
+  }
+ },
+ "a typed start, integration outdated": {
+  "log": [
+   "(read agents.json)",
+   "integration.install {\"target\":\"claude\"}",
+   "integration.list {}",
+   "agent.list {}",
+   "tab.create {\"workspace_id\":\"w1\",\"focus\":false,\"cwd\":\"/fixture\",\"label\":\"claude\"}",
+   "pane.send_input {\"pane_id\":\"w1:pn1\",\"text\":\"cl\",\"keys\":[\"Enter\"]}",
+   "agent.list {}",
+   "session.snapshot {}"
+  ],
+  "result": {
+   "paneId": "w1:pn1",
+   "tabId": "w1:tn1",
+   "name": "claude",
+   "kind": "claude",
+   "start": {
+    "type": "typed",
+    "command": "cl"
+   },
+   "summary": "Updated Herdr's Claude Code integration on Mac mini."
+  }
+ },
+ "a split right, Herdr's own start": {
+  "log": [
+   "(read agents.json)",
+   "agent.list {}",
+   "session.snapshot {}",
+   "pane.layout {\"pane_id\":\"w1:p1\"}",
+   "pane.split {\"workspace_id\":\"w1\",\"target_pane_id\":\"w1:p1\",\"direction\":\"right\",\"cwd\":\"/fixture\",\"focus\":false}",
+   "agent.start {\"name\":\"claude\",\"kind\":\"claude\",\"pane_id\":\"w1:new1\"}",
+   "pane.read {\"pane_id\":\"w1:new1\",\"source\":\"recent\",\"lines\":20,\"format\":\"text\",\"strip_ansi\":true}",
+   "agent.list {}",
+   "session.snapshot {}",
+   "(reread mini)",
+   "pane.layout {\"pane_id\":\"w1:p1\"}"
+  ],
+  "result": {
+   "paneId": "w1:new1",
+   "tabId": "w1:t1",
+   "name": "claude",
+   "kind": "claude",
+   "start": {
+    "type": "herdr"
+   },
+   "summary": null
+  }
+ },
+ "a shell": {
+  "log": [
+   "(read agents.json)",
+   "tab.create {\"workspace_id\":\"w1\",\"focus\":false,\"cwd\":\"/fixture\"}",
+   "session.snapshot {}"
+  ],
+  "result": {
+   "paneId": "w1:pn1",
+   "tabId": "w1:tn1",
+   "name": null,
+   "kind": "shell",
+   "start": {
+    "type": "shell"
+   },
+   "summary": null
+  }
+ },
+ "two typed starts at once": {
+  "log": [
+   "(read agents.json)",
+   "agent.list {}",
+   "agent.list {}",
+   "tab.create {\"workspace_id\":\"w1\",\"focus\":false,\"cwd\":\"/fixture\",\"label\":\"claude\"}",
+   "tab.create {\"workspace_id\":\"w1\",\"focus\":false,\"cwd\":\"/fixture\",\"label\":\"claude\"}",
+   "pane.send_input {\"pane_id\":\"w1:pn1\",\"text\":\"cl\",\"keys\":[\"Enter\"]}",
+   "pane.send_input {\"pane_id\":\"w1:pn2\",\"text\":\"cl\",\"keys\":[\"Enter\"]}",
+   "agent.list {}",
+   "agent.list {}",
+   "session.snapshot {}"
+  ],
+  "result": [
+   {
+    "paneId": "w1:pn1",
+    "tabId": "w1:tn1",
+    "name": "claude",
+    "kind": "claude",
+    "start": {
+     "type": "typed",
+     "command": "cl"
+    },
+    "summary": null
+   },
+   {
+    "paneId": "w1:pn2",
+    "tabId": "w1:tn2",
+    "name": "claude",
+    "kind": "claude",
+    "start": {
+     "type": "typed",
+     "command": "cl"
+    },
+    "summary": null
+   }
+  ]
+ }
+}

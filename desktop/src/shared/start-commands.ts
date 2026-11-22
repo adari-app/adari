@@ -7,6 +7,17 @@
 // time (`editableStartKinds`): the main process writes `~/.adari/agents.json`
 // over the machine's SFTP connection (src/main/start-commands-write.ts), with
 // the reader's own checks (`startCommandSaveRefusal`), the other keys kept.
+//
+// The same file holds each covered CLI's update command (Settings ›
+// Updates › Agent CLIs), under the key `<kind>.update`, e.g.
+// `{"claude": "cl", "codex.update": "codex-update"}`: no new file and no new
+// format, one more key per kind. Read here into `updates` (never into
+// `commands`: no start types it); a file without one reads as none. Its rule is
+// its own (updateCommandRefusal): one line, no control or invisible character,
+// at most 200 characters, and anything a shell takes (quotes, `;`, an alias):
+// it is typed exactly as written into a visible shell only after a click and a
+// confirmation. A reader from before this round reads such a key as one more
+// kind no agent has, and uses it nowhere.
 
 import { withNoDaemon } from "./codex-start";
 
@@ -46,8 +57,55 @@ export interface AgentStartCommands {
   readonly status: StartCommandsStatus;
   /** Kind → the command to type, only those that passed. */
   readonly commands: Readonly<Record<string, string>>;
-  /** Kind → why its command is not used. */
+  /** Kind → why its command is not used (an update command's refusal under its key, `codex.update`). */
   readonly refused: Readonly<Record<string, string>>;
+  /** Kind → its update command (the file's `<kind>.update`), only those that passed; absent: none. */
+  readonly updates?: Readonly<Record<string, string>>;
+}
+
+/** The key a kind's update command has in the file ("codex.update"). */
+export function updateCommandKey(kind: string): string {
+  return `${kind}.update`;
+}
+
+/** The kind an update command's key names ("codex.update": "codex"), or null for any other key. */
+export function updateKindOfKey(key: string): string | null {
+  if (!key.endsWith(".update")) return null;
+  const kind = key.slice(0, -".update".length);
+  return kind === "" || kind.includes(".") ? null : kind;
+}
+
+/** An update command's limit, in characters (Unicode scalars). */
+export const maximumUpdateCommandLength = 200;
+
+/** Why `command` is not used as an update command, or null when it may be: one line, no control or invisible character, at most 200 characters. */
+export function updateCommandRefusal(command: string): string | null {
+  if (command.trim() === "") return "its command is empty";
+  if ([...command].length > maximumUpdateCommandLength) return `its command is longer than ${maximumUpdateCommandLength} characters`;
+  return lineRefusal(command);
+}
+
+/** The character checks both commands share: one line, no control or invisible character (no length). */
+function lineRefusal(command: string): string | null {
+  for (const scalar of command) {
+    if (/[\p{Zl}\p{Zp}]/u.test(scalar)) return "its command has a line break";
+    if (/\p{Cc}/u.test(scalar)) return scalar === "\n" || scalar === "\r" || scalar === "\u0085" ? "its command has a line break" : "its command has a control character";
+    if (/\p{Cf}/u.test(scalar)) return "its command has an invisible formatting character";
+  }
+  return null;
+}
+
+/** Why `command` may not be saved as an update command (empty: none, the key goes); null when it may. */
+export function updateCommandSaveRefusal(command: string): string | null {
+  if (command === "") return null;
+  const read = updateCommandRefusal(command);
+  return read === null ? null : `The command ${read.replace(/^its command /, "")}.`;
+}
+
+/** The machine's update command for `kind`, or null (none set). */
+export function updateCommandFor(commands: AgentStartCommands, kind: string): string | null {
+  const updates = commands.updates;
+  return updates !== undefined && Object.hasOwn(updates, kind) ? updates[kind]! : null;
 }
 
 export const absentStartCommands: AgentStartCommands = { status: { type: "absent" }, commands: {}, refused: {} };
@@ -64,16 +122,8 @@ export function commandFor(commands: AgentStartCommands, kind: string): string |
 /** Why `command` is not typed into a shell, or null when it may be: one line, no control or invisible character, at most 64 characters. */
 export function startCommandRefusal(command: string): string | null {
   if (command.trim() === "") return "its command is empty";
-  const scalars = [...command];
-  if (scalars.length > maximumCommandLength) return `its command is longer than ${maximumCommandLength} characters`;
-  for (const scalar of scalars) {
-    if (/[\p{Zl}\p{Zp}]/u.test(scalar)) return "its command has a line break";
-    if (/\p{Cc}/u.test(scalar)) {
-      return scalar === "\n" || scalar === "\r" || scalar === "\u0085" ? "its command has a line break" : "its command has a control character";
-    }
-    if (/\p{Cf}/u.test(scalar)) return "its command has an invisible formatting character";
-  }
-  return null;
+  if ([...command].length > maximumCommandLength) return `its command is longer than ${maximumCommandLength} characters`;
+  return lineRefusal(command);
 }
 
 /** The characters a start command's words are made of. */
@@ -195,16 +245,26 @@ export function parseStartCommands(data: Uint8Array | null): AgentStartCommands 
   }
   const commands: Record<string, string> = {};
   const refused: Record<string, string> = {};
+  const updates: Record<string, string> = {};
   for (const [kind, value] of Object.entries(object as Record<string, unknown>)) {
     if (typeof value !== "string") {
       refused[kind] = "its command is not text";
+      continue;
+    }
+    // An update command (`codex.update`): its own rule, kept apart (no start types it).
+    const updateKind = updateKindOfKey(kind);
+    if (updateKind !== null) {
+      const why = updateCommandRefusal(value);
+      if (why === null) updates[updateKind] = value;
+      else refused[kind] = why;
       continue;
     }
     const reason = startCommandRefusal(value);
     if (reason === null) commands[kind] = value;
     else refused[kind] = reason;
   }
-  return startCommandsWith({ type: "read" }, commands, refused);
+  const read = startCommandsWith({ type: "read" }, commands, refused);
+  return Object.keys(updates).length === 0 ? read : { ...read, updates };
 }
 
 /** A value from the main process (or anywhere untrusted) as start commands, or null when it is not one. */
@@ -219,6 +279,7 @@ export function isAgentStartCommands(value: unknown): value is AgentStartCommand
     status !== null &&
     ["absent", "read", "malformed", "unreadable"].includes(status["type"] as string) &&
     map(v["commands"]) &&
-    map(v["refused"])
+    map(v["refused"]) &&
+    (v["updates"] === undefined || map(v["updates"]))
   );
 }

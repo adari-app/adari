@@ -1,0 +1,40 @@
+
+
+
+
+
+
+
+
+
+❯ The earning talk is next week. What should we look at before it?
+
+● I read the notes from the last two rounds. Three directions are open, and each
+  needs a different research brief.
+
+● Read(docs/earning-talk/notes.md)
+  ⎿  Read 84 lines
+
+● Read(docs/earning-talk/pricing.md)
+  ⎿  Read 41 lines
+
+● The pricing notes cover the Mac app only. Nothing yet on what teams pay for,
+  and nothing on the phone apps' prices.
+
+────────────────────────────────────────────────────────────────────────────────
+ ☐ Q95
+
+Q95: what should Z research next for the earning talk?
+
+❯ 1. Teams and T3 gaps (Recommended)
+     What teams pay for in this category and where T3 Code falls short. Web
+     only, under 300K tokens.
+  2. Phone pricing only
+     Moshi and the SSH apps in detail. Web only, under 300K tokens.
+  3. Nothing now
+     No more research until you open the earning talk.
+  4. Type something.
+────────────────────────────────────────────────────────────────────────────────
+  5. Chat about this
+
+Enter to select · ↑/↓ to navigate · Esc to cancel

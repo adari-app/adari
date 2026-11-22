@@ -42,6 +42,7 @@
 import {
   boxChips,
   boxClearKeys,
+  claudeBoxRows,
   claudeBoxTexts,
   held as heldIn,
   imagePaths,
@@ -95,29 +96,42 @@ export const realWait = sleep;
 /** The main process's monotonic clock, in milliseconds (never moves back with the wall clock). */
 export const steadyNow = (): number => performance.now();
 
-async function facts(site: ClaudeBoxSite): Promise<ClaudeScreenFacts | null> {
+/** One read's facts and the rows Claude Code draws in its box, blank ones included (claudeBoxRows). */
+type Shown = ClaudeScreenFacts & { readonly rows: number };
+
+async function facts(site: ClaudeBoxSite): Promise<Shown | null> {
   try {
-    return readClaudeScreenFacts(await site.read());
+    const screen = await site.read();
+    return { ...readClaudeScreenFacts(screen), rows: claudeBoxRows(screen) };
   } catch {
     return null;
   }
 }
 
+/** At most this many rounds of clearing keys, each proved by a read (the first one empties a box read right). */
+export const clearAttempts = 2;
+
 /**
- * Empties a box that holds `draft` (our message `mine`): per row Ctrl+U then
- * Backspace, then a fresh read must show it empty; once more if not. True when
- * proved empty. The second attempt goes only while the box
- * still holds exactly our message; other text (typed meanwhile, part of it
- * gone) is left alone and the box is not proved empty (false).
- * Exactly ours by `isOwn`, so a message with
- * pictures shown as Claude Code's chips (chips first or in place) is ours too.
- * A Send's cleanup gives its own exact test (`ours`).
+ * Empties a box that holds `draft` (our message `mine`) over `rows` drawn rows (blank ones included,
+ * claudeBoxRows; the draft's own rows when not given): per row Ctrl+U then Backspace, then a fresh read
+ * must show it empty. True when proved empty. Another round goes (at most clearAttempts in all) only while the
+ * box still holds exactly our message, or what is left is a start of the text it held (a row the keys did not
+ * reach); other text (typed meanwhile, anything else) is left alone and the box is not proved empty
+ * (false). Exactly ours by `isOwn`, so a message with pictures shown as Claude Code's chips (chips first or in
+ * place) is ours too. A Send's cleanup gives its own exact test (`ours`).
  */
-export async function clearClaudeBox(site: ClaudeBoxSite, draft: string, mine: string = draft, ours: (draft: string) => boolean = (shown) => isOwn(shown, mine)): Promise<boolean> {
+export async function clearClaudeBox(
+  site: ClaudeBoxSite,
+  draft: string,
+  mine: string = draft,
+  ours: (draft: string) => boolean = (shown) => isOwn(shown, mine),
+  rows?: number,
+): Promise<boolean> {
   let left = draft;
-  for (let attempt = 0; attempt < 2; attempt += 1) {
+  let drawn = rows;
+  for (let attempt = 0; attempt < clearAttempts; attempt += 1) {
     try {
-      await site.keys(boxClearKeys(left));
+      await site.keys(boxClearKeys(left, drawn));
     } catch {
       return false;
     }
@@ -125,8 +139,9 @@ export async function clearClaudeBox(site: ClaudeBoxSite, draft: string, mine: s
     const now = await facts(site);
     if (now === null || now.draft === null) return false;
     if (now.draft === "") return true;
-    if (!ours(now.draft)) return false;
+    if (!ours(now.draft) && !pulledStart(now.draft, draft)) return false;
     left = now.draft;
+    drawn = now.rows;
   }
   return false;
 }
@@ -215,16 +230,31 @@ export type ScreenSeen = (working: boolean) => void;
  * The box after our Esc, for the last message Chat sent to the pane (`sent`: a claim on the pane's sends, or just that text, null: none).
  * Every read with a box reports its working line to `seen`; the reads go on, within the 5,
  * until the line is gone, also when no message came back (none sent, the box stays empty, or other text is there).
+ * `known` is told the answer once it is known (the box showed text: ours claimed and cleared, or other text; or
+ * the reads ended), so the page puts the message back while the reads for the working line go on.
+ * The first read goes at once: the page asks only after its Esc's own round trip, by when Claude Code has
+ * put the message back (a frame or two); the 200 ms wait stands between later reads.
  */
-export async function afterStop(site: ClaudeBoxSite, sent: SentClaim | string | null, seen: ScreenSeen = () => undefined): Promise<AfterStop> {
+export async function afterStop(
+  site: ClaudeBoxSite,
+  sent: SentClaim | string | null,
+  seen: ScreenSeen = () => undefined,
+  known: (found: AfterStop) => void = () => undefined,
+): Promise<AfterStop> {
   const claims: SentClaim = typeof sent === "object" && sent !== null ? sent : { last: () => sent, claim: () => true };
   const lastSent = claims.last();
   // Still looking for our last send back in Claude's box (until the box first shows text).
   let looking = lastSent !== null && lastSent.trim() !== "";
   let gone = false;
   let found = nothingFound;
+  let told = false;
+  const tell = (): void => {
+    if (told) return;
+    told = true;
+    known(found);
+  };
   for (let read = 0; read < afterStopReads; read += 1) {
-    await site.wait(afterStopGapMs);
+    if (read > 0) await site.wait(afterStopGapMs);
     const now = await facts(site);
     // No read, or no box (a dialog, a menu): nothing to say about the box or the line above it.
     if (now === null || now.draft === null) continue;
@@ -234,10 +264,14 @@ export async function afterStop(site: ClaudeBoxSite, sent: SentClaim | string | 
       looking = false;
       // Claimed as it matches, so no later or concurrent read matches the same send.
       // It matches by `isOwn` (its pictures as chips too); text around it never.
-      if (isOwn(now.draft, lastSent!) && claims.claim(lastSent!)) found = { cancelled: lastSent, cleared: await clearClaudeBox(site, now.draft, lastSent!) };
+      if (isOwn(now.draft, lastSent!) && claims.claim(lastSent!)) {
+        found = { cancelled: lastSent, cleared: await clearClaudeBox(site, now.draft, lastSent!, undefined, now.rows) };
+      }
+      tell();
     }
     if (!looking && gone) break;
   }
+  tell();
   return found;
 }
 
@@ -286,9 +320,10 @@ export function afterStopOnce(
   turns: PaneTurns = afterStopTurns,
   seen: ScreenSeen = () => undefined,
   run?: BoxRun | null,
+  known?: (found: AfterStop) => void,
 ): Promise<AfterStop> {
   // With `run` (the main process always gives it), only a last send that went to that run is ours.
-  return turns.run(writer, paneID, () => afterStop(site, sent.claims(writer, paneID, run), seen));
+  return turns.run(writer, paneID, () => afterStop(site, sent.claims(writer, paneID, run), seen, known));
 }
 
 /** What the box allows before a send. */
@@ -309,6 +344,12 @@ export type BeforeSend =
 export interface PulledRowCheck {
   readonly left: PulledRow | null;
   resolved(): void;
+  /**
+   * The pane's run now (its terminal, agent session and Terminal input count); null or absent: not known. An Esc's
+   * leftover (`loose`) from another run, or with none, is stale: dropped, it never refuses the Send and never
+   * authorizes a clear.
+   */
+  readonly runNow?: LeftoverRun | null;
 }
 
 /**
@@ -333,26 +374,60 @@ export interface PulledRowCheck {
  * is unresolved (`pulled.left`), the send goes only once a read shows the row empty, or exactly the texts the take-back left as spare and the cleanup emptied it;
  * else it is refused (the draft kept), never into the row, and never clearing text the take-back called other.
  */
-export async function beforeSend(site: ClaudeBoxSite, own: readonly string[], allow?: () => Promise<string | null>, pulled?: PulledRowCheck): Promise<BeforeSend> {
+export async function beforeSend(
+  site: ClaudeBoxSite,
+  own: readonly string[],
+  allow?: () => Promise<string | null>,
+  pulled?: PulledRowCheck,
+  stuck?: StuckCheck,
+): Promise<BeforeSend> {
   const read = await boxRead(site);
   const now = read?.facts ?? null;
-  const unresolved = pulled?.left ?? null;
+  let unresolved = pulled?.left ?? null;
+  // An Esc's leftover belongs to its run: from another terminal, session or Terminal input (or with none), it is
+  // dropped, and the box is read as for any Send (no refusal, no clear on its word).
+  if (unresolved !== null && unresolved.loose === true && !sameLeftoverRun(unresolved.run ?? null, pulled!.runNow ?? null)) {
+    pulled!.resolved();
+    unresolved = null;
+  }
   if (unresolved !== null) {
-    if (now === null || now.draft === null) return { type: "refused", note: claudeBoxTexts.pulledNotSent };
+    const note = unresolved.note ?? claudeBoxTexts.pulledNotSent;
+    if (now === null || now.draft === null) return { type: "refused", note };
     if (now.draft === "") {
       pulled!.resolved();
       return { type: "go", cleared: null };
     }
-    const spare = unresolved.spare === null ? null : showsSpare(now.draft, unresolved.spare);
-    if (spare === null) return { type: "refused", note: claudeBoxTexts.pulledNotSent };
-    const refusal = allow === undefined ? null : await allow();
-    if (refusal !== null) return { type: "refused", note: refusal };
-    if (!(await clearClaudeBox(site, now.draft, spare, (shown) => showsSpare(shown, unresolved.spare!) !== null))) return { type: "refused", note: claudeBoxTexts.pulledNotSent };
+    // Exactly the spare texts, or a start of one (a row an earlier clear did not reach).
+    const spare = unresolved.spare === null ? null : (showsSpare(now.draft, unresolved.spare) ?? spareStart(now.draft, unresolved.spare));
+    if (spare !== null) {
+      const refusal = allow === undefined ? null : await allow();
+      if (refusal !== null) return { type: "refused", note: refusal };
+      const ours = (shown: string): boolean => showsSpare(shown, unresolved.spare!) !== null || spareStart(shown, unresolved.spare!) !== null;
+      if (!(await clearClaudeBox(site, now.draft, spare, ours, read!.rows))) return { type: "refused", note };
+      pulled!.resolved();
+      return { type: "go", cleared: spare };
+    }
+    if (unresolved.loose !== true) return { type: "refused", note };
+    // An Esc's leftover no longer shows: the row is resolved, and the box is read as for any Send.
     pulled!.resolved();
-    return { type: "go", cleared: spare };
   }
   // No read, or no box that reads (a dialog: Herdr's agent.prompt refuses there itself): the send goes.
   if (now === null || now.draft === null) return { type: "go", cleared: null, unverified: true };
+  // Our message's only copy (still in the box after its corrective Return, never taken back to Chat), whole or a start
+  // of it (its caption without its chip or path): no other message is typed after it and the app never clears it.
+  // The same words sent again replace it (one copy, as you sent it). A read of the box without it drops its mark.
+  if (stuck !== undefined && stuck.texts.length > 0) {
+    const draft = now.draft;
+    const shown = draft === "" ? undefined : stuck.texts.find((text) => showsOwnSend(draft, text, read!.width) || stuckStart(draft, text));
+    for (const text of stuck.texts) if (text !== shown) stuck.gone?.(text);
+    if (shown !== undefined) {
+      if (shown !== stuck.sending) return { type: "refused", note: claudeBoxTexts.stuckNotSent };
+      const refusal = allow === undefined ? null : await allow();
+      if (refusal !== null) return { type: "refused", note: refusal };
+      const again = (box: string): boolean => showsOwnSend(box, shown, null) || stuckStart(box, shown);
+      return (await clearClaudeBox(site, draft, shown, again, read!.rows)) ? { type: "go", cleared: shown } : { type: "refused", note: claudeBoxTexts.notSentStillHasText };
+    }
+  }
   if (now.draft === "") return { type: "go", cleared: null };
   // Exactly ours, word boundaries kept for a message with pictures too
   // (`showsOwnSend`: Claude Code's chip layout, a path still going in included, never a caption with other spaces).
@@ -361,7 +436,34 @@ export async function beforeSend(site: ClaudeBoxSite, own: readonly string[], al
   const refusal = allow === undefined ? null : await allow();
   if (refusal !== null) return { type: "refused", note: refusal };
   const ours = (shown: string): boolean => showsOwnSend(shown, mine, null);
-  return (await clearClaudeBox(site, now.draft, mine, ours)) ? { type: "go", cleared: mine } : { type: "refused", note: claudeBoxTexts.notSentStillHasText };
+  return (await clearClaudeBox(site, now.draft, mine, ours, read!.rows)) ? { type: "go", cleared: mine } : { type: "refused", note: claudeBoxTexts.notSentStillHasText };
+}
+
+/**
+ * A Send's own messages that are still in Claude's box with no other copy (SentTexts.stuck: the picture
+ * check saw one there after its corrective Return), and this Send's text.
+ */
+export interface StuckCheck {
+  readonly texts: readonly string[];
+  readonly sending: string;
+  /** A read showed the box without `text` (empty, or other text): its mark goes (SentTexts.unstuck). */
+  gone?(text: string): void;
+}
+
+/**
+ * The box shows a start of `text`, a message stuck there: of the whole text, or of its caption with its pictures'
+ * paths (and the box's chips) left out. Only refuses another Send, or is cleared for the same words sent again.
+ */
+function stuckStart(draft: string, text: string): boolean {
+  if (pulledStart(draft, text)) return true;
+  const caption = imagePaths(text).reduce((rest, path) => rest.split(path).join(" "), text);
+  const shown = draft.replace(/\[Image\s*#\s*[0-9]+\]/gu, " ");
+  return pulledStart(shown, caption);
+}
+
+/** The spare text `draft` is a start of (a row the clearing keys did not reach), or null. */
+function spareStart(draft: string, texts: readonly string[]): string | null {
+  return texts.find((text) => pulledStart(draft, text)) ?? null;
 }
 
 /** One fresh read: the working line is on screen. */
@@ -425,6 +527,29 @@ function turnNote(turn: Exclude<TakeBackTurn, "on">): string {
  */
 export interface PulledRow {
   readonly spare: readonly string[] | null;
+  /** The line a refused Send shows (claudeBoxTexts.pulledNotSent when not given). */
+  readonly note?: string;
+  /**
+   * An Esc's leftover (the message came back to Chat and its box was not proved empty): only the spare text, or a
+   * start of it, holds the Send (cleared first, refused when it will not clear); a box that shows anything else
+   * resolves the row and the Send reads the box as usual.
+   */
+  readonly loose?: true;
+  /** The run a loose row came from; another run now (or none kept) makes it stale (PulledRowCheck.runNow). */
+  readonly run?: LeftoverRun;
+}
+
+/** The run an Esc's leftover came from: the pane's terminal, its agent session, and the pane's Terminal input count. */
+export interface LeftoverRun {
+  readonly terminalID: string;
+  readonly session: string | null;
+  /** PaneInputs' count for the pane (null: not counted here). */
+  readonly generation: number | null;
+}
+
+/** Both runs known and every field the same. */
+export function sameLeftoverRun(a: LeftoverRun | null, b: LeftoverRun | null): boolean {
+  return a !== null && b !== null && a.terminalID === b.terminalID && a.session === b.session && a.generation === b.generation;
 }
 
 export class PulledRows {
@@ -482,21 +607,25 @@ async function keysWent(site: ClaudeBoxSite, keys: readonly string[]): Promise<"
   }
 }
 
-/** One read: its facts and the box's width; null when it could not be read. */
-async function boxRead(site: ClaudeBoxSite): Promise<{ readonly facts: ClaudeScreenFacts; readonly width: number | null } | null> {
+/** One read: its facts, the box's width and its drawn rows; null when it could not be read. */
+async function boxRead(site: ClaudeBoxSite): Promise<{ readonly facts: ClaudeScreenFacts; readonly width: number | null; readonly rows: number } | null> {
   try {
     const screen = await site.read();
-    return { facts: readClaudeScreenFacts(screen), width: claudeBoxWidth(screen) };
+    return { facts: readClaudeScreenFacts(screen), width: claudeBoxWidth(screen), rows: claudeBoxRows(screen) };
   } catch {
     return null;
   }
 }
 
-/** Reads after Up until the input row shows text or no box shows (a read that failed is read again): the last read that answered; null: none did. */
-async function rowAfterUp(site: ClaudeBoxSite): Promise<ClaudeScreenFacts | null> {
-  let shown: ClaudeScreenFacts | null = null;
+/**
+ * Reads after Up until the input row shows text or no box shows (a read that failed is read again): the last read
+ * that answered; null: none did. Asked only once Claude Code's record says the pull happened (its popAll line,
+ * written after Up drew the row), so the first read goes at once; the 120 ms wait stands between later reads.
+ */
+async function rowAfterUp(site: ClaudeBoxSite): Promise<Shown | null> {
+  let shown: Shown | null = null;
   for (let attempt = 0; attempt < pullReads; attempt += 1) {
-    await site.wait(clearSettleMs);
+    if (attempt > 0) await site.wait(clearSettleMs);
     const now = await facts(site);
     if (now === null) continue;
     shown = now;
@@ -515,8 +644,8 @@ async function rowAfterUp(site: ClaudeBoxSite): Promise<ClaudeScreenFacts | null
  *   another text only), or the record could not be read: nothing is cleared.
  */
 type AfterUp =
-  | { readonly type: "pulled"; readonly texts: readonly string[]; readonly shown: ClaudeScreenFacts | null }
-  | { readonly type: "recalled"; readonly texts: readonly string[]; readonly shown: ClaudeScreenFacts | null }
+  | { readonly type: "pulled"; readonly texts: readonly string[]; readonly shown: Shown | null }
+  | { readonly type: "recalled"; readonly texts: readonly string[]; readonly shown: Shown | null }
   | { readonly type: "other" }
   | { readonly type: "unproven" };
 
@@ -531,8 +660,8 @@ async function proofAfterUp(site: ClaudeBoxSite, record: QueueRecord, from: numb
   const clock = site.now ?? steadyNow;
   const by = clock() + recordWaitMs;
   // The row after Up, read when the record first says enough to check it, and again (one read) while it does not match.
-  let shown: ClaudeScreenFacts | null | undefined;
-  const rowNow = async (): Promise<ClaudeScreenFacts | null> => {
+  let shown: Shown | null | undefined;
+  const rowNow = async (): Promise<Shown | null> => {
     if (shown === undefined) shown = await rowAfterUp(site);
     else shown = (await facts(site)) ?? shown;
     return shown;
@@ -630,9 +759,10 @@ export async function takeBackQueued(site: ClaudeBoxSite, take: TakeBackFor): Pr
   }
   const pulled = shown.draft;
   let rest = pulled;
+  let rows = shown.rows;
   let wrote = false;
   for (let attempt = 0; attempt < 2; attempt += 1) {
-    const cleared = await keysWent(site, pullClearKeys(rest));
+    const cleared = await keysWent(site, pullClearKeys(rest, rows));
     if (cleared === "calledOff") break;
     wrote = true;
     if (cleared === "failed") break;
@@ -648,6 +778,7 @@ export async function takeBackQueued(site: ClaudeBoxSite, take: TakeBackFor): Pr
     // Only the start of the pulled row (a row Ctrl+U did not reach) gets one more round.
     if (!pulledStart(after.draft, pulled)) break;
     rest = after.draft;
+    rows = after.rows;
   }
   if (!wrote) {
     // No clearing key went (a dialog, the pane changed): the user's texts are in Claude's row, its only copy.
@@ -666,7 +797,7 @@ export async function takeBackQueued(site: ClaudeBoxSite, take: TakeBackFor): Pr
  * when it shows exactly one of those texts (or them joined); anything else is left, and no Send joins it.
  * `asked` here holds only texts the record proves delivered, each by its own line.
  */
-async function recalled(site: ClaudeBoxSite, shown: ClaudeScreenFacts | null, asked: readonly string[], row: (state: PulledRow | null) => void): Promise<QueuedTakeBack> {
+async function recalled(site: ClaudeBoxSite, shown: Shown | null, asked: readonly string[], row: (state: PulledRow | null) => void): Promise<QueuedTakeBack> {
   if (shown === null || shown.draft === null) {
     row({ spare: asked });
     return left(takeBackTexts.alreadyGotBoxText, true);
@@ -679,7 +810,7 @@ async function recalled(site: ClaudeBoxSite, shown: ClaudeScreenFacts | null, as
     row({ spare: null });
     return left(takeBackTexts.alreadyGotBoxText, true);
   }
-  const cleared = await keysWent(site, pullClearKeys(shown.draft));
+  const cleared = await keysWent(site, pullClearKeys(shown.draft, shown.rows));
   if (cleared === "went") {
     await site.wait(clearSettleMs);
     const after = await facts(site);
@@ -721,6 +852,12 @@ export const settleReadMs = 3_000;
 export const afterReturnMs = 5_000;
 /** The corrective Return, as Herdr's `agent.send_keys` names it. */
 export const promptReturnKey = "Enter";
+/**
+ * Claude Code's record is read at most this often beside the screen reads (and after them, send.ts watchRecord):
+ * the Chat feed's own poll (chat/feed.ts defaultPollIntervalMs), so the check reads the transcript no more than
+ * Chat does.
+ */
+export const recordProofGapMs = 1_000;
 
 const settlePictures = (pictures: number): number => Math.min(Math.max(pictures, 1), settlePicturesMost);
 
@@ -782,6 +919,22 @@ export interface AfterPromptBinding {
   readonly holds: () => boolean;
   /** Asked right before the Return: the run is known and the one the prompt went to (a fresh snapshot). False: no key. */
   readonly mayPress: () => Promise<boolean>;
+  /**
+   * Claude Code's own record (the session's transcript past a baseline taken right before the write) shows the
+   * message: queued, taken as your prompt or absorbed mid-turn, on a line of this session (claude-queue-record.ts
+   * recordShows). Read with every screen read; true is the proof it went, and the reads stop (no Return goes after
+   * it). It answers true only while the pane's binding (terminal, agent, session, connection) still holds after its
+   * read (send.ts recordWatch). Absent with a session named (`named`): no reader could be made, and nothing here
+   * answers taken. It never makes the screen the proof.
+   */
+  readonly record?: () => Promise<boolean>;
+  /**
+   * The send's agent session is named. Then only Claude Code's record answers taken, whether or not a reader could
+   * be made (`record`): what the screen shows only stops the reads (`unknown`) and gates the one Return as without
+   * it. False or absent with no `record` (no session named): the screen alone is the proof, as it always was. A
+   * `record` is only ever made for a named session, so one given counts as named.
+   */
+  readonly named?: boolean;
 }
 
 /**
@@ -793,9 +946,12 @@ export interface AfterPromptBinding {
  * - The one Return goes only when the box shows exactly `sent` with every picture in as a chip new since
  *   `before` (`settled`), Claude is not working, `mayPress` says the run is known and unchanged, and `holds`
  *   still holds; the site's own key check runs right before the write. Never a second Return.
- * - Sent (`taken`) only on positive evidence: the box empty once the message was seen in it, Claude's queued
- *   hint not there before the write with the box empty, or Claude going from idle to working with the box empty
- *   or holding other text alone. A box empty all along, the message never seen,
+ * - With a session named (`named`), `taken` only when Claude Code's record (`record`) shows the message, and never
+ *   when no reader could be made: what the screen shows ends the reads as `unknown` (the record, when there is one,
+ *   is read on to the bound, send.ts watchRecord). With no session named, sent (`taken`) only on the screen's
+ *   positive evidence: the box empty once the message was seen in it,
+ *   Claude's queued hint not there before the write with the box empty, or Claude going from idle to working with the
+ *   box empty or holding other text alone. A box empty all along, the message never seen,
  *   is `unknown` (late intake past the window included), whatever Claude's status was before.
  * - A box that still holds a chip, one of our paths or our caption without being exactly ours (a picture
  *   missing, another caption, more text) never says it went, before or after the Return, whatever an earlier
@@ -804,6 +960,21 @@ export interface AfterPromptBinding {
 export async function afterPrompt(site: ClaudeBoxSite, sent: string, binding: AfterPromptBinding): Promise<AfterPrompt> {
   const { idleBefore, before, holds, mayPress } = binding;
   const clock = site.now === undefined ? steadyNow : () => site.now!();
+  // The record and the screen read side by side: the record is the proof, the screen what only it can tell.
+  // The record at most once a second (recordProofGapMs), the first time with the first screen read.
+  let recordAt: number | null = null;
+  const recorded = async (): Promise<boolean> => {
+    if (binding.record === undefined || (recordAt !== null && clock() - recordAt < recordProofGapMs)) return false;
+    recordAt = clock();
+    return binding.record().catch(() => false);
+  };
+  const look = async (): Promise<{ readonly now: Shown | null; readonly proved: boolean }> => {
+    const [now, proved] = await Promise.all([facts(site), recorded()]);
+    return { now, proved };
+  };
+  // What the screen says went: the answer only for a pane with no session named. With a session named, only the
+  // record says taken (with no reader, nothing does), so the screen's word ends the reads as unknown.
+  const screenTook: AfterPrompt = binding.named === true || binding.record !== undefined ? "unknown" : "taken";
   let held: Held = "none";
   let working = false;
   // The message alone with every picture in, each chip new since `before`.
@@ -822,7 +993,9 @@ export async function afterPrompt(site: ClaudeBoxSite, sent: string, binding: Af
     if (clock() >= settleBy) break;
     await site.wait(afterPromptGapMs);
     if (clock() >= settleBy) break;
-    const now = await facts(site);
+    const { now, proved } = await look();
+    // Claude Code's record shows it: it went, whatever the screen shows.
+    if (proved) return "taken";
     // A read that was out when the binding changed says nothing.
     if (!holds()) return unread();
     // No read, or no box (a dialog, a menu): nothing to say about the box.
@@ -837,12 +1010,12 @@ export async function afterPrompt(site: ClaudeBoxSite, sent: string, binding: Af
       seen = true;
     } else if (empty) {
       // Its queued hint, not there before the write (this prompt's): Claude took it behind a turn still going.
-      if (now.queued && before !== null && !before.queued) return "taken";
+      if (now.queued && before !== null && !before.queued) return screenTook;
       // Working: the message seen and gone, or Claude idle before.
-      if (working && (seen || idleBefore)) return "taken";
+      if (working && (seen || idleBefore)) return screenTook;
     } else if (!remnant(box, sent)) {
       // The user's text alone: only Claude going from idle to working says ours went.
-      if (working && idleBefore) return "taken";
+      if (working && idleBefore) return screenTook;
     }
     // A piece of it (a picture missing, another caption, more text) is neither ours nor gone: read on.
     // Every picture in, Claude idle: the Return now.
@@ -856,7 +1029,7 @@ export async function afterPrompt(site: ClaudeBoxSite, sent: string, binding: Af
       if (!empty) return unread();
       // An earlier turn's working line alone says nothing of this prompt.
       if (working) return "unknown";
-      if (seen) return "taken";
+      if (seen) return screenTook;
       // Never seen and nothing took it: the box empty all along says nothing (intake may come
       // later than the reads, or Herdr's reply may stand for a write that changed nothing). Unconfirmed.
       return "unknown";
@@ -881,14 +1054,15 @@ export async function afterPrompt(site: ClaudeBoxSite, sent: string, binding: Af
     if (clock() >= returnedBy) break;
     await site.wait(afterPromptGapMs);
     if (clock() >= returnedBy) break;
-    const now = await facts(site);
+    const { now, proved } = await look();
+    if (proved) return "taken";
     if (!holds()) return "stillInBox";
     if (now === null || now.draft === null) continue;
-    // The box emptied (or holds only the queued hint): it went.
-    if (now.draft === "") return "taken";
+    // The box emptied (or holds only the queued hint): it went (by the screen).
+    if (now.draft === "") return screenTook;
     // The user's text alone with Claude working (idle when the Return went): it went. Ours still, a piece of it (a
     // picture missing, another caption) or the user's text with Claude idle: read on.
-    if (now.working && heldIn(now.draft, sent) === "none" && !remnant(now.draft, sent)) return "taken";
+    if (now.working && heldIn(now.draft, sent) === "none" && !remnant(now.draft, sent)) return screenTook;
   }
   return "stillInBox";
 }
@@ -897,6 +1071,8 @@ export async function afterPrompt(site: ClaudeBoxSite, sent: string, binding: Af
 interface SentText {
   readonly text: string;
   readonly run?: BoxRun | null;
+  /** The picture check saw it still in Claude's box after its corrective Return: its only copy is there. */
+  readonly stuck?: true;
 }
 
 /**
@@ -919,7 +1095,9 @@ export class SentTexts {
       this.byWriter.set(writer, panes);
     }
     const entry: SentText = run === undefined ? { text } : { text, run };
-    const list = [...(panes.get(paneID) ?? []), entry].slice(-SentTexts.kept);
+    // The same words sent again replaced any copy left in Claude's box (beforeSend cleared it first).
+    const earlier = (panes.get(paneID) ?? []).map((one) => (one.text === text && one.stuck === true ? (one.run === undefined ? { text: one.text } : { text: one.text, run: one.run }) : one));
+    const list = [...earlier, entry].slice(-SentTexts.kept);
     panes.set(paneID, list);
   }
 
@@ -944,6 +1122,34 @@ export class SentTexts {
     if (at < 0) return false;
     panes.set(paneID, [...list.slice(0, at), ...list.slice(at + 1)]);
     return true;
+  }
+
+  /**
+   * The newest send of `text` to the pane is still in Claude's box after its corrective Return, its only copy (Chat
+   * did not take it back): no other message is typed after it (beforeSend's StuckCheck) until it leaves the box.
+   */
+  markStuck(writer: object, paneID: string, text: string): void {
+    const panes = this.byWriter.get(writer);
+    const list = panes?.get(paneID);
+    if (panes === undefined || list === undefined) return;
+    const at = list.map((entry) => entry.text).lastIndexOf(text);
+    if (at < 0) return;
+    panes.set(paneID, list.map((entry, index) => (index === at ? { ...entry, stuck: true as const } : entry)));
+  }
+
+  /** A read showed Claude's box without `text`: no send of it is stuck there any more. */
+  unstuck(writer: object, paneID: string, text: string): void {
+    const panes = this.byWriter.get(writer);
+    const list = panes?.get(paneID);
+    if (panes === undefined || list === undefined) return;
+    panes.set(paneID, list.map((entry) => (entry.text === text && entry.stuck === true ? (entry.run === undefined ? { text: entry.text } : { text: entry.text, run: entry.run }) : entry)));
+  }
+
+  /** The pane's sends to `run` still in Claude's box with no other copy (markStuck). */
+  stuck(writer: object, paneID: string, run?: BoxRun | null): readonly string[] {
+    return this.entries(writer, paneID)
+      .filter((entry) => entry.stuck === true && SentTexts.owns(entry, run))
+      .map((entry) => entry.text);
   }
 
   /** The pane's sends as afterStop claims them (a claim forgets the send), for `run`. */

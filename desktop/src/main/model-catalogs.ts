@@ -23,19 +23,28 @@
 //   machine's login keychain, which an SSH session cannot open, so another
 //   Mac's list for them is shown from This Mac's when that one reads and the
 //   other failed or is shorter (one quiet line says so; main's checks use the
-//   same list). Each list stays under the machine it was read on.
+//   same list). Each list stays under the machine it was read on. Antigravity
+//   CLI's sign-in is in the keychain too: over SSH it asks to sign in, and
+//   while no list was ever read for that machine its built-in list stands in
+//   (agyBuiltIn, under one line; never stored).
 // - Nothing runs until a picker first asks for that machine and agent. A list
 //   is kept in memory and on disk (<userData>/model-catalogs.json, only each
 //   model's own fields), shown at once from there, and read again in the
 //   background once it is older than 10 minutes. One read at a time per
 //   machine and agent. A failing read keeps the list it had and says why in
-//   one line; Claude Code with no list at all shows its four aliases.
+//   one line; Claude Code with no list at all shows its four aliases,
+//   Antigravity CLI its built-in list (a CLI with no `agy models`: its line).
 
 import { spawn, type ChildProcess, type SpawnOptions } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import {
+  agyBuiltIn,
+  agyFallbackLine,
+  agyLacksListCommand,
+  agySshSignInReason,
+  antigravityNoList,
   borrowedLine,
   builtInCatalog,
   catalogErrorLine,
@@ -53,6 +62,8 @@ import {
   maxCatalogBytes,
   maxCatalogModels,
   parseCatalog,
+  saidLine,
+  saysAgySignIn,
   saysKeychainLocked,
   type CatalogAgent,
   type CatalogModel,
@@ -141,7 +152,7 @@ export class LocalCatalogRunner implements CatalogRunner {
         finish(() => (error.code === "ENOENT" ? resolve({ kind: "missing" }) : reject(new Error(`it could not be started (${error.code ?? reasonOf(error)})`))));
       });
       child.on("close", (code) => {
-        const said = firstPlainLine(new TextDecoder().decode(errors.bytes));
+        const said = saidLine(new TextDecoder().decode(errors.bytes));
         finish(() => resolve({ kind: "ran", code, output: new TextDecoder().decode(collector.bytes), ...(said === null ? {} : { said }) }));
       });
       if (command.stdin !== null && child.stdin !== null) {
@@ -286,7 +297,7 @@ export function readRemoteList(text: string, token: string): ListRun {
     if (!line.startsWith(`${markers.error} `)) break;
     errors.push(line.slice(markers.error.length + 1));
   }
-  const said = firstPlainLine(errors.join("\n"));
+  const said = saidLine(errors.join("\n"));
   return { kind: "ran", code: Number.isFinite(code) ? code : null, output: lines.slice(begin + 1, exit).join("\n"), ...(said === null ? {} : { said }) };
 }
 
@@ -306,11 +317,21 @@ export class RemoteCatalogRunner implements CatalogRunner {
     const output = await this.runner.run(remoteListCommand(agent, command, token), maxCatalogBytes + remoteRoomBytes, signal);
     if (output.truncated) throw tooLarge();
     const run = readRemoteList(new TextDecoder().decode(output.bytes), token);
-    // Cursor Agent's words for the keychain an SSH session cannot open (on stderr or stdout), said plainly.
-    if (run.kind !== "ran" || run.code === 0) return run;
-    const line = run.said ?? firstPlainLine(run.output);
-    return line !== null && saysKeychainLocked(line) ? { ...run, said: keychainLockedReason } : run;
+    return plainSaid(agent, run);
   }
+}
+
+/**
+ * A failed run over SSH as it is said: Cursor Agent's words for the keychain an SSH session cannot open, and Antigravity
+ * CLI's asking to sign in (its sign-in is in that keychain), each as its fixed reason (on stderr or stdout).
+ */
+export function plainSaid(agent: CatalogAgent, run: ListRun): ListRun {
+  if (run.kind !== "ran" || run.code === 0) return run;
+  const line = run.said ?? firstPlainLine(run.output);
+  if (line === null) return run;
+  if (saysKeychainLocked(line)) return { ...run, said: keychainLockedReason };
+  if (agent === "agy" && saysAgySignIn(line)) return { ...run, said: agySshSignInReason };
+  return run;
 }
 
 /** Words a program's stdout line has when it is a message, not a list's row (a failed list that printed why there). */
@@ -486,6 +507,9 @@ interface Entry {
   readonly triedAt: number | null;
 }
 
+/** Antigravity CLI's answer that it has no `agy models` (1.5.13): no list, its picker's line (not its built-in list). */
+class AgyNoListCommand extends Error {}
+
 /** A failed read is tried again after this long (a fresh one after catalogFreshMs). */
 export const catalogRetryMs = 60_000;
 
@@ -500,7 +524,6 @@ export class ModelCatalogs {
 
   /** The list as held now (at once), a read begun in the background when there is none or it is old. */
   async view(hostId: string, agent: CatalogAgent): Promise<CatalogView> {
-    if (agent === "agy") return builtInCatalog("agy");
     await this.loaded();
     for (const host of this.readFor(hostId, agent)) if (this.stale(host, agent)) void this.refresh(host, agent);
     return this.viewOf(hostId, agent);
@@ -512,7 +535,6 @@ export class ModelCatalogs {
    * the one the picker shows.
    */
   async settled(hostId: string, agent: CatalogAgent): Promise<CatalogView> {
-    if (agent === "agy") return builtInCatalog("agy");
     await this.loaded();
     await Promise.all(
       this.readFor(hostId, agent).map(async (host) => {
@@ -529,7 +551,6 @@ export class ModelCatalogs {
    * the held list does not name (or names without what the pick needs) is checked again against the list being read.
    */
   async afterReading(hostId: string, agent: CatalogAgent): Promise<CatalogView> {
-    if (agent === "agy") return builtInCatalog("agy");
     await this.loaded();
     await Promise.all(this.readFor(hostId, agent).map((host) => this.running.get(keyOf(host, agent))?.catch(() => undefined)));
     return this.viewOf(hostId, agent);
@@ -607,9 +628,13 @@ export class ModelCatalogs {
         return { ...builtInCatalog(agent), models: there.models, readAt: there.readAt, error: null, loading: loading || this.running.has(keyOf(local, agent)), borrowed: borrowedLine(machine) };
       }
     }
+    const models = entry?.models ?? [];
+    // Antigravity CLI with no list (1.5.13 has no `agy models`; nothing read yet): today's line alone, as before it had
+    // a list command; with a list (read, or its built-in one under its line), the list and no such line.
+    if (agent === "agy") return { ...builtInCatalog(agent), models, readAt: entry?.readAt ?? null, error: models.length === 0 ? null : (entry?.error ?? null), none: models.length === 0 ? antigravityNoList : null, loading };
     return {
       ...builtInCatalog(agent),
-      models: entry?.models ?? [],
+      models,
       readAt: entry?.readAt ?? null,
       error: entry?.error ?? null,
       loading,
@@ -653,6 +678,14 @@ export class ModelCatalogs {
         () => new Error(`it did not answer within ${Math.round(command.timeoutMs / 1_000)} s`),
       );
       if (run.kind === "missing") throw new Error(`${path.basename(command.program)} was not found on ${machine.runner.where}`);
+      // Antigravity CLI's rows count only from a run that ended with success (an older CLI's error may still print
+      // rows); the other agents' policy is unchanged.
+      if (agent === "agy" && run.code !== 0) {
+        const reason = failedReason(agent, run);
+        // 1.5.13 has no `agy models`: its answer says the command is unknown (its words on stderr or stdout).
+        if (agyLacksListCommand(`${run.said ?? ""}\n${run.output}`)) throw new AgyNoListCommand(reason);
+        throw new Error(reason);
+      }
       const parsed = parseCatalog(agent, run.output);
       if (!parsed.ok) throw new Error(run.code !== null && run.code !== 0 ? failedReason(agent, run) : parsed.reason);
       this.entries.set(key, { models: parsed.models.map(catalogModelFields), readAt: this.deps.now(), error: null, triedAt });
@@ -663,6 +696,9 @@ export class ModelCatalogs {
       const read = held !== undefined && held.readAt !== null && held.models.length > 0;
       if (read) this.entries.set(key, { ...held, error: catalogErrorLine(agent, reason), triedAt });
       else if (agent === "claude") this.entries.set(key, { models: claudeFallback, readAt: null, error: claudeFallbackLine(reason), triedAt });
+      // Antigravity CLI never read here: its built-in list under one line (readAt null: never stored, a read replaces
+      // it); a CLI with no `agy models` (1.5.13): no list, its picker's line.
+      else if (agent === "agy") this.entries.set(key, error instanceof AgyNoListCommand ? { models: [], readAt: null, error: null, triedAt } : { models: agyBuiltIn, readAt: null, error: agyFallbackLine(reason), triedAt });
       else this.entries.set(key, { models: [], readAt: null, error: catalogErrorLine(agent, reason), triedAt });
     }
   }

@@ -68,7 +68,67 @@ export interface KeptDraft {
 export interface DraftsState {
   readonly drafts: readonly SavedDraft[];
   readonly kept: readonly KeptDraft[];
+  /** Messages past their Return that nothing proved yet (absent in a file from before them: none). */
+  readonly unproved?: readonly UnprovedSend[];
 }
+
+/**
+ * A picture message to Claude Code whose keys and Return went and that Claude Code's record or the transcript has not
+ * settled yet: main keeps it in drafts.json from the Return (written before the page retires its draft) until the
+ * transcript settles it, Put back or Dismiss. After a page reload, a renderer crash or an app quit and start it comes
+ * back as its bubble, never into the composer by itself. Its pictures are the image paths in its text.
+ */
+export interface UnprovedSend {
+  readonly id: string;
+  readonly hostId: string;
+  readonly paneId: string;
+  /** The message as it went (its pictures by their paths on the machine). */
+  readonly text: string;
+  /** Its scope: the pane's terminal and the agent session it went to. */
+  readonly terminalID: string;
+  readonly session: string | null;
+  /** When its Return went, on this Mac's clock (ms since 1970). */
+  readonly sentAt: number;
+  /** Main's check so far: "checking" until it answered (taken: Claude Code's record shows it). */
+  readonly outcome: UnprovedOutcome;
+  /**
+   * Where the session's transcript stood when it went, as the page matched it: what tells its own message from older
+   * history through a restart. Absent (an entry from before it, or the page never saw the transcript live before a
+   * restart): nothing can tell them apart, so the restored bubble is never settled by the transcript.
+   */
+  readonly history?: UnprovedHistory;
+}
+
+/**
+ * The transcript's last item the page had seen live before the Send (the bubble's baseline, pending.ts): its id is
+ * Claude Code's own line id, the same after a restart. Only a message of the entry's session placed after it can be
+ * the entry's own. Null: the transcript held nothing then (any message of that session counts).
+ */
+export interface UnprovedHistory {
+  readonly anchor: string | null;
+}
+
+export type UnprovedOutcome = "checking" | "taken" | "unknown" | "stillInBox";
+
+/** At most this many unproved messages per pane (the oldest beyond it goes to Kept drafts), and in all. */
+export const unprovedPerPane = 8;
+export const unprovedLimit = 64;
+/** An unproved message older than this (a week) is not brought back: it is dropped at load (logged). */
+export const unprovedMaxAgeMs = 7 * 24 * 60 * 60 * 1_000;
+/** The reason an unproved message under Kept drafts gives (its pane gone, or past the per-pane count). */
+export const unprovedKeptReason = "Adari could not confirm Claude Code got this.";
+/**
+ * The unproved list, serialized, holds at most this many bytes (640 KiB): every message the Send takes (100,000 bytes
+ * of text, its copy at most about 600 KB even with every character escaped) fits it alone. The whole file stays
+ * within `maxDraftsBytes` with it, the drafts and Kept drafts as they are: no draft is dropped for it.
+ */
+export const unprovedByteLimit = 640 * 1_024;
+/**
+ * A picture message to Claude Code is refused before any key when no copy of it can be kept until Claude Code
+ * confirms it (the oldest copies already moved to Kept drafts while it had room).
+ */
+export const unprovedNoRoomText =
+  "Not sent: Adari has no room left to keep a copy of this message until Claude Code confirms it. Dismiss a message Adari could not confirm, or clear some Kept drafts, then send it again. The text is kept.";
 
 /** What the main process says when its drafts changed: all of them, and the panes whose drafts went to Kept drafts. */
 export interface DraftsChangedEvent {
@@ -160,6 +220,32 @@ export function isKeptDraft(value: unknown): value is KeptDraft {
     isString(v["reason"], 400) &&
     isTime(v["at"])
   );
+}
+
+const unprovedOutcomes: ReadonlySet<string> = new Set(["checking", "taken", "unknown", "stillInBox"]);
+
+export function isUnprovedSend(value: unknown): value is UnprovedSend {
+  if (typeof value !== "object" || value === null) return false;
+  const v = value as Record<string, unknown>;
+  return (
+    isId(v["id"]) &&
+    isId(v["hostId"]) &&
+    isId(v["paneId"]) &&
+    isString(v["text"], 2 * maxDraftTextBytes) &&
+    v["text"] !== "" &&
+    isId(v["terminalID"]) &&
+    (v["session"] === null || isId(v["session"])) &&
+    isTime(v["sentAt"]) &&
+    typeof v["outcome"] === "string" &&
+    unprovedOutcomes.has(v["outcome"]) &&
+    (v["history"] === undefined || isUnprovedHistory(v["history"]))
+  );
+}
+
+export function isUnprovedHistory(value: unknown): value is UnprovedHistory {
+  if (typeof value !== "object" || value === null) return false;
+  const anchor = (value as Record<string, unknown>)["anchor"];
+  return anchor === null || isId(anchor);
 }
 
 const encoder = new TextEncoder();

@@ -163,4 +163,6 @@
 .chat-int-line { color: var(--ink-2); }
 .chat-int-note { color: var(--ink-3); font-size: 12px; }
 .chat-int-acts { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+/* Its added sentence and Retry when the machine's list was not read on this connection. */
+.chat-int-unread { display: flex; flex-direction: column; align-items: center; gap: 8px; max-width: 520px; }
 .int-msgs { font-family: var(--mono); font-size: 11.5px; line-height: 16px; color: var(--ink-3); text-align: left; white-space: pre-wrap; overflow-wrap: anywhere; }

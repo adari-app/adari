@@ -39,6 +39,8 @@ import {
   shortFolder,
   type NewAgentPlace,
 } from "../src/shared/new-agent";
+import { agyBuiltIn, parseCatalog } from "../src/shared/model-catalog";
+import { startFlags } from "../src/shared/model-choices";
 import { emptyFoldState } from "../src/shared/sidebar-model";
 import { absentStartCommands, parseStartCommands, startCommandsWith } from "../src/shared/start-commands";
 import { HookHost, elements } from "./support/fake-hooks";
@@ -49,6 +51,7 @@ const { NewAgentDialog } = await import("../src/renderer/components/NewAgentDial
 const { Sidebar } = await import("../src/renderer/components/Sidebar");
 const { startCommandsStore } = await import("../src/renderer/components/resume");
 const { handoffStore } = await import("../src/renderer/handoff/handoff-state");
+const { modelCatalogStore } = await import("../src/renderer/components/model-catalog-store");
 
 const encode = (text: string) => new TextEncoder().encode(text);
 const cl = parseStartCommands(encode('{"claude": "cl"}'));
@@ -450,6 +453,209 @@ describe("the New agent dialog", () => {
     expect(d.note()).toBe("Not started: agent_start_failed: codex is not installed");
     expect(d.started).toEqual([]);
     expect(d.closed()).toBe(0);
+  });
+});
+
+describe("the New agent dialog, Antigravity CLI's list", () => {
+  it("an empty first answer is not kept for good: each opening with Antigravity CLI chosen asks again", async () => {
+    modelCatalogStore.clear();
+    const asked: string[] = [];
+    const storage = new MemoryStorage();
+    storage.setItem(lastKindKey, "agy");
+    const open = async () => {
+      vi.stubGlobal("window", {
+        herdrDesktop: {
+          startCommands: () => Promise.resolve(cl),
+          modelCatalog: (hostId: string, agent: string) => {
+            asked.push(`${hostId}|${agent}`);
+            return Promise.resolve({ agent, models: [], readAt: null, error: null, loading: false, none: "Antigravity CLI's models are in its own picker." });
+          },
+          onModelCatalog: () => () => undefined,
+        },
+      });
+      const view = new HookHost(NewAgentDialog as (props: object) => unknown, {
+        places: newAgentPlaces([mini]),
+        wanted: { hostId: "mini", workspaceId: "w1" },
+        storage,
+        start: () => new Promise(() => undefined),
+        onStarted: () => undefined,
+        onClose: () => undefined,
+      });
+      view.render();
+      await settle();
+      view.render();
+      await settle();
+      return view;
+    };
+    await open();
+    expect(asked).toEqual(["mini|agy"]);
+    // Opened again with the empty answer held: asked again (the service decides whether to read the machine again).
+    await open();
+    expect(asked).toEqual(["mini|agy", "mini|agy"]);
+    modelCatalogStore.clear();
+  });
+
+  // The ruled removed-id start (main's side: agy-models.test.ts): after the CLI refused an id the machine no longer
+  // lists, the list read again no longer names it; the next opening neither offers it nor sends the one remembered.
+  it.each([
+    ["a level removed (Gemini 4 Neon's Extra high)", { model: "gemini-4-neon-high", effort: "xhigh" }, "gemini-4-neon-xhigh", { model: "gemini-4-neon-high", effort: "high" }, "Model: Gemini 4 Neon"],
+    ["a model removed (Orchestrator (Neon))", { model: "gemini-pro-orchestrator-neon", effort: null }, "gemini-pro-orchestrator-neon", { model: null, effort: null }, "Model: Agent's default"],
+  ] as const)("the next opening after %s: not offered, not sent", async (_name, remembered, gone, sent, label) => {
+    modelCatalogStore.clear();
+    const parsed = parseCatalog("agy", readFileSync(path.join(__dirname, "..", "fixtures", "agy", "models-1.5.14.txt"), "utf8"));
+    if (!parsed.ok) throw new Error(parsed.reason);
+    const models = parsed.models.filter((model) => model.id !== gone);
+    vi.stubGlobal("window", {
+      herdrDesktop: {
+        startCommands: () => Promise.resolve(cl),
+        modelCatalog: (_hostId: string, agent: string) => Promise.resolve({ agent, models, readAt: 1, error: null, loading: false, none: null }),
+        onModelCatalog: () => () => undefined,
+      },
+    });
+    const storage = new MemoryStorage();
+    storage.setItem(lastKindKey, "agy");
+    storage.setItem("adari.newAgent.models", JSON.stringify({ "mini|agy": remembered }));
+    const starts: unknown[] = [];
+    const view = new HookHost(NewAgentDialog as (props: object) => unknown, {
+      places: newAgentPlaces([mini]),
+      wanted: { hostId: "mini", workspaceId: "w1" },
+      storage,
+      start: (...args: unknown[]) => {
+        starts.push(args[4]);
+        return new Promise(() => undefined);
+      },
+      onStarted: () => undefined,
+      onClose: () => undefined,
+    });
+    view.render();
+    await settle();
+    view.render();
+    await settle();
+    view.render();
+    const field = elements(view.tree).find((e) => typeof e.props["className"] === "string" && (e.props["className"] as string).startsWith("inp na-model"));
+    expect(field?.props["aria-label"]).toBe(label);
+    expect(field?.props["data-model"]).not.toBe(gone);
+    const options = elements(view.tree).filter((e) => e.type === "option").map((e) => e.props["value"]);
+    expect(options).not.toContain("xhigh");
+    (elements(view.tree).find((e) => e.props["role"] === "dialog")!.props["onKeyDown"] as (event: unknown) => void)(key("Enter"));
+    expect(starts).toEqual([sent]);
+    expect(JSON.stringify(starts)).not.toContain(gone);
+    // What is remembered now is what went (the removed id is gone from it).
+    expect(storage.getItem("adari.newAgent.models")).not.toContain(gone);
+    modelCatalogStore.clear();
+  });
+});
+
+// Over SSH Antigravity CLI cannot list its models (its sign-in is in the keychain); with its built-in list
+// New agent shows Model and Effort, Gemini 4 Neon and High preselected while nothing is remembered for the machine.
+describe("the New agent dialog, Antigravity CLI over its built-in list", () => {
+  const signInLine = "Antigravity CLI cannot list its models over SSH (its sign-in is in the Mac's keychain). Showing the models Adari knows.";
+
+  async function agyDialog(view: Record<string, unknown>, storage = new MemoryStorage()) {
+    modelCatalogStore.clear();
+    vi.stubGlobal("window", {
+      herdrDesktop: {
+        startCommands: () => Promise.resolve(cl),
+        modelCatalog: (_hostId: string, agent: string) => Promise.resolve({ agent, loading: false, ...view }),
+        onModelCatalog: () => () => undefined,
+      },
+    });
+    storage.setItem(lastKindKey, "agy");
+    const starts: unknown[] = [];
+    const ui = new HookHost(NewAgentDialog as (props: object) => unknown, {
+      places: newAgentPlaces([mini]),
+      wanted: { hostId: "mini", workspaceId: "w1" },
+      storage,
+      start: (...args: unknown[]) => {
+        starts.push(args[4]);
+        return new Promise(() => undefined);
+      },
+      onStarted: () => undefined,
+      onClose: () => undefined,
+    });
+    for (let i = 0; i < 3; i += 1) {
+      ui.render();
+      await settle();
+    }
+    ui.render();
+    const field = () => elements(ui.tree).find((e) => typeof e.props["className"] === "string" && (e.props["className"] as string).startsWith("inp na-model"));
+    return {
+      ui,
+      storage,
+      starts,
+      field,
+      effort: () => elements(ui.tree).find((e) => e.props["aria-label"] === "Effort")?.props["value"],
+      notes: () => byClass(ui.tree, "fb-note").map((e) => text(e.props["children"])),
+      mnote: () => byClass(ui.tree, "na-mnote").map((e) => text(e.props["children"])),
+      enter: () => (elements(ui.tree).find((e) => e.props["role"] === "dialog")!.props["onKeyDown"] as (event: unknown) => void)(key("Enter")),
+      pickDefault: () => {
+        (field()!.props["onClick"] as () => void)();
+        ui.render();
+        const picker = elements(ui.tree).find((e) => typeof e.props["onPick"] === "function")!;
+        // The picker's own choose: the pick, then it closes.
+        (picker.props["onPick"] as (id: string | null) => void)(null);
+        (picker.props["onClose"] as () => void)();
+        ui.render();
+      },
+    };
+  }
+
+  const builtInView = { models: agyBuiltIn, readAt: null, error: signInLine, none: null };
+
+  it("nothing remembered: Model and Effort shown, Gemini 4 Neon and High preselected, the line over them; Start sends that", async () => {
+    const d = await agyDialog(builtInView);
+    expect(d.field()?.props["aria-label"]).toBe("Model: Gemini 4 Neon");
+    expect(d.field()?.props["data-model"]).toBe("gemini-4-neon-high");
+    expect(d.effort()).toBe("high");
+    expect(d.notes()).toEqual([signInLine]);
+    expect(d.mnote()).toEqual([]);
+    d.enter();
+    expect(d.starts).toEqual([{ model: "gemini-4-neon-high", effort: "high" }]);
+    // Main's check of that choice against the same list: `--model gemini-4-neon-high`.
+    expect(startFlags("agy", { model: "gemini-4-neon-high", effort: "high" }, agyBuiltIn)).toEqual({ ok: true, flags: [{ flag: "--model", value: "gemini-4-neon-high" }] });
+    modelCatalogStore.clear();
+  });
+
+  it("Default chosen: no model sent, and Default is remembered over the preselect next time", async () => {
+    const d = await agyDialog(builtInView);
+    d.pickDefault();
+    expect(d.field()?.props["aria-label"]).toBe("Model: Agent's default");
+    d.enter();
+    expect(d.starts).toEqual([{ model: null, effort: null }]);
+    expect(JSON.parse(d.storage.getItem("adari.newAgent.models")!)).toEqual({ "mini|agy": { model: null, effort: null } });
+    const again = await agyDialog(builtInView, d.storage);
+    expect(again.field()?.props["aria-label"]).toBe("Model: Agent's default");
+    again.enter();
+    expect(again.starts).toEqual([{ model: null, effort: null }]);
+    modelCatalogStore.clear();
+  });
+
+  it("a remembered earlier choice wins over the preselect", async () => {
+    const storage = new MemoryStorage();
+    storage.setItem("adari.newAgent.models", JSON.stringify({ "mini|agy": { model: "gemini-3.8-flash-high", effort: "medium" } }));
+    const d = await agyDialog(builtInView, storage);
+    expect(d.field()?.props["aria-label"]).toBe("Model: Gemini 3.8 Flash");
+    expect(d.effort()).toBe("medium");
+    d.enter();
+    expect(d.starts).toEqual([{ model: "gemini-3.8-flash-high", effort: "medium" }]);
+    modelCatalogStore.clear();
+  });
+
+  it("a read list without Gemini 4 Neon: nothing preselected (the CLI's own default)", async () => {
+    const d = await agyDialog({ models: agyBuiltIn.filter((model) => !model.id.startsWith("gemini-4-neon")), readAt: 1, error: null, none: null });
+    expect(d.field()?.props["aria-label"]).toBe("Model: Agent's default");
+    d.enter();
+    expect(d.starts).toEqual([{ model: null, effort: null }]);
+    modelCatalogStore.clear();
+  });
+
+  it("a CLI with no `agy models` (1.5.13): the bare line, no Model row, no model sent (unchanged)", async () => {
+    const d = await agyDialog({ models: [], readAt: null, error: null, none: "Antigravity CLI's models are in its own picker." });
+    expect(d.field()).toBeUndefined();
+    expect(d.mnote()).toEqual(["Antigravity CLI's models are in its own picker."]);
+    d.enter();
+    expect(d.starts).toEqual([undefined]);
+    modelCatalogStore.clear();
   });
 });
 

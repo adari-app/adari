@@ -8,12 +8,14 @@
 
 import { describe, expect, it } from "vitest";
 
-import { type ClaudeBoxSite } from "../src/main/herdr/claude-box";
+import { beforeSend, type ClaudeBoxSite } from "../src/main/herdr/claude-box";
 import { sendBound, type SendSite } from "../src/main/herdr/send";
 import { sendDraft, ComposerDrafts } from "../src/renderer/components/composer-drafts";
 import { claudeBoxTexts } from "../src/shared/claude-screen";
 import { claudeScreen } from "./support/claude-screens";
 import { checkHerdrKeys } from "./support/herdr-keys";
+import { blankLineMessages } from "./support/blank-lines";
+import { FakeClaudeQueue } from "./support/claude-queue-screens";
 
 const claudeBinding = { terminalID: "t1", isAgent: true, kind: "claude", session: null };
 
@@ -105,4 +107,17 @@ describe("a send reads Claude's box first", () => {
     await sendBound(m.site, "w1:p1", "go", { ...claudeBinding, kind: "codex" });
     expect(m.log).toEqual([["prompt", "go"]]);
   });
+});
+
+// MARK: - our own message with blank lines in the box
+
+describe("our own message with blank lines in Claude's box before a send", () => {
+  for (const [shape, text] of blankLineMessages) {
+    it(`${shape}: every drawn row cleared, blank ones included, the box read empty, then the send goes`, async () => {
+      const claude = new FakeClaudeQueue({ input: text, working: false });
+      const site: ClaudeBoxSite = { read: async () => claude.read(), keys: async (keys) => claude.keys(keys), wait: async () => undefined };
+      expect(await beforeSend(site, [text])).toEqual({ type: "go", cleared: text });
+      expect(claude.state.input).toBe("");
+    });
+  }
 });

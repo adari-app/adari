@@ -19,6 +19,16 @@ export interface DraftsIpcDependencies {
 
 export function registerDraftsIpc(store: DraftStore, deps: DraftsIpcDependencies): void {
   handle(IPC.draftsLoad, () => store.state());
+  // The transcript settled an unproved message, or the person put it back or dismissed it.
+  handle(IPC.unprovedRelease, (_event, id) => {
+    if (!isId(id)) throw new Error("bad request");
+    store.releaseUnproved(id);
+  });
+  // Where the session's transcript stood when an unproved message went (the page's baseline): kept with it, once.
+  handle(IPC.unprovedHistory, (_event, id, anchor) => {
+    if (!isId(id) || !(anchor === null || isId(anchor))) throw new Error("bad request");
+    store.unprovedHistory(id, { anchor });
+  });
   on(IPC.draftSave, (_event, hostId, paneId, draft) => {
     if (!isId(hostId) || !isId(paneId) || !(draft === null || isDraftInput(draft))) return;
     store.put(hostId, paneId, draft, deps.agentOf(hostId, paneId));
@@ -47,9 +57,11 @@ export function registerDraftsIpc(store: DraftStore, deps: DraftsIpcDependencies
  */
 export function draftsAnswered(store: DraftStore, hosts: readonly HostView[]): DraftsChangedEvent | null {
   const gone: { hostId: string; paneId: string }[] = [];
+  const before = store.revision;
   for (const host of hosts) {
     if (host.state !== "connected" || host.topology === null) continue;
     gone.push(...store.hostAnswered(host.id, host.name, new Set(host.topology.panes.map((pane) => pane.paneID))));
   }
-  return gone.length === 0 ? null : { state: store.state(), gone };
+  // An unproved message of a gone pane moved to Kept drafts changes the store with no draft gone: told too.
+  return gone.length === 0 && store.revision === before ? null : { state: store.state(), gone };
 }

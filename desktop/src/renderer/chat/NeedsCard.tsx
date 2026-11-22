@@ -32,6 +32,14 @@
 //   (runs `npm install -g @openai/codex`)", "Skip", "Skip until next
 //   version"), answered with its own keys (Return for the marked one, Esc for
 //   Skip); a choice whose key is not known shows the Terminal instead.
+// - Claude Code's question dialog: "Claude asks", the question, one button
+//   per real choice with its description under it, and always Answer in
+//   Terminal with one line saying an own answer is typed there.
+// - Codex's own question in Plan mode: "Codex asks", "Question 1 of 2" over
+//   the question, one button per asked choice with its description, a line
+//   saying where the answer goes, and always Answer in Terminal with one line
+//   saying None of the above is answered there. Its "Implement this plan?":
+//   its three choices, and a line saying both Yes choices start the work.
 
 import { useEffect, useRef, useSyncExternalStore } from "react";
 
@@ -245,6 +253,7 @@ export function NeedsCard({ host, row, onShowTerminal, keysActive = true, pendin
           {more === null ? null : <div className="dl more">{more}</div>}
         </div>
       )}
+      {content.progress === null ? null : <div className="nc-progress">{content.progress}</div>}
       <div className="nc-q">{content.question}</div>
       {content.command === null ? null : <pre className="nc-cmd">{content.command}</pre>}
       {content.parameters.length === 0 ? null : <pre className="nc-params">{content.parameters.join("\n")}</pre>}
@@ -262,19 +271,24 @@ export function NeedsCard({ host, row, onShowTerminal, keysActive = true, pendin
                 onClick={() => pick(match, index)}
               >
                 <span className="k">{option.key}</span>
-                <span className="l">{option.label}</span>
+                {/* Claude's question dialog's labels break anywhere, as descriptions do. */}
+                {/* And Antigravity CLI's (a command's prefix in its words, whole). */}
+                {/* And Codex's own question's (its labels are the model's words, any length). */}
+                <span className={match.kind === "claudeAsk" || match.kind === "agyAsk" || match.kind === "codexQuestion" ? "l wrap" : "l"}>{option.label}</span>
                 {option.detail === undefined ? null : <span className="d">{option.detail}</span>}
               </button>
             ))}
           </div>
+          {content.flow === null ? null : <div className="nc-flow">{content.flow}</div>}
           <div className="nc-hint">{keyHint(content)}</div>
         </>
       )}
-      {card.terminal === null ? null : (
+      {card.terminal === null && content.ownAnswer === null ? null : (
         <div className="nc-foot">
           <button className="btn sm nc-term" onClick={onShowTerminal}>
             Answer in Terminal
           </button>
+          {content.ownAnswer === null ? null : <span className="nc-hint">{content.ownAnswer}</span>}
         </div>
       )}
       {note}

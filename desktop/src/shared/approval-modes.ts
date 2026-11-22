@@ -22,13 +22,18 @@
 // - Cursor Agent 2026.11.05: the model row's right side (`Auto-review`,
 //   `Run Everything`, none); `/auto-review` and `/run-everything` toggle one
 //   three-way setting (agent-settings.ts reads the footer).
+// - Antigravity CLI 1.5.14: the last row's right end starts with the mode
+//   (`auto · Gemini 4 Hydrogen · low`, `accept-edits · …`, `plan · …`); no word
+//   when it asks before edits and commands; Shift+Tab cycles auto → plan →
+//   (asks) → accept-edits → auto (the samples' idle screens, agy-input.ts
+//   readAgyStatusRow).
 //
 // The same rules as Sources/HerdrKit/ApprovalModes.swift.
 
 import { claudeBoxRules } from "./claude-box";
 
 /** The agents with a Permissions chip. */
-export type ModeAgent = "claude" | "codex" | "grok" | "cursor";
+export type ModeAgent = "claude" | "codex" | "grok" | "cursor" | "agy";
 
 /** T3 Code's icons (lucide: Lock, PenLine, Sparkles, ShieldOff) and a plan icon. */
 export type ModeIcon = "lock" | "pen" | "sparkles" | "shieldOff" | "plan";
@@ -73,6 +78,12 @@ export const approvalModes: Readonly<Record<ModeAgent, readonly ApprovalMode[]>>
     mode("autoReview", "Auto-review", "Cursor reviews each command and runs the safe ones; others still ask.", "sparkles"),
     mode("runEverything", "Run Everything", "Run every command without asking.", "shieldOff"),
   ],
+  agy: [
+    mode("default", "Supervised", "Ask before edits and commands.", "lock"),
+    mode("acceptEdits", "Accept edits", "Edit files without asking; ask before commands.", "pen"),
+    mode("auto", "Auto", "Edits and safe commands go without asking; others still ask.", "sparkles"),
+    mode("plan", "Plan", "Research and plan only.", "plan"),
+  ],
 };
 
 /** A pick while Claude Code shows bypass permissions (it was started so; Shift+Tab does not leave it). */
@@ -82,7 +93,7 @@ export const bypassStartNote = "Not set: Claude Code was started with bypass per
 export const unknownModeLabel = "Permissions";
 
 export function isModeAgent(kind: string | null | undefined): kind is ModeAgent {
-  return kind === "claude" || kind === "codex" || kind === "grok" || kind === "cursor";
+  return kind === "claude" || kind === "codex" || kind === "grok" || kind === "cursor" || kind === "agy";
 }
 
 /** The agent's mode `id`, or null. */
@@ -479,13 +490,22 @@ const permissiveness: Readonly<Record<ModeAgent, readonly string[]>> = {
   grok: ["plan", "default", "autoReview", "alwaysApprove"],
   cursor: ["default", "autoReview", "runEverything"],
   codex: ["readOnly", "ask", "approve", "full"],
+  agy: ["plan", "default", "acceptEdits", "auto"],
 };
 
-/** Claude Code's and Grok's Shift+Tab order (each press moves one on, round to the first). */
-export const cycleOrders: Readonly<Record<"claude" | "grok", readonly string[]>> = {
+/** The agents whose mode Shift+Tab cycles. */
+export type CycleAgent = "claude" | "grok" | "agy";
+
+/** Claude Code's, Grok's and Antigravity CLI's Shift+Tab order (each press moves one on, round to the first). */
+export const cycleOrders: Readonly<Record<CycleAgent, readonly string[]>> = {
   claude: ["auto", "manual", "acceptEdits", "plan"],
   grok: ["default", "plan", "autoReview", "alwaysApprove"],
+  agy: ["auto", "plan", "default", "acceptEdits"],
 };
+
+export function isCycleAgent(agent: ModeAgent): agent is CycleAgent {
+  return agent === "claude" || agent === "grok" || agent === "agy";
+}
 
 /** `shown` allows more than both `start` and `target` (unknown ids: false). */
 export function allowsMore(agent: ModeAgent, shown: string, start: string, target: string): boolean {
@@ -495,7 +515,7 @@ export function allowsMore(agent: ModeAgent, shown: string, start: string, targe
 }
 
 /** The modes a Shift+Tab route from `start` to `target` passes that allow more than both. */
-export function cyclePassing(agent: "claude" | "grok", start: string, target: string): string[] {
+export function cyclePassing(agent: CycleAgent, start: string, target: string): string[] {
   const order = cycleOrders[agent];
   const from = order.indexOf(start);
   const to = order.indexOf(target);
@@ -505,7 +525,7 @@ export function cyclePassing(agent: "claude" | "grok", start: string, target: st
   return between.filter((mode) => allowsMore(agent, mode, start, target));
 }
 
-/** Claude Code's and Grok's Shift+Tab, in Herdr's key names (tmux's BTab). */
+/** Claude Code's, Grok's and Antigravity CLI's Shift+Tab, in Herdr's key names (tmux's BTab). */
 export const shiftTabKey = "BTab";
 /** At most this many Shift+Tabs per pick (each agent's cycle is four long). */
 export const cyclePressLimit = 4;

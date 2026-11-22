@@ -81,7 +81,18 @@ describe("Codex's tool-call question, read on a Codex pane", () => {
     expect(match.options.filter((option) => option.isSessionWide).map((option) => option.key)).toEqual(["2", "3"]);
     expect(match.options.some((option) => option.opensComposer)).toBe(false);
     // The fingerprint: the header rows and the option rows as drawn, the mark left out.
-    expect(match.fingerprint).toEqual({ rules: 2, paneID: pane, question: "Allow this request?", body: ["  Allow this request?"], options: options4Drawn });
+    // And each part as the one text it stands for (`words`), the options' marks and column blanks as drawn.
+    const words = {
+      question: "Allow this request?",
+      body: "Allow this request?",
+      options: [
+        "1. Allow                   Run the tool and continue",
+        "2. Allow for this session  Run the tool and remember this choice for this session",
+        "3. Always allow            Run the tool and remember this choice for future tool calls",
+        "4. Cancel                  Cancel this tool call",
+      ].join("\n"),
+    };
+    expect(match.fingerprint).toEqual({ rules: 2, paneID: pane, question: "Allow this request?", body: ["  Allow this request?"], options: options4Drawn, words });
   });
 
   it("two options (Allow, Cancel)", () => {
@@ -684,8 +695,10 @@ describe("the demo's Codex pane", () => {
       "...cursorPickCaptureSteps(demoHostIds)",
       // The three Early kinds' badge, a Claude Code pane without it 230-233.
       "...twotierCaptureSteps(demoHostIds)",
-      // The sidebar's workspaces moved 250-253 (last).
+      // The sidebar's workspaces moved 250-253.
       "...reorderCaptureSteps(demoHostIds)",
+      // Antigravity CLI's New agent rows, its new pane's chips and menus 294-299 (last).
+      "...agyModelsCaptureSteps(demoHostIds)",
     ]);
     const steps = codexAskCaptureSteps(demoHostIds);
     expect(steps.map((step) => step.name)).toEqual(["88-codex-ask-card", "89-codex-ask-terminal", "90-codex-ask-after"]);

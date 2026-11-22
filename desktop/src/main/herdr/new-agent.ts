@@ -47,18 +47,28 @@
 //   and every sleep's wake; a read waits at most the time left (the clock's
 //   alarm) and a reply that comes after the deadline is not used. A start whose
 //   answer did not come keeps its pane: it may still be coming up.
+//
+// Told as it goes (`steps`, none of which
+// changes what is sent or when): the pane once tab.create or pane.split
+// answered (the window shows it then, while the rest carries on), each step's
+// milliseconds (the name's agent.list, the pane, the start, the wait), which
+// step in front of the pane is running, and how the start ended. Each of these
+// only watches: what it throws is dropped (speed-record.ts quietly), and the
+// order of what goes to Herdr is the one before this round.
 
 import { knownAgentName } from "../../shared/agent-names";
+import { agyUnknownModelLine } from "../../shared/agy-input";
 import type { PaneBinding } from "../../shared/pane-binding";
 import type { AgentStartCommands } from "../../shared/start-commands";
 import { typedStart } from "../../shared/start-commands";
 import { herdrStartArgs } from "../../shared/codex-start";
 import { flagWords, isPlainWord, typedFlags, type StartFlag } from "../../shared/model-choices";
+import { quietly, type StartOutcome, type StartStepName, type StepTimer } from "../../shared/speed-record";
 import { RequestTimedOutError } from "./errors";
 import { placedElsewhere, resolveFolderCwd, type FolderMachine } from "./folder-cwd";
 import type { MachineLink } from "./machine-link";
 import type { SplitParams } from "./pane-methods";
-import { APIError, type AgentInfo, type TabCreation, type TopologyPaneInfo, type WorkspaceCreation } from "./wire";
+import { APIError, type AgentInfo, type TabCreation, type TabInfo, type TopologyPaneInfo, type WorkspaceCreation } from "./wire";
 
 /** What New agent needs of Herdr (HerdrClient has it). */
 export interface NewAgentHerdr {
@@ -263,6 +273,9 @@ export const newAgentTexts = {
   // `unsure`: a start sent whose answer did not come; the pane stays.
   // A chosen model whose name Herdr's start cannot carry as a plain word (nothing was made).
   flagsNotPlain: (title: string) => `That model's name cannot go to Herdr's start of ${title} as it is. Set ${title}'s start command in Settings, or choose another model. Nothing was made.`,
+  // Antigravity CLI ended at once on the model picked (no longer on the machine's list): its own line.
+  modelUnknown: (title: string, machine: string, line: string, place: "tab" | "pane") =>
+    `${title} did not start on ${machine}: it does not know the model picked now. Its ${place} says “${line}”. Its list is read again; pick another model.`,
   unsure: (title: string, machine: string, place: "tab" | "pane") =>
     `Herdr did not answer the start of ${title} on ${machine} in time, so it may still be coming up in its ${place}.`,
 } as const;
@@ -300,6 +313,32 @@ const programRuns = (info: AgentInfo | undefined): boolean =>
   info !== undefined && (info.interactiveReady === true || ["idle", "working", "blocked", "done"].includes(info.agentStatus ?? ""));
 
 
+/** The new pane as Herdr's creation answered it: its tab (a new tab's; a split's tab is listed already) and the pane. */
+export interface NewAgentPaneMade {
+  readonly paneId: string;
+  readonly tabId: string;
+  readonly tab: TabInfo | null;
+  readonly pane: TopologyPaneInfo;
+}
+
+/** The step in front of the pane that runs now: the name's agent.list, the tab or split; null: none. */
+export type NewAgentPendingStep = "list" | "pane" | null;
+
+/**
+ * What New agent tells its caller as it goes; nothing here changes what is sent,
+ * and each call only watches (its throw is dropped).
+ */
+export interface NewAgentSteps {
+  /** The new pane exists (tab.create or pane.split answered), before anything is started in it. */
+  readonly paneMade?: (pane: NewAgentPaneMade) => void;
+  /** The step in front of the pane that runs now (null once the pane exists, or the step ended without one). */
+  readonly pending?: (step: NewAgentPendingStep) => void;
+  /** Each step's milliseconds: the name's agent.list (list), the pane, the start, the wait after it. */
+  readonly timer?: StepTimer<StartStepName>;
+  /** How it ended, when it answered (a throw is the caller's to name). */
+  readonly ended?: (outcome: StartOutcome) => void;
+}
+
 /** A read within its phase's deadline: its reply, the read failing, or no reply by the deadline. */
 type Timed<T> = { readonly type: "value"; readonly value: T } | { readonly type: "failed" } | { readonly type: "late" };
 
@@ -314,7 +353,15 @@ export async function newAgent(
   machine: NewAgentMachine = unnamedMachine,
   /** The model and effort flags New agent's choice adds (checked by the caller against the machine's list). */
   flags: readonly StartFlag[] = [],
+  steps: NewAgentSteps = {},
 ): Promise<NewAgentResult> {
+  // Each step timed on the caller's timer (absent: not timed); its answer or its throw passes through unchanged.
+  const timed_ = <T>(name: StartStepName, work: () => Promise<T>): Promise<T> => (steps.timer === undefined ? work() : steps.timer.time(name, work));
+  const ended = <T extends NewAgentResult>(result: T, outcome?: StartOutcome): T => {
+    quietly(() => steps.ended?.(outcome ?? (result.start.type === "shell" ? "shell" : result.start.type === "noAgent" ? "noAgent" : "started")));
+    return result;
+  };
+  const pending = (step: NewAgentPendingStep): void => quietly(() => steps.pending?.(step));
   // A whole path on the machine, before anything is read or made (a refusal sends nothing). It is
   // read before the creation's check, so nothing is awaited between that check and the creation.
   const cwd = await resolveFolderCwd(request.folder, machine);
@@ -353,16 +400,17 @@ export async function newAgent(
     return clock.now() > end ? { type: "late" } : outcome;
   };
   // The new pane: a tab's (labelled with the agent's name), or a split's beside the focused pane.
-  const place = async (label: string | null): Promise<{ paneId: string; tabId: string; cwd: string | undefined }> => {
+  type Placed = { paneId: string; tabId: string; cwd: string | undefined; tab: TabInfo | null; pane: TopologyPaneInfo };
+  const place = async (label: string | null): Promise<Placed> => {
     try {
       if (where.type === "tab") {
         const created = await bound(() => herdr.createTerminalTab(request.workspaceId, label, cwd));
-        return { paneId: created.rootPane.paneID, tabId: created.tab.tabID, cwd: created.rootPane.cwd };
+        return { paneId: created.rootPane.paneID, tabId: created.tab.tabID, cwd: created.rootPane.cwd, tab: created.tab, pane: created.rootPane };
       }
       const split = herdr.splitPane?.bind(herdr);
       if (split === undefined) throw new Error("This machine cannot split a pane from here.");
       const pane = await bound(() => split({ workspaceId: request.workspaceId, targetPaneId: where.targetPaneId, direction: where.direction, cwd, focus: false }));
-      return { paneId: pane.paneID, tabId: pane.tabID, cwd: pane.cwd };
+      return { paneId: pane.paneID, tabId: pane.tabID, cwd: pane.cwd, tab: null, pane };
     } catch (error) {
       if (error instanceof MachineChanged) throw new Error(newAgentTexts.nothingMade(error.message));
       // Herdr's refusal in its words, never its code.
@@ -379,9 +427,22 @@ export async function newAgent(
     const kept = parts.filter((part): part is string => part !== null);
     return kept.length === 0 ? null : kept.join(" ");
   };
+  // The pane, timed, and told to the caller once it exists (with Herdr's answer, so the window can show it at once).
+  const made = async (label: string | null): Promise<Placed> => {
+    pending("pane");
+    let created: Placed;
+    try {
+      created = await timed_("pane", () => place(label));
+    } finally {
+      pending(null);
+    }
+    const shown = created;
+    quietly(() => steps.paneMade?.({ paneId: shown.paneId, tabId: shown.tabId, tab: shown.tab, pane: shown.pane }));
+    return created;
+  };
   if (request.kind === "shell") {
-    const created = await place(null);
-    return { paneId: created.paneId, tabId: created.tabId, name: null, kind: "shell", start: { type: "shell" }, summary: elsewhereLine("The shell was made", created.cwd) };
+    const created = await made(null);
+    return ended({ paneId: created.paneId, tabId: created.tabId, name: null, kind: "shell", start: { type: "shell" }, summary: elsewhereLine("The shell was made", created.cwd) });
   }
   const kind = request.kind.toLowerCase();
   const title = kindTitle(kind);
@@ -394,24 +455,31 @@ export async function newAgent(
   const startArgs = [...(herdrStartArgs(kind) ?? []), ...flagWords(flags)];
   if (command === null && !startArgs.every(isPlainWord)) throw new Error(newAgentTexts.flagsNotPlain(title));
   let listed: AgentInfo[];
+  pending("list");
   try {
-    listed = await bound(() => herdr.agentList());
+    listed = await timed_("list", () => bound(() => herdr.agentList()));
   } catch (error) {
+    pending(null);
     if (error instanceof MachineChanged) throw new Error(newAgentTexts.nothingMade(error.message));
     throw error;
   }
   const taken = new Set(listed.map((agent) => agent.name?.toLowerCase()).filter((name): name is string => name !== undefined));
   const name = agentName(kind, taken);
-  const created = await place(name);
+  const created = await made(name);
   const paneId = created.paneId;
   const elsewhere = elsewhereLine(`${title} started`, created.cwd);
   const result = (start: NewAgentStart, summary: string | null = null): NewAgentResult => ({ paneId, tabId: created.tabId, name, kind, start, summary });
   const close = (): Promise<void> => bound(() => herdr.closePane(paneId));
   const notInstalled = (line: string): string => newAgentTexts.notInstalled(title, machine.name, line);
+  // Antigravity CLI started with a model it refuses: its words for the person (null: not that).
+  const modelRefused = (text: string): string | null => {
+    const line = kind === "agy" && flags.length > 0 ? agyUnknownModelLine(text) : null;
+    return line === null ? null : newAgentTexts.modelUnknown(title, machine.name, line, placeWord);
+  };
   const paneText = herdr.paneText?.bind(herdr);
   if (command !== null) {
     try {
-      await bound(() => herdr.sendInput(paneId, command, ["Enter"]));
+      await timed_("start", () => bound(() => herdr.sendInput(paneId, command, ["Enter"])));
     } catch (error) {
       if (error instanceof MachineChanged) throw new AgentStartFailed(paneId, newAgentTexts.notTyped(error.message, command, placeWord), false);
       if (error instanceof APIError) throw await failedStart(close, paneId, `typing “${command}” was refused: ${errorWords(error)}`, placeWord);
@@ -425,23 +493,33 @@ export async function newAgent(
     const gaveUp = (): Promise<AgentStartFailed> => failedStart(close, paneId, newAgentTexts.busy(machine.name, title), placeWord);
     // Codex with `--no-daemon` (its hooks then report the session for this pane); no args for any other kind.
     const args = startArgs.length === 0 ? undefined : startArgs;
+    const startFrom = clock.now();
+    const startDone = (): void => quietly(() => steps.timer?.add("start", clock.now() - startFrom));
     for (;;) {
       try {
         await bound(() => (args === undefined ? herdr.startAgent(name, kind, paneId) : herdr.startAgent(name, kind, paneId, args)));
+        startDone();
         break;
       } catch (error) {
+        if (!(error instanceof APIError && error.code === "agent_pane_busy")) startDone();
         if (error instanceof MachineChanged) throw new AgentStartFailed(paneId, newAgentTexts.notStarted(error.message, title, placeWord), false);
         if (error instanceof APIError && error.code === "agent_pane_busy") {
-          if (clock.now() >= busyEnd) throw await gaveUp();
+          if (clock.now() >= busyEnd) {
+            startDone();
+            throw await gaveUp();
+          }
           await clock.sleep(Math.min(paneBusyRetryMs, busyEnd - clock.now()));
           // A late wake sends no other start.
-          if (clock.now() > busyEnd) throw await gaveUp();
+          if (clock.now() > busyEnd) {
+            startDone();
+            throw await gaveUp();
+          }
           continue;
         }
         // The agent runs in the pane, at its own screen (signing in): the pane stays and is shown.
-        if (error instanceof APIError && error.code === "agent_not_ready") return result({ type: "herdr" }, lines(newAgentTexts.waiting(title), elsewhere));
+        if (error instanceof APIError && error.code === "agent_not_ready") return ended(result({ type: "herdr" }, lines(newAgentTexts.waiting(title), elsewhere)), "unsure");
         // No answer to a start that may have reached Herdr is no proof nothing started: the pane stays.
-        if (error instanceof RequestTimedOutError && error.mayHaveLanded) return result({ type: "herdr" }, lines(newAgentTexts.unsure(title, machine.name, placeWord), elsewhere));
+        if (error instanceof RequestTimedOutError && error.mayHaveLanded) return ended(result({ type: "herdr" }, lines(newAgentTexts.unsure(title, machine.name, placeWord), elsewhere)), "unsure");
         if (error instanceof APIError) throw await failedStart(close, paneId, newAgentTexts.refused(title, errorWords(error)), placeWord);
         throw await failedStart(close, paneId, errorWords(error), placeWord);
       }
@@ -450,13 +528,24 @@ export async function newAgent(
     const notTypedLine = notTyped === null ? null : `Herdr started ${title}: ${notTyped}; it was not typed.`;
     if (paneText !== undefined) {
       const lookEnd = clock.now() + missingLookMs;
+      const lookFrom = clock.now();
       try {
         for (;;) {
           const text = await timed(lookEnd, () => paneText(paneId, missingReadLines));
           // Late, or the pane cannot be read (no pane.read there): nothing to look at.
           if (text.type !== "value") break;
           const line = missingProgramLine(text.value, kind);
-          if (line !== null) return result({ type: "herdr" }, notInstalled(line));
+          if (line !== null) {
+            quietly(() => steps.timer?.add("wait", clock.now() - lookFrom));
+            return ended(result({ type: "herdr" }, notInstalled(line)), "noAgent");
+          }
+          // Antigravity CLI refusing the model picked: no agent started (ended as the not-installed line is: the
+          // look's time recorded under "wait", the record closed as no agent).
+          const refused = modelRefused(text.value);
+          if (refused !== null) {
+            quietly(() => steps.timer?.add("wait", clock.now() - lookFrom));
+            return ended(result({ type: "noAgent", command: [kind, ...startArgs].join(" ") }, refused), "noAgent");
+          }
           if (clock.now() >= lookEnd) break;
           const agents = await timed(lookEnd, () => herdr.agentList());
           if (agents.type === "late") break;
@@ -464,35 +553,45 @@ export async function newAgent(
           await clock.sleep(Math.min(missingPollMs, Math.max(0, lookEnd - clock.now())));
         }
       } catch (error) {
-        if (error instanceof MachineChanged) return result({ type: "herdr" }, lines(notTypedLine, elsewhere, newAgentTexts.lookStopped(error.message, placeWord)));
+        quietly(() => steps.timer?.add("wait", clock.now() - lookFrom));
+        if (error instanceof MachineChanged) return ended(result({ type: "herdr" }, lines(notTypedLine, elsewhere, newAgentTexts.lookStopped(error.message, placeWord))));
         throw error;
       }
+      quietly(() => steps.timer?.add("wait", clock.now() - lookFrom));
     }
-    return result({ type: "herdr" }, lines(notTypedLine, elsewhere));
+    return ended(result({ type: "herdr" }, lines(notTypedLine, elsewhere)));
   }
   // The typed command's wait: agent.list (and the pane's text) once a poll until the kind is in the pane, for at most
   // `timeoutMs`. Its one deadline is checked before each read and after every reply and wake.
   const typedEnd = clock.now() + timeoutMs;
+  const waitFrom = clock.now();
+  const waited = (answer: NewAgentResult): NewAgentResult => {
+    quietly(() => steps.timer?.add("wait", clock.now() - waitFrom));
+    return ended(answer);
+  };
   const noAgent = (): NewAgentResult =>
-    result({ type: "noAgent", command }, lines(`No ${title} agent appeared after typing “${command}”. The pane is left open.`, elsewhere));
+    waited(result({ type: "noAgent", command }, lines(`No ${title} agent appeared after typing “${command}”. The pane is left open.`, elsewhere)));
   try {
     for (;;) {
       const agents = await timed(typedEnd, () => herdr.agentList());
       if (agents.type === "late") return noAgent();
       const info = agents.type === "value" ? agents.value.find((agent) => agent.paneID === paneId) : undefined;
-      if (info !== undefined && info.agent?.toLowerCase() === kind) return result({ type: "typed", command }, elsewhere);
+      if (info !== undefined && info.agent?.toLowerCase() === kind) return waited(result({ type: "typed", command }, elsewhere));
       // On every look of the wait, the shell's "not found" line for the command's program ends it.
       if (paneText !== undefined) {
         const text = await timed(typedEnd, () => paneText(paneId, missingReadLines));
         if (text.type === "late") return noAgent();
         const line = text.type === "value" ? missingProgramLine(text.value, programOf(command)) : null;
-        if (line !== null) return result({ type: "noAgent", command }, notInstalled(line));
+        if (line !== null) return waited(result({ type: "noAgent", command }, notInstalled(line)));
+        const refused = text.type === "value" ? modelRefused(text.value) : null;
+        if (refused !== null) return waited(result({ type: "noAgent", command }, refused));
       }
       if (clock.now() >= typedEnd) return noAgent();
       await clock.sleep(Math.min(pollMs, Math.max(0, typedEnd - clock.now())));
     }
   } catch (error) {
-    if (error instanceof MachineChanged) return result({ type: "noAgent", command }, lines(newAgentTexts.waitStopped(error.message, title, command), elsewhere));
+    if (error instanceof MachineChanged) return waited(result({ type: "noAgent", command }, lines(newAgentTexts.waitStopped(error.message, title, command), elsewhere)));
+    quietly(() => steps.timer?.add("wait", clock.now() - waitFrom));
     throw error;
   }
 }

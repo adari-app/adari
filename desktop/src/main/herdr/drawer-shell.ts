@@ -27,7 +27,7 @@
 
 import { drawerShellTabLabel } from "../../shared/terminal-drawer";
 import { resolveFolderCwd } from "./folder-cwd";
-import { machineLink, type MachineLinkHosts } from "./machine-link";
+import { machineLink, type MachineLink, type MachineLinkHosts } from "./machine-link";
 import type { NewAgentHerdr } from "./new-agent";
 import type { SessionTopology } from "./wire";
 
@@ -79,21 +79,30 @@ async function machineHome(backend: DrawerShellBackend): Promise<string | null> 
   }
 }
 
-/** Opens a shell for the drawer of a pane in `request.workspaceId`; the machine's snapshot is read again before it answers. */
-export async function openDrawerShell(hosts: DrawerShellHosts, hostId: string, request: DrawerShellRequest): Promise<DrawerShellResult> {
+/**
+ * The shell path's door (the drawer's shell, and an agent CLI's update: agent-update.ts): the machine listed and
+ * answering, the workspace one it has now, its shell calls, and the link to the machine taken now, before anything
+ * is awaited. Each refusal is a plain sentence and nothing is sent.
+ */
+export function shellDoor(hosts: DrawerShellHosts, hostId: string, workspaceId: string, since: string): { backend: DrawerShellBackend; name: string; actions: NewAgentHerdr; link: MachineLink } {
   const backend = hosts.backend(hostId);
   const host = hosts.list().find((candidate) => candidate.id === hostId);
   if (backend === null || host === undefined) throw new Error("That machine is no longer listed.");
   if (host.state !== "connected" || host.topology === null) throw new Error(`${host.name} is not answering.`);
   // The workspace is one the machine has as it answers now, before anything is read or made.
-  if (!host.topology.workspaces.some((workspace) => workspace.workspaceID === request.workspaceId)) {
+  if (!host.topology.workspaces.some((workspace) => workspace.workspaceID === workspaceId)) {
     throw new Error(`That workspace is not on ${host.name} now.`);
   }
   const actions = backend.workspaceActions?.();
   if (actions === undefined) throw new Error("This machine cannot open a shell from here.");
-  const link = machineLink(hosts, hostId, host.name, "since the terminal was asked for");
+  return { backend, name: host.name, actions, link: machineLink(hosts, hostId, host.name, since) };
+}
+
+/** Opens a shell for the drawer of a pane in `request.workspaceId`; the machine's snapshot is read again before it answers. */
+export async function openDrawerShell(hosts: DrawerShellHosts, hostId: string, request: DrawerShellRequest): Promise<DrawerShellResult> {
+  const { backend, name, actions, link } = shellDoor(hosts, hostId, request.workspaceId, "since the terminal was asked for");
   const readHome = backend.homeFolder?.bind(backend);
-  const asked = await resolveFolderCwd(request.folder, { name: host.name, ...(readHome === undefined ? {} : { home: readHome }) });
+  const asked = await resolveFolderCwd(request.folder, { name, ...(readHome === undefined ? {} : { home: readHome }) });
   const home = asked === null ? await machineHome(backend) : null;
   const folder = asked ?? home;
   const place: DrawerShellPlace = asked !== null ? "folder" : home !== null ? "home" : "default";

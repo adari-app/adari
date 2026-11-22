@@ -7,10 +7,20 @@
 // as data URLs (scripts/build.mjs's png loader).
 // The Dock badge and the menu bar item are macOS only (elsewhere these are
 // no-ops); notifications show wherever the system has them.
+//
+// What macOS did with a notification: Electron's Notification cannot read
+// macOS's permission. On the Mac (Electron 44.9.3, UNUserNotificationCenter),
+// show() adds the request and Electron emits `show` when macOS took it, or
+// `failed` with macOS's error text when it refused it (Adari not allowed to
+// notify, or an unsigned build): shell/browser/notifications/mac/
+// cocoa_notification.mm ScheduleNotification, docs/api/notification.md. That
+// is the one signal; its text goes to the log only. Elsewhere nothing changes
+// (the answer is "unknown"). Open Notification Settings opens the one fixed
+// address of macOS's Notifications pane, never one the page sends.
 
-import { app, Menu, nativeImage, Notification, Tray, type BrowserWindow, type MenuItemConstructorOptions, type NativeImage } from "electron";
+import { app, Menu, nativeImage, Notification, shell, Tray, type BrowserWindow, type MenuItemConstructorOptions, type NativeImage } from "electron";
 
-import type { MenuBarView } from "../shared/needs-notify";
+import { macNotificationSettingsUrl, type MenuBarView } from "../shared/needs-notify";
 import type { MenuBarPick, NotifyPort, ShownNotification } from "./needs-notifier";
 import { bringForward } from "./stay-open";
 import mark1x from "./menu-bar/menuBarTemplate.png";
@@ -24,6 +34,8 @@ export interface ElectronNotifyOptions {
   select(window: BrowserWindow, hostId: string, paneId: string): void;
   /** Opens Settings in the window's page. */
   openSettings(window: BrowserWindow): void;
+  /** A line for the log (a notification macOS refused, with its error text). */
+  log?(line: string): void;
 }
 
 /** The menu bar's mark: Adari's A at 1x and 2x, a template image. */
@@ -65,10 +77,25 @@ export function electronNotifyPort(options: ElectronNotifyOptions): NotifyPort {
   };
   return {
     canNotify: () => Notification.isSupported(),
-    notify: (content, onClick): ShownNotification => {
+    notify: (content, onClick, onOutcome): ShownNotification => {
       const notification = new Notification({ title: content.title, body: content.body, silent: content.silent });
       notification.on("click", onClick);
+      if (mac) {
+        let answered = false;
+        notification.once("show", () => {
+          if (answered) return;
+          answered = true;
+          onOutcome("shown");
+        });
+        notification.once("failed", (_event, error) => {
+          if (answered) return;
+          answered = true;
+          options.log?.(`macOS did not show a notification: ${String(error)}`);
+          onOutcome("failed");
+        });
+      }
       notification.show();
+      if (!mac) onOutcome("unknown");
       return { close: () => notification.close() };
     },
     setBadge: (count) => {
@@ -97,6 +124,9 @@ export function electronNotifyPort(options: ElectronNotifyOptions): NotifyPort {
     openSettings: () => {
       const window = forward();
       if (window !== null) options.openSettings(window);
+    },
+    openSystemSettings: () => {
+      if (mac) void shell.openExternal(macNotificationSettingsUrl).catch(() => undefined);
     },
     quit: () => app.quit(),
   };

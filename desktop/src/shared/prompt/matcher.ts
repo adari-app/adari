@@ -12,6 +12,9 @@
 //   diff) and the option lines, as drawn: only the box's edges, their padding
 //   and the blanks out to the edge come off, so a space inside a command or a
 //   diff line's indentation is part of it. Where the cursor (`❯`) sits is not.
+//   A reader that knows its frame's width and its agent's wrap also keeps each
+//   part as the one text it stands for (`words`, words.ts): two readings of
+//   one question at two widths are compared by those texts.
 // - `showsInputPrompt` reads each supported agent kind's own empty text field:
 //   the proof the text after a "No, tell…" option waits for.
 // - On a Grok pane only (the pane's agent picks the reader, as the live
@@ -32,6 +35,20 @@
 //   (`codexUpdate`). Its keys are only the ones its own footer names: Return
 //   for the marked choice, Esc for Skip; another choice is answered in the
 //   Terminal (its key is not known here).
+// - On a Codex pane only, Codex 0.171.0's own question in Plan mode (its
+//   request_user_input tool, `codexQuestion`): a padding row, the header
+//   `Question N/M (K unanswered)`, the question's rows, a blank row, the
+//   options `N. <label>  <description>` (one marked `›`) ending with Codex's
+//   own `None of the above` row, a blank row and the footer the header calls
+//   for. And the list after a plan (`codexPlan`): `Implement this plan?`, its
+//   three choices and the footer `enter select · esc back`. Each answer is the
+//   option's digit alone.
+// - On a Claude pane, or one whose agent is not known, Claude Code 2.1.325's
+//   question dialog (its AskUserQuestion tool, `claudeAsk`): the top rule,
+//   one header chip, the question, the options numbered from 1 with their
+//   descriptions, `Type something.`, a rule, `Chat about this` and the footer
+//   `Enter to select · ↑/↓ to navigate · Esc to cancel`. Its answer is the
+//   option's digit alone, then reads (answerer.ts).
 // - Claude Code draws a command (or a diff)
 //   taller than the 40 lines read whole, so its section header ("Bash
 //   command") lands above the read. On a Claude pane a full read that ends in
@@ -44,10 +61,30 @@
 //   show of it. A matched Bash frame keeps its command's rows and description
 //   (`run`).
 //
+// - A Claude Code session that has a name draws its name in a rule under its
+//   dialogs (`isNameRule`). Under Claude's own footers only (the menus' "Esc
+//   to cancel · Tab to amend" and the question dialog's), once, among blank
+//   rows and plain rules, the three Claude readers read the frame as if it
+//   were not there; it is never part of a match or its fingerprint, and an
+//   unmatched card never shows it. Anywhere else it is a row like any other.
+//
+// - On an agy pane only, Antigravity CLI 1.5.13's own questions (read live,
+//   2026-11-20): its folder trust question (`agyTrust`: "Do you trust the
+//   contents of this project?", two choices, one marked `>`, the footer
+//   "↑/↓ Navigate · enter Confirm" and the mode line), answered with Return or
+//   an arrow then Return; and its permission questions before a command, a new
+//   file or an edit (`agyAsk`: the title over a rule, the command or the path
+//   with its diff, the question, the numbered choices, the footer and "esc to
+//   cancel"), answered with the digit alone. Each only whole at the bottom of
+//   the screen; the same words anywhere else are ordinary text.
+//
 // Swift counts Characters; this port counts code points (the same for every
 // row a supported agent draws).
 
 import { effortPattern, modelIdPatterns } from "../model-catalog";
+import { cells, edgeFromColumns, fitsColumns, partText, rowWords, sameLetters, sameRows, widest, type WrapFrame, type WrapSection } from "./words";
+
+export { cells };
 
 /** One answer Adari can give to a prompt it matched. */
 export interface PromptOption {
@@ -74,8 +111,13 @@ export interface PromptOption {
 /**
  * `grok` is Grok 1.0.70's approval frame (its digit alone).
  * `codexForm` is Codex 0.166.0's tool-call question (its digit alone).
+ * `claudeAsk` is Claude Code 2.1.325's question dialog, one question, one choice (its digit alone).
+ * `agyAsk` is Antigravity CLI 1.5.13's permission question (its digit alone); `agyTrust` its folder trust
+ * question (Return for the marked choice, the arrow then Return for the other).
+ * `codexQuestion` is Codex 0.171.0's own question in Plan mode (its request_user_input tool; its digit alone, then
+ * reads); `codexPlan` its "Implement this plan?" list after a plan (its digit alone, then reads).
  */
-export type PromptKind = "menu" | "yesNo" | "grok" | "codexForm" | "codexUpdate";
+export type PromptKind = "menu" | "yesNo" | "grok" | "codexForm" | "codexUpdate" | "codexQuestion" | "codexPlan" | "claudeAsk" | "agyAsk" | "agyTrust";
 
 /** The one context line under the question. */
 export type PromptContext =
@@ -96,6 +138,27 @@ export interface PromptFingerprint {
   readonly question: string;
   readonly body: readonly string[];
   readonly options: readonly string[];
+  /**
+   * Each part as the one text it stands for (words.ts `partText`), from
+   * what the reader knows of its frame: its width and how its agent wraps; where a row's end cannot be told, the
+   * part's rows as drawn (joined by `undecided`). A part null where the reader could not split it (a diff row with no
+   * line head, an option row it did not parse). Absent where the reader does not know its frame (Grok's, `[y/N]`, a
+   * boxed menu, Codex's update question): then only the same rows are the same question.
+   */
+  readonly words?: FingerprintWords;
+}
+
+/** A fingerprint's parts as the texts they stand for (null: not split, compared by their rows). */
+export interface FingerprintWords {
+  readonly question: string | null;
+  readonly body: string | null;
+  readonly options: string | null;
+  /**
+   * The question's rows as drawn (each row's end blanks off), where its text is null: the fingerprint
+   * keeps the question as its rows joined by one blank, which cannot show where a row ended, so an untold question is
+   * compared by these. Absent where the question is told.
+   */
+  readonly questionRows?: readonly string[];
 }
 
 export const fingerprintRules = 2;
@@ -109,6 +172,17 @@ export interface PromptMatch {
   readonly fingerprint: PromptFingerprint;
   /** Claude Code's Bash command as its frame draws it, and its description; absent elsewhere. */
   readonly run?: ClaudeRun;
+  /** The header chip's text over Claude Code's question dialog ("Q95"); absent elsewhere. */
+  readonly askHeader?: string;
+  /** Codex's own question's header row ("Question 1/2 (2 unanswered)"), as numbers; absent elsewhere. */
+  readonly codexProgress?: CodexQuestionProgress;
+}
+
+/** Where Codex's own question stands: question `index` of `total`, `unanswered` of them not answered yet. */
+export interface CodexQuestionProgress {
+  readonly index: number;
+  readonly total: number;
+  readonly unanswered: number;
 }
 
 /** A Bash command Claude Code asks to run, as its frame draws it. */
@@ -146,16 +220,45 @@ export function readingMatch(reading: PromptReading | null | undefined): PromptM
   return reading?.type === "matched" ? reading.match : null;
 }
 
+/** The part of a fingerprint where two readings first differ (`fingerprintDifference`). */
+export type FingerprintPart = "pane" | "question" | "body" | "options";
+
+/**
+ * Whether two readings are the same question: the same pane, and each
+ * part's text (`words`) equal, UTF-16 unit for unit; a part a reading has no text for is compared by its rows.
+ * The one comparison every place uses: the answerer's fresh read, the claim, the card's shown reading, the remembered
+ * selection. The Swift twin: CompanionPromptFingerprint.sameQuestion (HerdrKit's PromptWords.difference).
+ */
 export function sameFingerprint(a: PromptFingerprint, b: PromptFingerprint): boolean {
-  return (
-    a.rules === b.rules &&
-    a.paneID === b.paneID &&
-    a.question === b.question &&
-    a.body.length === b.body.length &&
-    a.body.every((row, index) => row === b.body[index]) &&
-    a.options.length === b.options.length &&
-    a.options.every((row, index) => row === b.options[index])
-  );
+  return fingerprintDifference(a, b) === null;
+}
+
+/**
+ * Where two readings stop being the same question, in this order: the pane, the question (and the reading rules),
+ * the body, the options; null when they are the same question. Each part: when both readings hold its text
+ * (`words`), the texts equal UTF-16 unit for unit and the rows' characters other than blanks the same (`sameLetters`);
+ * otherwise the same rows (words.ts `sameRows`: each row's end blanks off, rows of nothing but blanks left out; the
+ * question, read as its rows joined, without the blanks at its ends).
+ */
+export function fingerprintDifference(a: PromptFingerprint, b: PromptFingerprint): FingerprintPart | null {
+  if (a.paneID !== b.paneID) return "pane";
+  if (a.rules !== b.rules) return "question";
+  const same = (part: keyof FingerprintWords, rows: (fingerprint: PromptFingerprint) => readonly string[]): boolean => {
+    const left = a.words?.[part] ?? null;
+    const right = b.words?.[part] ?? null;
+    return left !== null && right !== null ? left === right && sameLetters(rows(a), rows(b)) : sameRows(rows(a), rows(b));
+  };
+  if (!same("question", (fingerprint) => fingerprint.words?.questionRows ?? [rowWords(fingerprint.question)])) return "question";
+  if (!same("body", (fingerprint) => fingerprint.body)) return "body";
+  if (!same("options", (fingerprint) => fingerprint.options)) return "options";
+  return null;
+}
+
+/** A question part's words: its text, or (not told) no text and its rows as drawn (`FingerprintWords.questionRows`). */
+function questionWords(sections: readonly WrapSection[], frame: WrapFrame): Pick<FingerprintWords, "question" | "questionRows"> {
+  const question = partText(sections, frame);
+  if (question !== null) return { question };
+  return { question: null, questionRows: sections.flatMap((section) => section.rows).map((row) => row.replace(/ +$/u, "")).filter((row) => rowWords(row) !== "") };
 }
 
 /** The option a card leads with: a menu's Return pick (or first), never session-wide or "No, tell…"; none for `[y/N]`. */
@@ -233,6 +336,8 @@ interface Screen {
   readonly lines: readonly string[];
   readonly complete: boolean;
   readonly width: number;
+  /** The pane's width the screen was read at (`readColumns`), null when not known or a row is wider. */
+  readonly columns: number | null;
 }
 
 /** The rows of a read: by line, the empty string after the last line break dropped. */
@@ -248,18 +353,31 @@ export function readRows(text: string): string[] {
  * for Codex 0.166.0's tool-call question first. Every other kind (and none) is
  * read by the general rules alone.
  */
-export function matchPrompt(text: string, paneID: string, agentKind: string | null = null): PromptReading {
+export function matchPrompt(text: string, paneID: string, agentKind: string | null = null, columns: number | null = null): PromptReading {
   const kind = agentKind?.toLowerCase();
   if (kind === "grok") {
     const grok = grokFrame(text, paneID);
     if (grok !== null) return { type: "matched", match: grok };
   }
   if (kind === "codex") {
-    const form = codexForm(text, paneID);
+    const form = codexForm(text, paneID, columns);
     if (form !== null) return { type: "matched", match: form };
     // Its update question at start.
     const update = codexUpdatePrompt(text, paneID);
     if (update !== null) return { type: "matched", match: update };
+    // Its own question in Plan mode, and "Implement this plan?" after a plan.
+    const question = codexQuestion(text, paneID, columns) ?? codexPlan(text, paneID, columns);
+    if (question !== null) return { type: "matched", match: question };
+  }
+  // Antigravity CLI's own questions: on an agy pane only, and nothing else there (below).
+  if (kind === agyKind) {
+    const agy = agyQuestion(text, paneID);
+    if (agy !== null) return { type: "matched", match: agy };
+  }
+  // Claude Code's question dialog: on a Claude pane, or one whose agent is not known; never on another agent's.
+  if (kind === undefined || kind === "claude") {
+    const ask = claudeAsk(text, paneID);
+    if (ask !== null) return { type: "matched", match: ask };
   }
   const raw = readRows(text);
   const drawn = raw.map(withoutEscapes);
@@ -268,7 +386,10 @@ export function matchPrompt(text: string, paneID: string, agentKind: string | nu
     lines: raw.map(cleanRow),
     complete: raw.length < promptReadLines,
     width: drawn.reduce((widest, row) => Math.max(widest, length(dropTrailingBlanks(row))), 0),
+    columns: fitsColumns(drawn, columns),
   };
+  // On an agy pane agy's own reader is the only one: a screen it rejects is never a general menu or [y/N] card.
+  if (kind === agyKind) return { type: "unmatched", lines: tail(screen) };
   const menu = matchMenu(screen, paneID);
   if (menu !== null) return { type: "matched", match: menu };
   const yesNo = matchYesNo(screen, paneID);
@@ -278,7 +399,7 @@ export function matchPrompt(text: string, paneID: string, agentKind: string | nu
     const cut = cutFrame(screen);
     if (cut !== null) return { type: "unmatched", lines: cut.lines, cut };
   }
-  return { type: "unmatched", lines: tail(screen.lines) };
+  return { type: "unmatched", lines: tail(screen) };
 }
 
 /** The unmatched reading's cut frame; null for every other reading. */
@@ -333,6 +454,82 @@ const codexFooter = "press enter to confirm or esc to cancel";
 const codexThreadFooter = "press enter to confirm or esc to cancel or o to open thread";
 const claudeFooter = "esc to cancel · tab to amend";
 
+/**
+ * The name rule: a Claude Code session that has a name draws it under its
+ * dialogs, in a rule (2.1.325, read from a named pane 119 cells wide: `─` × 88,
+ * a space, `invoice-export-cleanup-tests`, a space, one `─`). Here: four `─` or
+ * more, one space, the label, one space, exactly one `─`. The label is words one
+ * space apart, of anything but rule characters (box drawing), control and
+ * format characters and other spaces, at most `nameRuleLabelLimit` code points.
+ * Its text is never trusted, shown or compared with a name the app knows (a
+ * session renamed by hand has a name Herdr does not have). The Swift twin:
+ * CompanionPromptMatcher.nameRule.
+ */
+const nameRulePattern = /^─{4,} ([^\u2500-\u257F\p{Cc}\p{Cf}\p{Z}]+(?: [^\u2500-\u257F\p{Cc}\p{Cf}\p{Z}]+)*) ─$/u;
+/** The longest label a name rule may carry, in code points. */
+export const nameRuleLabelLimit = 64;
+
+/**
+ * Whether `row`, as `suffixRow` leaves it, is the name rule: the pattern must
+ * cover the whole row, checked by the match's start and length (never by an
+ * anchor alone), and the label must be within the limit.
+ */
+export function isNameRule(row: string): boolean {
+  const found = nameRulePattern.exec(row);
+  return found !== null && found.index === 0 && found[0].length === row.length && [...found[1]!].length <= nameRuleLabelLimit;
+}
+
+/**
+ * A row under Claude's footer as the name-rule suffix reads it, the same rule
+ * on both apps (CompanionPromptMatcher.suffixRow): the row as drawn (escapes
+ * already removed), each U+00A0 read as U+0020, then U+0020 removed at both
+ * edges, and nothing else. Every other character, at an edge or inside (a
+ * tab, U+000B to U+000D, U+0085, U+200B, U+2028, U+2029, U+FEFF, any other
+ * control, format or space character), stays, so the row is neither blank, a
+ * plain rule nor the name rule.
+ */
+function suffixRow(drawn: string): string {
+  const row = [...drawn].map((character) => (character === "\u00A0" ? " " : character));
+  let start = 0;
+  let end = row.length;
+  while (start < end && row[start] === " ") start += 1;
+  while (end > start && row[end - 1] === " ") end -= 1;
+  return row.slice(start, end).join("");
+}
+
+/** A plain rule under Claude's footer: U+2500 and nothing else. */
+function isPlainSuffixRule(row: string): boolean {
+  return row !== "" && [...row].every((character) => character === "─");
+}
+
+/**
+ * Where Claude's frame ends on a named session's screen: the row of `footer`
+ * (Claude's own, tested on the reader's own `rows` as before) when every row
+ * under it, read by `suffixRow` from `drawn` (the same rows as drawn), is
+ * blank, a plain rule or the name rule, and the name rule is there exactly
+ * once. Null for any other screen (no name rule, two, or anything else under
+ * the footer): each reader reads it as before. The three readers (`matchMenu`,
+ * `cutFrame`, `claudeAsk`) start from this row, so the name rule is never part
+ * of a match or its fingerprint.
+ */
+function footerOverNameRule(drawn: readonly string[], rows: readonly string[], footer: string): number | null {
+  let index = drawn.length - 1;
+  let named = false;
+  while (index >= 0) {
+    const row = suffixRow(drawn[index]!);
+    if (row === "" || isPlainSuffixRule(row)) {
+      index -= 1;
+    } else if (isNameRule(row)) {
+      if (named) return null;
+      named = true;
+      index -= 1;
+    } else {
+      break;
+    }
+  }
+  return named && index >= 0 && normalisedLower(collapse(rows[index]!)) === footer ? index : null;
+}
+
 /** A row of a paragraph that opens with "Environment:" or "Reason:" (Codex 0.163.0): body, never the question. */
 function isCodexBodyRow(lines: readonly string[], index: number): boolean {
   let start = index;
@@ -383,9 +580,14 @@ function matchMenu(screen: Screen, paneID: string): PromptMatch | null {
   const complete = screen.complete;
   // Under the options only the frame's end may follow: blank lines, the box's
   // bottom edge, a recorded footer. Anything else means the agent moved on.
-  let end = lines.length - 1;
+  // A named session's rows under Claude's footer (the name rule) end it too,
+  // under a frame drawn without a box only.
+  const named = footerOverNameRule(screen.drawn, lines, claudeFooter);
+  let end = named ?? lines.length - 1;
   let closedBox = false;
   let footer: string | null = null;
+  // The footer's row (the frame's last row with words).
+  let menuEnd = end;
   while (end >= 0) {
     const line = lines[end]!;
     if (line === "") {
@@ -395,12 +597,13 @@ function matchMenu(screen: Screen, paneID: string): PromptMatch | null {
       end -= 1;
     } else if (promptFooters.has(normalisedLower(collapse(line)))) {
       footer = normalisedLower(collapse(line));
+      menuEnd = end;
       end -= 1;
     } else {
       break;
     }
   }
-  if (end < 0) return null;
+  if (end < 0 || (named !== null && closedBox)) return null;
   const run = optionRun(screen, end, footer !== null);
   if (run === null) return null;
   const first = run[0]!.index;
@@ -475,12 +678,17 @@ function matchMenu(screen: Screen, paneID: string): PromptMatch | null {
       keys: [String(line.number)],
     };
   });
+  // What the reader knows of its frame: Claude Code's under a section header and Codex's command question have
+  // words; any other menu (a box, Grok's bare one) only its rows.
+  const claudeFrame = wrapsAtEdge && footer === claudeFooter;
+  const words = claudeFrame ? claudeMenuWords(screen, top, questionStart, questionEnd, run) : codexFrame && !closedBox ? codexMenuWords(screen, questionStart, questionEnd, first, menuEnd, run) : null;
   const fingerprint: PromptFingerprint = {
     rules: fingerprintRules,
     paneID,
     question,
     body: framedBody(screen, body[0], body[1]),
     options: run.flatMap((entry) => [entry.line.drawn, ...entry.more.map((at) => framed(screen.drawn[at]!))]),
+    ...(words === null ? {} : { words }),
   };
   // Claude's Bash frame keeps its command's rows and its description for the card.
   const claudeRun = footer === claudeFooter && !closedBox && isBashSection(lines[top]!) ? bashRun(screen, top, questionStart) : null;
@@ -504,7 +712,7 @@ function isDashedRule(line: string): boolean {
 /**
  * What looks like Claude Code's approval frame whose top is above a full read.
  * Read from the bottom: Claude's footer the last row (blank rows under it
- * allowed), blank rows, its options numbered from 1, the question right above
+ * allowed, or a named session's rows: `footerOverNameRule`), blank rows, its options numbered from 1, the question right above
  * option 1 (its wrapped rows up to the dashed rule that closes the body), and
  * above that rule, up to the read's top, no section header, no bullet and no
  * rule but dashed ones. Null for anything else (a read holding the whole pane,
@@ -518,7 +726,7 @@ function isDashedRule(line: string): boolean {
 function cutFrame(screen: Screen): CutFrame | null {
   if (screen.complete) return null;
   const lines = screen.lines;
-  let end = lines.length - 1;
+  let end = footerOverNameRule(screen.drawn, lines, claudeFooter) ?? lines.length - 1;
   while (end >= 0 && lines[end] === "") end -= 1;
   if (end < 0 || normalisedLower(collapse(lines[end]!)) !== claudeFooter) return null;
   end -= 1;
@@ -540,7 +748,7 @@ function cutFrame(screen: Screen): CutFrame | null {
     if (isDashedRule(line)) opening = index;
   }
   const question = lines.slice(questionStart, questionEnd + 1).join(" ");
-  return { question, rows: lines.slice(opening + 1, closing).filter((line) => line !== ""), lines: tail(lines) };
+  return { question, rows: lines.slice(opening + 1, closing).filter((line) => line !== ""), lines: tail(screen) };
 }
 
 /**
@@ -717,6 +925,138 @@ export function framed(drawn: string): string {
   return text;
 }
 
+// MARK: the words an answer is bound to
+
+/** Cells `text` takes as a prefix before a part's words: one a character (a number, a blank, a mark). */
+function prefixCells(text: string): number {
+  return [...text].length;
+}
+
+/**
+ * A numbered menu's option as a section (words.ts): its first row from its number on, the cells before it blank
+ * (the mark is never part of the question), and the rows that continue its label, each its label's column in.
+ * An option starts only where the reader parsed one.
+ */
+function menuOptionSection(screen: Screen, entry: RunEntry): WrapSection | null {
+  const row = framed(screen.drawn[entry.index]!);
+  const lead = leadingSpaces(row);
+  const found = optionPattern.exec(row.slice(lead));
+  if (found === null || found.indices === undefined) return null;
+  const numberAt = lead + found.indices[2]![0];
+  const labelAt = lead + found.indices[3]![0];
+  return {
+    rows: [" ".repeat(prefixCells(row.slice(0, numberAt))) + row.slice(numberAt), ...entry.more.map((at) => framed(screen.drawn[at]!))],
+    next: prefixCells(row.slice(0, labelAt)),
+    lines: false,
+  };
+}
+
+/** A diff line's head in Claude Code's Edit and Create frames: its number, maybe its mark, the blank before the line. */
+const claudeDiffHead = /^ *\d+(?: [-+])?(?: |$)/u;
+
+/**
+ * Claude Code's diff rows split into its lines: a row at least its line's head in continues that line (Ink wraps a
+ * line under its own text); any other row starts a line with its own head. Null for a row that does neither.
+ */
+function claudeDiffSections(rows: readonly string[]): WrapSection[] | null {
+  const sections: { rows: string[]; next: number }[] = [];
+  for (const row of rows) {
+    if (row.trim() === "") {
+      sections.push({ rows: [], next: 0 });
+      continue;
+    }
+    const current = sections.at(-1);
+    if (current !== undefined && current.rows.length > 0 && leadingSpaces(row) >= current.next) {
+      current.rows.push(row);
+      continue;
+    }
+    const head = claudeDiffHead.exec(row);
+    if (head === null) return null;
+    sections.push({ rows: [row], next: prefixCells(head[0]) });
+  }
+  return sections.filter((section) => section.rows.length > 0).map((section) => ({ ...section, lines: false }));
+}
+
+/**
+ * The words of Claude Code's unboxed frame (2.1.303's, under a section header): its width is its top rule's (the
+ * `─` row over the header), its text's edge a cell short of it; its rows wrap as Ink wraps them; its text sections
+ * are one cell in. Each part: the
+ * question's rows; the header, then the rows between the dashed rules as the description (or, in an Edit or Create
+ * frame, the file's name) and the command (or the diff, a section a line); each option. Null without the top rule.
+ */
+function claudeMenuWords(screen: Screen, top: number, questionStart: number, questionEnd: number, run: readonly RunEntry[]): FingerprintWords | null {
+  if (top < 1) return null;
+  const rule = dropTrailingBlanks(screen.drawn[top - 1]!);
+  if (!/^─+$/u.test(rule)) return null;
+  const width = prefixCells(rule);
+  const diff = !isBashSection(screen.lines[top]!) && (isCreateSection(screen.lines[top]!) || normalisedLower(collapse(screen.lines[top]!)) === "edit file");
+  const segments: string[][] = [[]];
+  for (let index = top + 1; index < questionStart; index += 1) {
+    if (isRule(screen.lines[index]!)) segments.push([]);
+    else segments.at(-1)!.push(dropTrailingBlanks(screen.drawn[index]!));
+  }
+  const body: WrapSection[] = [{ rows: [dropTrailingBlanks(screen.drawn[top]!)], next: 1, lines: false }];
+  for (const [at, rows] of segments.entries()) {
+    if (diff && at === 1) {
+      const lines = claudeDiffSections(rows);
+      if (lines === null) return { question: null, body: null, options: null };
+      body.push(...lines);
+    } else {
+      // The description and the command may hold line breaks; an Edit frame's file name does not.
+      body.push({ rows, next: 1, lines: !(diff && at === 0) });
+    }
+  }
+  const options = run.map((entry) => menuOptionSection(screen, entry));
+  const question: WrapSection = { rows: screen.drawn.slice(questionStart, questionEnd + 1).map(dropTrailingBlanks), next: 1, lines: false };
+  // Ink draws the text one cell in, and its right edge is one cell short of the rule (narrow39: a 37-cell row wrapped
+  // with its blank kept and a 33-cell row could not take a 6-cell word, so the edge is 38 of 39), or the rule's own
+  // where a text row reaches it; a cell short of that where no row says otherwise. The options reach the rule
+  // (narrow54: an option row of 54 cells under a 54-cell rule).
+  const textRows = [...body, question].flatMap((section) => section.rows);
+  const reach = widest(textRows) >= width ? width : width - 1;
+  const text: WrapFrame = { style: "ink", low: Math.max(reach - 1, widest(textRows)), high: reach };
+  const optionFrame: WrapFrame = { style: "ink", low: width, high: width };
+  return { ...questionWords([question], text), body: partText(body, text), options: options.some((section) => section === null) ? null : partText(options as WrapSection[], optionFrame) };
+}
+
+/**
+ * The words of Codex's command question (0.163.0's, over its footer). The frame shows no width: its edge is
+ * somewhere past its widest row, from the question to the footer, and with the pane's width the screen was read at
+ * (where known), at most that width and at least two cells short of it (codex-0.163.0-narrow51-dialog: rows of 50 at
+ * 51 columns). Its question, Reason and options wrap as textwrap wraps them (Unicode line breaking: after `/`, `-`
+ * and the like with no blank, narrow51's `/private/tmp/` over `z-narrow2-out/`), two cells in; its command (the `$`
+ * paragraph) at blanks only (narrow51: `$ echo narrow-codex >` over the whole path, which the other wrapper would
+ * have broken after `z-narrow2-`). Each part: the question's rows; each paragraph between it and the options
+ * (Environment, Reason, the command); each option. An option's row end the frame cannot tell is not settled by the
+ * command it quotes: the option's prefix is drawn from Codex's own token list, so the command's
+ * characters cannot rule out the other text (codex-0.163.0-dialog: `results-` over `day-one/...` has no text and is
+ * compared by its rows).
+ */
+function codexMenuWords(screen: Screen, questionStart: number, questionEnd: number, first: number, end: number, run: readonly RunEntry[]): FingerprintWords {
+  const rows = (from: number, to: number): string[] => screen.drawn.slice(from, to).map(dropTrailingBlanks);
+  const frame = edgeFromColumns({ style: "textwrap", low: widest(rows(questionStart, end + 1)), high: null }, screen.columns, codexEdgeMargin);
+  const paragraphs: WrapSection[] = [];
+  let current: string[] = [];
+  const close = (): void => {
+    if (current.length > 0) paragraphs.push({ rows: current, next: 2, lines: true, ...(current[0]!.startsWith("  $ ") ? { style: "words" as const } : {}) });
+    current = [];
+  };
+  for (const row of rows(questionEnd + 1, first)) {
+    if (row.trim() === "") close();
+    else current.push(row);
+  }
+  close();
+  const options = run.map((entry) => menuOptionSection(screen, entry));
+  return {
+    ...questionWords([{ rows: rows(questionStart, questionEnd + 1), next: 2, lines: false }], frame),
+    body: partText(paragraphs, frame),
+    options: options.some((section) => section === null) ? null : partText(options as WrapSection[], frame),
+  };
+}
+
+/** How far in from the pane's edge Codex's text may end, in cells (narrow51: one; one more for what was not seen). */
+const codexEdgeMargin = 2;
+
 // MARK: wrapping
 
 const diffRow = /^(?:\d+ [ +-]|[+-](?: |$))/u;
@@ -770,27 +1110,7 @@ function roomBeforeEdge(drawn: string): number | null {
   return inner.length - inner.replace(/ +$/u, "").length - 1;
 }
 
-/** Terminal cells `text` takes: two for a wide character, else one. Counting one too wide only makes a wrap more likely. */
-export function cells(text: string): number {
-  let total = 0;
-  for (const character of text) {
-    const value = character.codePointAt(0)!;
-    const wide =
-      (value >= 0x1100 && value <= 0x115f) ||
-      (value >= 0x2300 && value <= 0x23ff) ||
-      (value >= 0x2600 && value <= 0x27bf) ||
-      (value >= 0x2e80 && value <= 0xa4cf) ||
-      (value >= 0xac00 && value <= 0xd7a3) ||
-      (value >= 0xf900 && value <= 0xfaff) ||
-      (value >= 0xfe30 && value <= 0xfe4f) ||
-      (value >= 0xff00 && value <= 0xff60) ||
-      (value >= 0xffe0 && value <= 0xffe6) ||
-      (value >= 0x1f300 && value <= 0x1faff) ||
-      (value >= 0x20000 && value <= 0x3fffd);
-    total += wide ? 2 : 1;
-  }
-  return total;
-}
+/** Terminal cells: words.ts `cells` (two for a wide character, else one; counting one too wide only makes a wrap more likely). */
 
 // MARK: context line
 
@@ -960,8 +1280,12 @@ function isSectionHeader(line: string): boolean {
   return sectionHeaders.has(normalisedLower(collapse(line)));
 }
 
-function tail(lines: readonly string[]): string[] {
-  return lines.filter((line) => line !== "" && !isBorder(line)).slice(-unmatchedLineCount);
+/** An unmatched reading's last rows: the blank and border rows left out, and a named session's rows under Claude's footer. */
+function tail(screen: Screen): string[] {
+  const lines = screen.lines;
+  const footer = footerOverNameRule(screen.drawn, lines, claudeFooter) ?? footerOverNameRule(screen.drawn, lines, claudeAskFooter);
+  const shown = footer === null ? lines : lines.slice(0, footer + 1);
+  return shown.filter((line) => line !== "" && !isBorder(line)).slice(-unmatchedLineCount);
 }
 
 export function collapse(text: string): string {
@@ -1250,6 +1574,14 @@ function drawnRows(text: string): string[] {
 }
 
 /**
+ * The rows as read, for a fingerprint: only escape sequences (none in a text read) and the carriage return of a
+ * CRLF line end removed; blank rows, every space and no-break space kept.
+ */
+function rawRows(text: string): string[] {
+  return readRows(text).map(withoutEscapes);
+}
+
+/**
  * Codex 0.166.0's tool-call question at the screen's end, read whole
  * (codex-rs/tui/src/bottom_pane/mcp_server_elicitation.rs, a one-field
  * approval form), every row at the menu's margin:
@@ -1280,7 +1612,7 @@ function drawnRows(text: string): string[] {
  * the option rows, as drawn (the mark's cell left blank); the `Field` row and
  * the blank rows above the footer are not part of it.
  */
-export function codexForm(text: string, paneID: string): PromptMatch | null {
+export function codexForm(text: string, paneID: string, columns: number | null = null): PromptMatch | null {
   const rows = drawnRows(text);
   let end = rows.length - 1;
   while (end >= 0 && rows[end] === "") end -= 1;
@@ -1366,8 +1698,38 @@ export function codexForm(text: string, paneID: string): PromptMatch | null {
       question,
       body: rows.slice(headerTop, first),
       options: options.flatMap((option) => option.drawn),
+      words: codexFormWords(rows, headerTop, headerEnd, parameters, options, end, margin, fitsColumns(rows, columns)),
     },
   };
+}
+
+/**
+ * The words of Codex's tool-call form: the frame shows no width, so its edge is somewhere past its widest row, from
+ * the header to the footer; its rows wrap as textwrap wraps them, at the menu's margin. The header (the question);
+ * the parameters, a line each (a long value wraps at the margin, so where one parameter ends is told only where
+ * the next row's first word would have fit); each option, its description's rows under its column.
+ */
+function codexFormWords(
+  rows: readonly string[],
+  headerTop: number,
+  headerEnd: number,
+  parameters: readonly string[],
+  options: readonly { readonly row: CodexOptionRow; readonly drawn: readonly string[] }[],
+  end: number,
+  margin: number,
+  columns: number | null,
+): FingerprintWords {
+  // The frame shows no width; with the pane's width the screen was read at, its edge is at most that and at least
+  // two cells short of it, as Codex's command question.
+  const frame = edgeFromColumns({ style: "textwrap", low: widest(rows.slice(headerTop, end + 1)), high: null }, columns, codexEdgeMargin);
+  const header: WrapSection = { rows: rows.slice(headerTop, headerEnd + 1), next: margin, lines: false };
+  const sections = options.map((option): WrapSection => {
+    const first = option.drawn[0]!;
+    // The description's column: where its words start on the option's row.
+    const column = prefixCells(first) - prefixCells(option.row.detail);
+    return { rows: option.drawn, next: column, lines: false };
+  });
+  return { ...questionWords([header], frame), body: partText([header, { rows: parameters, next: margin, lines: true }], frame), options: partText(sections, frame) };
 }
 
 // MARK: - Codex's update question
@@ -1543,6 +1905,632 @@ export function codexFormTrace(text: string): boolean {
   });
 }
 
+// MARK: - Codex 0.171.0's own question (request_user_input) and "Implement this plan?"
+
+/**
+ * The footers under Codex's own question, compared whole as drawn (from the margin, trailing blanks off): on a
+ * question before the last (`next`), on the last of several (`last`), and on a question asked alone (`only`: Codex
+ * 0.171.0's source, request_user_input/mod.rs footer_tips; not sampled live). Codex draws "←/→ to navigate questions"
+ * only with two questions or more.
+ */
+export const codexQuestionFooters = {
+  next: "tab to add notes | enter to submit answer | ←/→ to navigate questions | esc to interrupt",
+  last: "tab to add notes | enter to submit all | ←/→ to navigate questions | esc to interrupt",
+  only: "tab to add notes | enter to submit answer | esc to interrupt",
+} as const;
+/** Its header row: `Question N/M (K unanswered)`. Without the count (every question answered) it is not read. */
+const codexQuestionHeader = /^Question ([1-9][0-9]{0,2})\/([1-9][0-9]{0,2}) \(([1-9][0-9]{0,2}) unanswered\)$/u;
+/** The row Codex adds under the asked options, in its words: the way out, never an answer the card sends. */
+export const codexOtherLabel = "None of the above";
+export const codexOtherDetail = "Optionally, add details in notes (tab)";
+/** Rows a digit can name (the asked options and Codex's own last row); a tenth is drawn without a number. */
+export const codexQuestionRowLimit = 9;
+/** A numbered row from the frame's margin: the mark's cell (`›` or blank), a space, the digit, `. `, the rest. */
+const codexQuestionRow = /^([› ]) ([1-9])\. (\S.*)$/u;
+/** Cells from the margin to a row's label (`› 1. `). */
+const codexQuestionLabelAt = 5;
+
+/** A row of code points with the cell each starts at. */
+function cellColumns(row: string): { readonly characters: string[]; readonly at: number[] } {
+  const characters = [...row];
+  const at: number[] = [];
+  let column = 0;
+  for (const character of characters) {
+    at.push(column);
+    column += cells(character);
+  }
+  return { characters, at };
+}
+
+/**
+ * The cells in a numbered row where a description may start: a word after two blanks or more, past `from`. The
+ * selection list pads every label to one column (the longest label and two blanks), so the description's column is
+ * one of these on every row.
+ */
+function descriptionStarts(row: string, from: number): number[] {
+  const { characters, at } = cellColumns(row);
+  const starts: number[] = [];
+  for (let index = 2; index < characters.length; index += 1) {
+    if (at[index]! > from && characters[index] !== " " && characters[index - 1] === " " && characters[index - 2] === " ") starts.push(at[index]!);
+  }
+  return starts;
+}
+
+/** The text of `row` from cell `from` on (`from` a cell where a code point starts). */
+function fromCell(row: string, from: number): string {
+  const { characters, at } = cellColumns(row);
+  const index = at.indexOf(from);
+  return index < 0 ? "" : characters.slice(index).join("");
+}
+
+/** The text of `row` before cell `to`. */
+function beforeCell(row: string, to: number): string {
+  const { characters, at } = cellColumns(row);
+  return characters.filter((_, index) => at[index]! < to).join("");
+}
+
+/** One numbered row of a selection list and the rows that continue its description. */
+interface CodexListEntry {
+  readonly number: number;
+  readonly marked: boolean;
+  readonly label: string;
+  /** The description, its rows joined (`joinWrapped`). */
+  readonly detail: string;
+  /** Its rows as drawn, the mark's cell blank. */
+  readonly drawn: readonly string[];
+  /** The cell its description starts at. */
+  readonly column: number;
+}
+
+/**
+ * The numbered rows of a Codex selection list in `rows` (top to bottom, no blank row among them), at `margin`:
+ * `› N. label  description` (the mark on one), numbered from 1 with no gap, every label padded to one column (the
+ * description's, the same on every row, the longest label two blanks short of it), each with a description, and a
+ * row under one whose words start exactly at that column continuing its description. Null for anything else (a row
+ * not numbered, two columns that fit, a label that wraps, a row without a description).
+ */
+function codexListRows(rows: readonly string[], margin: number): CodexListEntry[] | null {
+  // The mark's cell is blank on every row but one: a numbered row has the margin's blanks, then the cell, then its number.
+  const numbered = rows.map((row) => (leadingSpaces(row) >= margin ? codexQuestionRow.exec(row.slice(margin)) : null));
+  const heads = rows.flatMap((_, index) => (numbered[index] === null ? [] : [index]));
+  if (heads.length === 0 || heads[0] !== 0) return null;
+  const labelAt = margin + codexQuestionLabelAt;
+  // The description's column: a word after two blanks on every numbered row, right after the longest label.
+  const shared = heads.map((index) => descriptionStarts(rows[index]!, labelAt)).reduce((left, right) => left.filter((column) => right.includes(column)));
+  const columns = shared.filter((column) => heads.some((index) => beforeCell(rows[index]!, column).slice(-3, -2) !== " "));
+  if (columns.length !== 1) return null;
+  const column = columns[0]!;
+  const entries: { number: number; marked: boolean; label: string; details: string[]; drawn: string[] }[] = [];
+  for (const [index, row] of rows.entries()) {
+    const found = numbered[index];
+    if (found !== null && found !== undefined) {
+      const label = trimWhitespace(beforeCell(row, column).slice(labelAt));
+      if (label === "" || /\s{2}/u.test(label)) return null;
+      entries.push({ number: Number(found[2]), marked: found[1] === "›", label, details: [trimWhitespace(fromCell(row, column))], drawn: [`${row.slice(0, margin)} ${row.slice(margin + 1)}`] });
+    } else if (leadingSpaces(row) === column && entries.length > 0) {
+      entries.at(-1)!.details.push(trimWhitespace(row));
+      entries.at(-1)!.drawn.push(row);
+    } else {
+      return null;
+    }
+  }
+  if (entries.some((entry, at) => entry.number !== at + 1 || entry.details[0] === "")) return null;
+  return entries.map((entry) => ({ number: entry.number, marked: entry.marked, label: entry.label, detail: joinWrapped(entry.details), drawn: entry.drawn, column }));
+}
+
+/**
+ * A description's wrapped rows as the card shows them: joined by one blank, but with none after a row that ends in a
+ * letter and a hyphen when the next starts with a letter (textwrap broke the word there: "general-" over "purpose").
+ * Display only: what an answer is bound to is the fingerprint.
+ */
+function joinWrapped(rows: readonly string[]): string {
+  return rows.reduce((text, row) => (/\p{L}-$/u.test(text) && /^\p{L}/u.test(row) ? text + row : `${text} ${row}`));
+}
+
+/** The progress Codex's header row shows, at `margin`; null for any other row. */
+function codexQuestionProgress(row: string, margin: number): CodexQuestionProgress | null {
+  if (leadingSpaces(row) !== margin) return null;
+  const found = codexQuestionHeader.exec(row.slice(margin));
+  if (found === null) return null;
+  const progress = { index: Number(found[1]), total: Number(found[2]), unanswered: Number(found[3]) };
+  return progress.index > progress.total || progress.unanswered > progress.total ? null : progress;
+}
+
+/** The footer a question at `progress` draws. */
+function codexQuestionFooter(progress: CodexQuestionProgress): string {
+  if (progress.total === 1) return codexQuestionFooters.only;
+  return progress.index < progress.total ? codexQuestionFooters.next : codexQuestionFooters.last;
+}
+
+/**
+ * Codex 0.171.0's own question in Plan mode (its request_user_input tool,
+ * codex-rs/tui/src/bottom_pane/request_user_input/) at the screen's end, read
+ * whole, every row at the frame's margin, as recorded at 120 columns:
+ *
+ *       Question 1/2 (2 unanswered)
+ *       Which name should the tiny note file have?
+ *
+ *       › 1. note (Recommended)  Use the simple base name “note”.
+ *         2. quick-note          Use the base name “quick-note”.
+ *         3. memo                Use the base name “memo”.
+ *         4. None of the above   Optionally, add details in notes (tab)
+ *
+ *       tab to add notes | enter to submit answer | ←/→ to navigate questions | esc to interrupt
+ *
+ * Read from the bottom: the footer the last row with words, exactly the one its header calls for (a question before
+ * the last, the last of several, or one alone: `codexQuestionFooters`); one blank row over it; one block of numbered
+ * rows (`codexListRows`): at least two asked options and Codex's own last row (`None of the above` and its words), nine
+ * rows at most, exactly one marked `›`; one blank row; the question's rows (none indented, at least one); the header
+ * row `Question N/M (K unanswered)` right above them (N and K at most M); and over it a blank row (Codex's menu
+ * padding: a read that starts at the header may have cut it). The notes row open (its footer is another), a header
+ * cut off, a tenth row, no options, a footer that is not one of these, anything else in these rows: null.
+ *
+ * The match: the question (its rows joined by one blank), the asked options with their labels as Codex wrote them
+ * ("(Recommended)" kept) and their descriptions, and the header's numbers (`codexProgress`); Codex's own last row is
+ * never an option (the card's way out is the Terminal, where notes are typed). Each option's answer is its digit
+ * alone (a digit chooses it and moves on, or submits on the last question). The fingerprint: the header row and the
+ * question's rows (body), every numbered row and its description's rows (Codex's own last row too), as drawn, the
+ * mark's cell blank.
+ */
+export function codexQuestion(text: string, paneID: string, columns: number | null = null): PromptMatch | null {
+  const rows = drawnRows(text);
+  let end = rows.length - 1;
+  while (end >= 0 && rows[end] === "") end -= 1;
+  if (end < 6) return null;
+  const margin = leadingSpaces(rows[end]!);
+  const footer = rows[end]!.slice(margin);
+  if (!Object.values(codexQuestionFooters).includes(footer as never)) return null;
+  // One blank row over the footer, then the numbered rows up to one blank row.
+  if (rows[end - 1] !== "") return null;
+  const last = end - 2;
+  if (rows[last] === "") return null;
+  let top = last;
+  while (top > 0 && rows[top - 1] !== "") top -= 1;
+  const entries = codexListRows(rows.slice(top, last + 1), margin);
+  if (entries === null || entries.length < 3 || entries.length > codexQuestionRowLimit) return null;
+  const other = entries.at(-1)!;
+  if (other.label !== codexOtherLabel || other.detail !== codexOtherDetail) return null;
+  if (entries.filter((entry) => entry.marked).length !== 1) return null;
+  // Over the options: one blank row, the question's rows, the header right above them, a blank row over it.
+  const questionEnd = top - 2;
+  if (questionEnd < 0 || rows[top - 1] !== "" || rows[questionEnd] === "") return null;
+  let headerRow = questionEnd;
+  while (headerRow >= 0 && rows[headerRow] !== "" && codexQuestionProgress(rows[headerRow]!, margin) === null) headerRow -= 1;
+  if (headerRow < 1 || headerRow === questionEnd || rows[headerRow] === "" || rows[headerRow - 1] !== "") return null;
+  const progress = codexQuestionProgress(rows[headerRow]!, margin)!;
+  if (footer !== codexQuestionFooter(progress)) return null;
+  const questionRows = rows.slice(headerRow + 1, questionEnd + 1);
+  if (questionRows.some((row) => leadingSpaces(row) !== margin)) return null;
+  const question = questionRows.map(trimWhitespace).join(" ");
+  const asked = entries.slice(0, -1);
+  return {
+    kind: "codexQuestion",
+    question,
+    options: asked.map(
+      (entry): PromptOption => ({
+        key: String(entry.number),
+        label: entry.label,
+        detail: entry.detail,
+        isReturnDefault: entry.marked,
+        isSessionWide: false,
+        opensComposer: false,
+        keys: [String(entry.number)],
+      }),
+    ),
+    context: null,
+    fingerprint: {
+      rules: fingerprintRules,
+      paneID,
+      question,
+      body: [rows[headerRow]!, ...questionRows],
+      options: entries.flatMap((entry) => entry.drawn),
+      words: codexListWords(rows.slice(headerRow, end + 1), [rows[headerRow]!], questionRows, entries, margin, fitsColumns(rows, columns)),
+    },
+    codexProgress: progress,
+  };
+}
+
+/**
+ * The words of Codex's own question and its plan question: the frame shows no width, so its edge is somewhere past
+ * its widest row (`frameRows`, from the header or title to the footer), and with the pane's width the screen was read
+ * at, at most that and at least two cells short of it (as Codex's other frames: the samples' edge is the 120-column
+ * pane's less two). Its rows wrap as textwrap wraps them. The question (its own text may hold line breaks); the
+ * header or title row and the question (the body); each numbered row, its description's rows under its column.
+ */
+function codexListWords(
+  frameRows: readonly string[],
+  head: readonly string[],
+  questionRows: readonly string[],
+  entries: readonly CodexListEntry[],
+  margin: number,
+  columns: number | null,
+): FingerprintWords {
+  const frame = edgeFromColumns({ style: "textwrap", low: widest(frameRows), high: null }, columns, codexEdgeMargin);
+  const question: WrapSection = { rows: questionRows, next: margin, lines: true };
+  // The plan's title is its question and its whole body: one section, not two.
+  const parts: WrapSection[] = head === questionRows ? [question] : [{ rows: head, next: margin, lines: false }, question];
+  const options = entries.map((entry): WrapSection => ({ rows: entry.drawn, next: entry.column, lines: false }));
+  return { ...questionWords([question], frame), body: partText(parts, frame), options: partText(options, frame) };
+}
+
+/** A row of Codex's own question, trimmed: its header row, its own last row, or one of its footers (the notes one too). */
+const codexQuestionTraceRow = new RegExp(
+  [
+    String.raw`^Question [0-9]+\/[0-9]+(?: \([0-9]+ unanswered\))?$`,
+    String.raw`^(?:› )?[0-9]+\. None of the above +Optionally, add details in notes \(tab\)$`,
+    String.raw`navigate questions`,
+    String.raw`^tab (?:or esc )?to (?:add|clear) notes`,
+    String.raw`enter to submit (?:answer|all)`,
+    // Its confirmation when the last question's answer leaves another unanswered (request_user_input/mod.rs).
+    String.raw`^Submit with unanswered questions\?$`,
+  ].join("|"),
+  "u",
+);
+
+/**
+ * Some part of Codex's own question is on screen, whole or not: its header row, its own last row, one of its footers
+ * (with the notes row open too), or its "Submit with unanswered questions?" confirmation. After the digit a read
+ * showing one is not proof the answer took (the frame may be redrawing, the notes row open, or Codex asking to
+ * confirm): only a screen without any, or the next question (`codexQuestionNext`), is.
+ */
+export function codexQuestionTrace(text: string): boolean {
+  return drawnRows(text).some((row) => codexQuestionTraceRow.test(trimWhitespace(row)));
+}
+
+/**
+ * Whether `now` is the question that follows the answered one: question N+1 of the same M, with one fewer
+ * unanswered. What Codex shows after a digit on a question that is not the last (question-long-2of2-after-digit).
+ */
+export function codexQuestionNext(answered: PromptMatch, now: PromptMatch): boolean {
+  const before = answered.codexProgress;
+  const after = now.codexProgress;
+  if (answered.kind !== "codexQuestion" || now.kind !== "codexQuestion" || before === undefined || after === undefined) return false;
+  return after.total === before.total && after.index === before.index + 1 && after.unanswered === before.unanswered - 1;
+}
+
+/** The footer under Codex's selection lists (its permissions list too), compared whole (collapsed, lowercased). */
+export const codexPlanFooter = "enter select · esc back";
+/** The title of the list Codex shows after a plan (chatwidget/plan_implementation.rs PLAN_IMPLEMENTATION_TITLE). */
+export const codexPlanTitle = "Implement this plan?";
+/** Its three rows in Codex's order: the label and the description's words (the second's names how much context is used). */
+export const codexPlanRows: readonly { readonly label: string; readonly detail: RegExp }[] = [
+  { label: "Yes, implement this plan", detail: /^Switch to Default and start coding$/u },
+  { label: "Yes, clear context and implement", detail: /^(?:Start a fresh thread \(current context: [^()]+\)|Fresh thread with this plan)$/u },
+  { label: "No, stay in Plan mode", detail: /^Continue planning with the model$/u },
+];
+/** Blank rows Codex draws between the title and the rows (two at 120 columns); more is not its frame. */
+const codexPlanGap = 2;
+
+/**
+ * Codex 0.171.0's question after a plan in Plan mode (chatwidget/plan_implementation.rs, a selection list) at the
+ * screen's end, read whole, as recorded at 120 columns:
+ *
+ *       Implement this plan?
+ *
+ *
+ *     › 1. Yes, implement this plan          Switch to Default and start coding
+ *       2. Yes, clear context and implement  Start a fresh thread (current context: 4% used)
+ *       3. No, stay in Plan mode             Continue planning with the model
+ *
+ *       enter select · esc back
+ *
+ * Read from the bottom: the footer `enter select · esc back` the last row with words; one blank row over it; exactly
+ * the three rows numbered 1 to 3 (`codexListRows`, from the screen's margin), Codex's labels in its order and its
+ * descriptions (the second's context use any words in its brackets), exactly one marked `›`; one or two blank rows;
+ * the title, exactly `Implement this plan?`; and over it a blank row. A row disabled by Codex is drawn without its
+ * number, so all three numbered means each digit picks its own row. Anything else (the permissions list and every
+ * other list under this footer, a word different, the title cut off): null.
+ *
+ * Each option's answer is its digit alone: the list's own number keys choose the row and accept it (as mode-pick.ts
+ * sends on the permissions list, the same list frame; list_selection_view.rs auto_number_shortcuts). The
+ * fingerprint: the title (body) and the three rows with their descriptions' rows, as drawn, the mark's cell blank.
+ */
+export function codexPlan(text: string, paneID: string, columns: number | null = null): PromptMatch | null {
+  const rows = drawnRows(text);
+  let end = rows.length - 1;
+  while (end >= 0 && rows[end] === "") end -= 1;
+  if (end < 6 || normalisedLower(collapse(rows[end]!)) !== codexPlanFooter || rows[end - 1] !== "") return null;
+  const last = end - 2;
+  if (rows[last] === "") return null;
+  let top = last;
+  while (top > 0 && rows[top - 1] !== "") top -= 1;
+  const block = rows.slice(top, last + 1);
+  // The list's margin: the marked row's (every other row has the mark's blank cell and a blank more, or is deeper).
+  const entries = codexListRows(block, Math.min(...block.map(leadingSpaces)));
+  if (entries === null || entries.length !== codexPlanRows.length) return null;
+  if (entries.some((entry, at) => entry.label !== codexPlanRows[at]!.label || !codexPlanRows[at]!.detail.test(entry.detail))) return null;
+  if (entries.filter((entry) => entry.marked).length !== 1) return null;
+  // The title over one or two blank rows, and a blank row over it.
+  let title = top - 1;
+  while (title >= 0 && rows[title] === "") title -= 1;
+  if (title < 1 || top - 1 - title < 1 || top - 1 - title > codexPlanGap) return null;
+  if (trimWhitespace(rows[title]!) !== codexPlanTitle || rows[title - 1] !== "") return null;
+  const titleRows = [rows[title]!];
+  return {
+    kind: "codexPlan",
+    question: codexPlanTitle,
+    options: entries.map(
+      (entry): PromptOption => ({
+        key: String(entry.number),
+        label: entry.label,
+        detail: entry.detail,
+        isReturnDefault: entry.marked,
+        isSessionWide: false,
+        opensComposer: false,
+        keys: [String(entry.number)],
+      }),
+    ),
+    context: null,
+    fingerprint: {
+      rules: fingerprintRules,
+      paneID,
+      question: codexPlanTitle,
+      body: [rows[title]!],
+      options: entries.flatMap((entry) => entry.drawn),
+      words: codexListWords(rows.slice(title, end + 1), titleRows, titleRows, entries, leadingSpaces(rows[title]!), fitsColumns(rows, columns)),
+    },
+  };
+}
+
+/**
+ * Some part of Codex's plan question is on screen: a selection list's footer as the last row with words, or its
+ * title among the last rows. After the digit a read showing one is not proof the answer took: only a screen without
+ * any is.
+ */
+export function codexPlanTrace(text: string): boolean {
+  const rows = drawnRows(text)
+    .map(trimWhitespace)
+    .filter((row) => row !== "");
+  return normalisedLower(collapse(rows.at(-1) ?? "")) === codexPlanFooter || rows.slice(-12).includes(codexPlanTitle);
+}
+
+// MARK: - Claude Code 2.1.325's question dialog
+
+/** The footer under Claude Code's question dialog, compared whole (collapsed, lowercased). */
+export const claudeAskFooter = "enter to select \u00B7 \u2191/\u2193 to navigate \u00B7 esc to cancel";
+/**
+ * One of its numbered rows from the margin: the mark's cell (`❯` or blank), a
+ * space, the number, `. `, the words. The number is one or two digits with no
+ * leading zero, and at most `claudeAskRowLimit`: nine real options, then the two
+ * fixed rows. Any other number is not a row of this dialog.
+ */
+const claudeAskRow = /^([❯ ]) ([1-9][0-9]?)\. (\S.*)$/u;
+/** A description's row under its option: five cells in, then its words. */
+const claudeAskDescription = /^ {5}\S/u;
+/** The header row: one space, the chip's box, one space, the question's short header. */
+const claudeAskHeaderRow = /^ ☐ (\S.*)$/u;
+/** In the header's text, what a dialog of several questions draws (another chip, a done mark, the arrows, chips apart). */
+const claudeAskMoreChips = /[☐☑☒✓✔←→]| {2}/u;
+/** An option's label opening with a checkbox (a question of several choices). */
+const claudeAskCheckbox = /^(?:\[[ xX✓✔]\]|[☐☑☒✓✔✗◯◉○●])(?:\s|$)/u;
+/** The two rows after the options, in Claude's words: never options of the match. */
+const claudeAskTypeRow = "Type something.";
+const claudeAskChatRow = "Chat about this";
+/** Real options a digit can name. */
+export const claudeAskOptionLimit = 9;
+/** The highest row number the dialog can draw: the last real option's, then Type something's, then Chat about this's. */
+export const claudeAskRowLimit = claudeAskOptionLimit + 2;
+
+interface ClaudeAskRow {
+  readonly marked: boolean;
+  readonly number: number;
+  readonly words: string;
+}
+
+function claudeAskRowOf(row: string): ClaudeAskRow | null {
+  const found = claudeAskRow.exec(row);
+  if (found === null) return null;
+  const number = Number(found[2]);
+  return number < 1 || number > claudeAskRowLimit ? null : { marked: found[1] === "❯", number, words: found[3]! };
+}
+
+/**
+ * Wide code points for this dialog's width checks (the same list as the phone's
+ * `claudeAskWide`): Hangul Jamo, CJK and kana, Hangul syllables, CJK
+ * compatibility and its forms, fullwidth forms, emoji and symbols, the CJK
+ * extensions.
+ */
+const claudeAskWide: readonly (readonly [number, number])[] = [
+  [0x1100, 0x115f],
+  [0x2e80, 0xa4cf],
+  [0xac00, 0xd7a3],
+  [0xf900, 0xfaff],
+  [0xfe30, 0xfe4f],
+  [0xff00, 0xff60],
+  [0xffe0, 0xffe6],
+  [0x1f300, 0x1faff],
+  [0x20000, 0x3fffd],
+];
+
+/**
+ * A row's cells as this dialog's reader counts them, the same on both apps:
+ * every code point 1, one in `claudeAskWide` 2. A joiner or a combining mark
+ * counts 1, so a row may count wider than the terminal draws it, never narrower:
+ * a screen in doubt is unmatched.
+ */
+export function claudeAskCells(row: string): number {
+  let cells = 0;
+  for (const scalar of row) {
+    const code = scalar.codePointAt(0)!;
+    cells += claudeAskWide.some(([low, high]) => code >= low && code <= high) ? 2 : 1;
+  }
+  return cells;
+}
+
+/** A rule of `─` only (no corner, no other line). */
+function isAskRule(row: string): boolean {
+  return /^─+$/u.test(row);
+}
+
+/** A numbered row with its mark's cell left blank: where the mark sits is not part of the question. */
+function askUnmarked(row: string): string {
+  return ` ${row.slice(1)}`;
+}
+
+/**
+ * Claude Code 2.1.325's question dialog (the AskUserQuestion tool, one
+ * question, one choice) at the screen's end, read whole, as recorded:
+ *
+ *     ──────────────────────────────── (the whole width)
+ *      ☐ Q95
+ *
+ *     Q95: what should Z research next for the earning talk?
+ *
+ *     ❯ 1. Teams and T3 gaps (Recommended)
+ *          What teams pay for in this category and where T3 Code falls short.
+ *       2. Phone pricing only
+ *          Moshi and the SSH apps in detail.
+ *       3. Type something.
+ *     ────────────────────────────────
+ *       4. Chat about this
+ *
+ *     Enter to select · ↑/↓ to navigate · Esc to cancel
+ *
+ * Read from the bottom: the footer (compared whole) the last row with words
+ * (or over a named session's rows: `footerOverNameRule`), one blank row over it, `N+1. Chat about this`, a rule, `N. Type something.`
+ * (neither marked), and over them one block of the real options numbered 1 to
+ * N-1 with no gap (2 to 9 of them, one digit each), each label row followed
+ * by its description's rows five cells in (at least one; a label row that may
+ * have wrapped into the row under it is not read), exactly one marked `❯`, no
+ * label opening with a checkbox. Over option 1 one blank row, the question's
+ * rows (none indented), one blank row, the header row (one chip: no second
+ * chip, arrow, done mark or Submit) and the top rule, `─` only, as long as the
+ * middle one; no row wider than the rules. A read that ends before the top
+ * rule (its top cut off) or anything else in these rows: null.
+ *
+ * The match: the question (its rows joined by one space), the header chip's
+ * text, the real options with their labels as drawn and their descriptions
+ * (rows joined by one space). The fingerprint: the header row and the
+ * question's rows (body), every real option's rows and the two fixed rows, as
+ * drawn, the mark's cell left blank; the rules, the footer and a name rule
+ * under it are not part of it.
+ */
+export function claudeAsk(text: string, paneID: string): PromptMatch | null {
+  const rows = drawnRows(text);
+  let end = footerOverNameRule(readRows(text).map(withoutEscapes), rows, claudeAskFooter) ?? rows.length - 1;
+  while (end >= 0 && rows[end] === "") end -= 1;
+  if (end < 4 || normalisedLower(collapse(rows[end]!)) !== claudeAskFooter) return null;
+  // Over the footer: one blank row, "Chat about this", the rule, "Type something.", none of them marked.
+  if (rows[end - 1] !== "") return null;
+  const chat = claudeAskRowOf(rows[end - 2]!);
+  if (chat === null || chat.marked || chat.words !== claudeAskChatRow) return null;
+  const rule = rows[end - 3]!;
+  if (!isAskRule(rule)) return null;
+  const typed = claudeAskRowOf(rows[end - 4]!);
+  if (typed === null || typed.marked || typed.words !== claudeAskTypeRow || typed.number + 1 !== chat.number) return null;
+  // The real options: one block up to a blank row, each label row and its description's rows.
+  const last = end - 5;
+  let blank = last;
+  while (blank >= 0 && rows[blank] !== "") blank -= 1;
+  if (blank < 0 || blank === last) return null;
+  const options: { readonly row: ClaudeAskRow; readonly at: number; readonly details: number[] }[] = [];
+  for (let index = blank + 1; index <= last; index += 1) {
+    const row = rows[index]!;
+    const option = claudeAskRowOf(row);
+    if (option !== null) options.push({ row: option, at: index, details: [] });
+    else if (options.length > 0 && claudeAskDescription.test(row)) options[options.length - 1]!.details.push(index);
+    else return null;
+  }
+  if (options.length < 2 || options.length > claudeAskOptionLimit || typed.number !== options.length + 1) return null;
+  if (options.some((option, index) => option.row.number !== index + 1 || option.details.length === 0)) return null;
+  if (options.filter((option) => option.row.marked).length !== 1) return null;
+  if (options.some((option) => claudeAskCheckbox.test(option.row.words))) return null;
+  const width = claudeAskCells(rule);
+  // A label row the terminal may have wrapped into the row under it: its label cannot be told from its description.
+  for (const option of options) {
+    const word = trimWhitespace(rows[option.details[0]!]!).split(/\s/u)[0] ?? "";
+    if (claudeAskCells(rows[option.at]!) + 1 + claudeAskCells(word) > width - unboxedMargin) return null;
+  }
+  // Over option 1: one blank row, the question's rows, one blank row, the header row, the top rule.
+  const questionEnd = blank - 1;
+  if (questionEnd < 0 || rows[questionEnd] === "") return null;
+  let questionTop = questionEnd;
+  while (questionTop > 0 && rows[questionTop - 1] !== "") questionTop -= 1;
+  if (questionTop < 3 || rows[questionTop - 1] !== "") return null;
+  const header = claudeAskHeaderRow.exec(rows[questionTop - 2]!);
+  if (header === null || claudeAskMoreChips.test(header[1]!)) return null;
+  if (rows[questionTop - 3] !== rule) return null;
+  const questionRows = rows.slice(questionTop, questionEnd + 1);
+  if (questionRows.some((row) => leadingSpaces(row) > 0)) return null;
+  if (rows.slice(questionTop - 3, end + 1).some((row) => claudeAskCells(row) > width)) return null;
+  const question = questionRows.map(trimWhitespace).join(" ");
+  return {
+    kind: "claudeAsk",
+    question,
+    options: options.map(
+      ({ row, details }): PromptOption => ({
+        key: String(row.number),
+        label: row.words,
+        detail: details.map((at) => trimWhitespace(rows[at]!)).join(" "),
+        isReturnDefault: row.marked,
+        isSessionWide: false,
+        opensComposer: false,
+        keys: [String(row.number)],
+      }),
+    ),
+    context: null,
+    fingerprint: {
+      rules: fingerprintRules,
+      paneID,
+      question,
+      body: [rows[questionTop - 2]!, ...questionRows],
+      options: [
+        ...options.flatMap((option) => [askUnmarked(rows[option.at]!), ...option.details.map((at) => rows[at]!)]),
+        askUnmarked(rows[end - 4]!),
+        askUnmarked(rows[end - 2]!),
+      ],
+      words: claudeAskWords(rows, questionTop, questionRows, options, end, width),
+    },
+    askHeader: header[1]!,
+  };
+}
+
+/**
+ * The words of Claude Code's question dialog: its width is its rules' (`─` rows as wide as the screen draws them);
+ * its rows wrap as Ink wraps them, the question none in and each description five cells in, with the frame's padding
+ * a cell or two short of the rule. The question (its own text may hold line breaks); the header chip's row and the
+ * question (the body); each option: its label row, then its description, a line each, and the two fixed rows.
+ */
+function claudeAskWords(
+  rows: readonly string[],
+  questionTop: number,
+  questionRows: readonly string[],
+  options: readonly { readonly at: number; readonly details: readonly number[] }[],
+  end: number,
+  width: number,
+): FingerprintWords {
+  // The text's rows (the question, the options and their descriptions, the two fixed rows), never the rule under the options.
+  const textRows = [...questionRows, ...options.flatMap((option) => [rows[option.at]!, ...option.details.map((at) => rows[at]!)]), rows[end - 4]!, rows[end - 2]!];
+  const frame: WrapFrame = { style: "ink", low: Math.max(width - 2, widest(textRows)), high: width };
+  const question: WrapSection = { rows: questionRows, next: 0, lines: true };
+  const sections = options.flatMap((option): WrapSection[] => [
+    { rows: [askUnmarked(rows[option.at]!)], next: 0, lines: false },
+    { rows: option.details.map((at) => rows[at]!), next: 5, lines: true },
+  ]);
+  return {
+    ...questionWords([question], frame),
+    body: partText([{ rows: [rows[questionTop - 2]!], next: 0, lines: false }, question], frame),
+    options: partText([...sections, { rows: [askUnmarked(rows[end - 4]!)], next: 0, lines: false }, { rows: [askUnmarked(rows[end - 2]!)], next: 0, lines: false }], frame),
+  };
+}
+
+/** A row of the dialog's own, trimmed: its footer's words, or `Type something.` and `Chat about this` with their numbers. */
+const claudeAskTraceRow = /^(?:❯ )?[0-9]+\. (?:Type something\.|Chat about this)$/u;
+
+/**
+ * Some part of Claude Code's question dialog is on screen, whole or not: a
+ * footer with "enter to select" and "esc to cancel", or one of its two fixed
+ * rows. After the digit a read showing one is not proof the answer took (the
+ * dialog may be redrawing, or another question is up): only a screen without any is.
+ */
+export function claudeAskTrace(text: string): boolean {
+  return drawnRows(text).some((row) => {
+    const line = normalisedLower(collapse(row));
+    if (line.includes("enter to select") && line.includes("esc to cancel")) return true;
+    return claudeAskTraceRow.test(trimWhitespace(row));
+  });
+}
+
 // MARK: - the agent's text field
 
 /** The empty text field each supported agent kind draws at the bottom of its pane when it takes prose. */
@@ -1714,4 +2702,356 @@ function showsLabelledBox(rows: readonly string[], marker: string, footer: strin
     return false;
   }
   return isBoxTop(rows[n - 5]!);
+}
+
+// MARK: - Antigravity CLI 1.5.13's questions
+
+/** Herdr's kind for Antigravity CLI: only a pane of it is read for its questions. */
+export const agyKind = "agy";
+
+/** The footer under agy's folder trust question, compared whole (collapsed, lowercased). */
+export const agyTrustFooter = "↑/↓ navigate · enter confirm";
+/** The footers under its permission questions: a command's, and a file's (create or edit). */
+export const agyCommandFooter = "↑/↓ navigate · tab amend · ctrl+g edit/expand command";
+export const agyFileFooter = "↑/↓ navigate · f full diff";
+/** Its last row under a permission question: "esc to cancel", then maybe the model line at the right edge. */
+const agyCancelRow = /^esc to cancel(?: {2,}(\S.*))?$/u;
+/** The mode line's words ("auto · Gemini 4 Hydrogen · low"): one to four parts joined by " · ", plain words only. */
+const agyModeWords = /^[\w.()/+-]+(?: [\w.()/+-]+)*(?: · [\w.()/+-]+(?: [\w.()/+-]+)*){0,3}$/u;
+/** A choice row of the trust question: the marker's cell (`>` or blank), a space, the words. */
+const agyTrustChoice = /^([> ]) (\S.*)$/u;
+/** A numbered choice row of a permission question: the marker's cell, a space, the digit, `. `, the words. */
+const agyAskChoice = /^([> ]) ([1-9])\. (\S.*)$/u;
+/** A wrapped choice's next row: indented two to five cells, then words (assumed from Ink's wrapping; not seen live). */
+const agyAskWrapped = /^ {2,5}(\S.*)$/u;
+/** The rule under a permission question's title. */
+const agyRule = /^─{4,}$/u;
+/** The subject of a file question: the path, two spaces, "+N" and maybe " -N". */
+const agySubject = /^(\S.*?) {2}\+(\d+)(?: -(\d+))?$/u;
+/** agy's hint over the edit question, not part of the change. */
+export const agyEditHint = "shift+tab to auto-approve file edits";
+
+/** Its trust question's rows, word for word (the path between the title and the question). */
+const agyTrustTitle = "Accessing workspace:";
+const agyTrustQuestion = "Do you trust the contents of this project?";
+const agyTrustWhy = "Antigravity CLI requires permission to read, edit, and execute files here.";
+const agyTrustLabels = ["Yes, I trust this folder", "No, exit"] as const;
+/** The trust question's path may wrap over this many rows. */
+const agyPathRows = 4;
+/** What the card says under "No, exit": agy quits on it. */
+export const agyExitDetail = "Antigravity CLI quits";
+
+/** The three permission questions: title, question, footer and the choices' words (a pattern where a command's prefix varies). */
+const agyAsks = [
+  {
+    kind: "command",
+    title: "Command",
+    question: "Run this command?",
+    footer: agyCommandFooter,
+    labels: [/^Yes, run command$/u, /^Yes, and always allow in this conversation for commands that start with '.+'$/u, /^Yes, and always allow for commands that start with '.+' \(Persist to settings\.json\)$/u, /^No, cancel$/u],
+  },
+  { kind: "create", title: "Create file", question: "Allow creation of this file?", footer: agyFileFooter, labels: [/^Yes, allow creation$/u, /^No, deny creation$/u] },
+  { kind: "edit", title: "Pending edit", question: "Accept this file edit?", footer: agyFileFooter, labels: [/^Yes, accept this change$/u, /^No, reject this change$/u] },
+] as const;
+
+export type AgyAskKind = (typeof agyAsks)[number]["kind"];
+
+/** The last non-blank row at or above `from` (-1: none). */
+function lastWords(rows: readonly string[], from: number): number {
+  let index = from;
+  while (index >= 0 && trimWhitespace(rows[index]!) === "") index -= 1;
+  return index;
+}
+
+/**
+ * Antigravity CLI's folder trust question at the screen's end, as agy 1.5.13 draws it before anything else:
+ *
+ *     Accessing workspace:
+ *
+ *     /path/to/folder
+ *
+ *     Do you trust the contents of this project?
+ *
+ *     Antigravity CLI requires permission to read, edit, and execute files here.
+ *
+ *     > Yes, I trust this folder
+ *       No, exit
+ *
+ *       ↑/↓ Navigate · enter Confirm
+ *                                                    auto · Gemini 4 Hydrogen · low
+ *
+ * Read whole at the bottom: the mode line the last row with words, the footer right above it (blank rows between
+ * allowed), then (blank rows allowed) exactly the two choices in agy's words and order, exactly one marked `>`, then the
+ * explanation, the question, the path (one to four rows, joined: a long path wraps) and the title, each with only blank
+ * rows between, and the title the read's first row or under a blank one. Anything else: null.
+ *
+ * Its keys are the ones its footer names, never a digit (a digit does nothing there): Return answers the marked choice;
+ * the other is reached with the arrow toward it, and Return goes only after a fresh read shows the marker there
+ * (answerer.ts). The fingerprint holds the title, the path's rows as read (rawRows: nothing but escapes and a CRLF's
+ * carriage return removed), the explanation, the question and the two choices' words, not where the marker sits. A
+ * path row with a space at either edge (it cannot be told from padding), or a path that wraps short of the screen's
+ * right edge (the mode line's end: it could be read two ways), leaves the screen unmatched.
+ */
+export function agyTrust(text: string, paneID: string): PromptMatch | null {
+  const rows = drawnRows(text);
+  const raw = rawRows(text);
+  const mode = lastWords(rows, rows.length - 1);
+  if (mode < 0 || !agyModeWords.test(trimWhitespace(rows[mode]!))) return null;
+  const footer = lastWords(rows, mode - 1);
+  if (footer < 0 || normalisedLower(collapse(trimWhitespace(rows[footer]!))) !== agyTrustFooter) return null;
+  const second = lastWords(rows, footer - 1);
+  const first = second - 1;
+  if (first < 0) return null;
+  const choices = [rows[first]!, rows[second]!].map((row) => agyTrustChoice.exec(row));
+  if (choices.some((found) => found === null)) return null;
+  const found = choices as RegExpExecArray[];
+  if (found.some((match, index) => match[2] !== agyTrustLabels[index])) return null;
+  const marked = found.map((match) => match[1] === ">");
+  if (marked.filter(Boolean).length !== 1) return null;
+  const why = lastWords(rows, first - 1);
+  if (why < 0 || trimWhitespace(rows[why]!) !== agyTrustWhy) return null;
+  const question = lastWords(rows, why - 1);
+  if (question < 0 || trimWhitespace(rows[question]!) !== agyTrustQuestion) return null;
+  // The path: one to four rows with words right above the question's blank row, then the title over a blank row.
+  const pathEnd = lastWords(rows, question - 1);
+  if (pathEnd < 0 || pathEnd === question - 1) return null;
+  let pathStart = pathEnd;
+  while (pathStart - 1 >= 0 && trimWhitespace(rows[pathStart - 1]!) !== "") pathStart -= 1;
+  if (pathEnd - pathStart + 1 > agyPathRows) return null;
+  // The path's rows as read. A space at a row's edge cannot be told from the terminal's padding or a wrap, and a
+  // row that wraps short of the screen's right edge (the mode line's end) could be read two ways: unmatched.
+  const pathRows = raw.slice(pathStart, pathEnd + 1);
+  if (pathRows.some((row) => /^\s|\s$/u.test(row))) return null;
+  const width = cells(rows[mode]!);
+  if (pathRows.slice(0, -1).some((row) => cells(row) !== width)) return null;
+  const path = pathRows.join("");
+  if (!path.startsWith("/") && !path.startsWith("~")) return null;
+  const title = lastWords(rows, pathStart - 1);
+  if (title < 0 || title === pathStart - 1 || trimWhitespace(rows[title]!) !== agyTrustTitle) return null;
+  if (title > 0 && trimWhitespace(rows[title - 1]!) !== "") return null;
+  const markedIndex = marked.indexOf(true);
+  const options = agyTrustLabels.map((label, index): PromptOption => {
+    const base = { key: String(index + 1), label, isReturnDefault: marked[index]!, isSessionWide: false, opensComposer: false };
+    const keys = marked[index] ? ["Enter"] : [index > markedIndex ? "Down" : "Up", "Enter"];
+    return index === 1 ? { ...base, keys, detail: agyExitDetail } : { ...base, keys };
+  });
+  return {
+    kind: "agyTrust",
+    question: agyTrustQuestion,
+    options,
+    context: { type: "file", name: path },
+    fingerprint: { rules: fingerprintRules, paneID, question: agyTrustQuestion, body: [agyTrustTitle, ...pathRows, agyTrustWhy], options: [...agyTrustLabels], words: agyTrustWords(pathRows, width) },
+  };
+}
+
+/**
+ * The words of agy's trust question: its width is the mode line's (it ends at the screen's right edge); the path's
+ * rows are cut at that edge (or wrapped as Ink wraps, the same for a path with no blank), none in from the left. The
+ * question, the title, the explanation and the labels are agy's own words.
+ */
+function agyTrustWords(pathRows: readonly string[], width: number): FingerprintWords {
+  const frame: WrapFrame = { style: "either", low: width, high: width };
+  const path = partText([{ rows: pathRows, next: 0, lines: false }], frame);
+  // A folder whose row end is not told: no body text, the body compared by its rows.
+  return { question: agyTrustQuestion, body: path === null ? null : [agyTrustTitle, path, agyTrustWhy].join("\n"), options: agyTrustLabels.join("\n") };
+}
+
+/** One numbered choice of a permission question, its wrapped rows joined. */
+interface AgyChoice {
+  readonly marked: boolean;
+  readonly number: number;
+  readonly label: string;
+  /** Its rows as drawn, the marker's cell blank. */
+  readonly drawn: readonly string[];
+}
+
+/**
+ * Antigravity CLI's permission questions at the screen's end (agy 1.5.13, asked before a command, a new file or an
+ * edit), read whole at the bottom:
+ *
+ *     Command                            Create file                       Pending edit
+ *     ────────────                       ────────────                      ────────────
+ *
+ *     Requesting permission for:         /path/ask.txt  +1                 /path/notes.txt  +1 -1
+ *        date                              1  +  hello                       1  -  alpha
+ *                                                                            1  +  ALPHA
+ *     Run this command?                  Allow creation of this file?
+ *     > 1. Yes, run command              > 1. Yes, allow creation            shift+tab to auto-approve file edits
+ *       2. Yes, and always allow …         2. No, deny creation            Accept this file edit?
+ *       3. Yes, and always allow … (Persist to settings.json)               > 1. Yes, accept this change
+ *       4. No, cancel                                                         2. No, reject this change
+ *
+ *       ↑/↓ Navigate · tab Amend · ctrl+g edit/expand command      (a file's: ↑/↓ Navigate · f full diff)
+ *     esc to cancel                                        Gemini 4 Hydrogen · low
+ *
+ * The last row with words is "esc to cancel" (the model line at its right maybe); the footer right above it; then
+ * (blank rows allowed) the numbered choices from 1, in agy's words for that question, exactly one marked `>`, a choice's
+ * wrapped rows joined; the question right above them; the body above it up to the rule; the title over the rule, the
+ * read's first row or under a blank one. The command's body opens with "Requesting permission for:" and holds the
+ * command; a file's opens with its path and counts. Anything else (another word, a fifth choice, a missing footer, two
+ * markers or none, the frame with more rows under it): null.
+ *
+ * A choice's answer is its digit alone (a digit answers at once there). The fingerprint holds the title, every row
+ * between the rule and the question and the choices' rows, each as read (rawRows: blank rows and spaces kept), not
+ * where the marker sits. On an agy pane nothing else reads the screen (matchPrompt): a frame this rejects is unmatched.
+ */
+export function agyAsk(text: string, paneID: string): PromptMatch | null {
+  const rows = drawnRows(text);
+  const raw = rawRows(text);
+  const cancel = lastWords(rows, rows.length - 1);
+  if (cancel < 0 || !agyCancelRow.test(trimWhitespace(rows[cancel]!))) return null;
+  const tail = agyCancelRow.exec(trimWhitespace(rows[cancel]!))![1];
+  if (tail !== undefined && !agyModeWords.test(tail)) return null;
+  const footerRow = cancel - 1;
+  if (footerRow < 0) return null;
+  const footer = normalisedLower(collapse(trimWhitespace(rows[footerRow]!)));
+  const end = lastWords(rows, footerRow - 1);
+  if (end < 0) return null;
+  // The choices, bottom up: a choice row, or a wrapped row joined to the choice above it.
+  const choices: AgyChoice[] = [];
+  let wrapped: string[] = [];
+  let wrappedRaw: string[] = [];
+  let index = end;
+  for (; index >= 0; index -= 1) {
+    const row = rows[index]!;
+    const choice = agyAskChoice.exec(row);
+    if (choice !== null) {
+      const label = [choice[3]!, ...wrapped.map(trimWhitespace)].join(" ");
+      choices.unshift({ marked: choice[1] === ">", number: Number(choice[2]), label, drawn: [` ${raw[index]!.slice(1)}`, ...wrappedRaw] });
+      wrapped = [];
+      wrappedRaw = [];
+      continue;
+    }
+    // At most three wrapped rows under a choice.
+    if (agyAskWrapped.test(row) && wrapped.length < 3) {
+      wrapped.unshift(row);
+      wrappedRaw.unshift(raw[index]!);
+      continue;
+    }
+    break;
+  }
+  if (wrapped.length > 0 || choices.length === 0) return null;
+  if (choices.some((choice, at) => choice.number !== at + 1)) return null;
+  if (choices.filter((choice) => choice.marked).length !== 1) return null;
+  const questionRow = index;
+  if (questionRow < 0) return null;
+  const question = trimWhitespace(rows[questionRow]!);
+  const ask = agyAsks.find((candidate) => candidate.question === question && candidate.footer === footer);
+  if (ask === undefined || choices.length !== ask.labels.length) return null;
+  if (choices.some((choice, at) => !ask.labels[at]!.test(choice.label))) return null;
+  // The title over the rule, above the body.
+  let rule = questionRow - 1;
+  while (rule >= 0 && !agyRule.test(trimWhitespace(rows[rule]!))) rule -= 1;
+  const title = rule - 1;
+  if (title < 0 || rows[title] !== ask.title) return null;
+  if (title > 0 && trimWhitespace(rows[title - 1]!) !== "") return null;
+  // The body's rows with words, to read it; the fingerprint holds every row as read (below).
+  const body = rows.slice(rule + 1, questionRow).filter((row) => trimWhitespace(row) !== "");
+  let context: PromptContext;
+  let run: ClaudeRun | undefined;
+  if (ask.kind === "command") {
+    if (body.length < 2 || trimWhitespace(body[0]!) !== "Requesting permission for:") return null;
+    // The command's rows under it, its own blank rows inside kept (the frame's blank rows around it left out).
+    let first = rows.indexOf(body[0]!, rule + 1) + 1;
+    let last = questionRow - 1;
+    while (first <= last && trimWhitespace(rows[first]!) === "") first += 1;
+    while (last >= first && trimWhitespace(rows[last]!) === "") last -= 1;
+    const lines = rows.slice(first, last + 1).map((row) => row.replace(/^ {1,3}/u, ""));
+    context = { type: "command", text: lines.join("\n") };
+    if (lines.length > 1) run = { rows: lines, description: null };
+  } else {
+    const subject = agySubject.exec(trimWhitespace(body[0] ?? ""));
+    if (subject === null) return null;
+    if (ask.kind === "edit" && body.slice(1, -1).some((row) => trimWhitespace(row) === agyEditHint)) return null;
+    context = ask.kind === "create" ? { type: "file", name: subject[1]! } : { type: "diff", added: Number(subject[2]), removed: Number(subject[3] ?? "0") };
+  }
+  const options = choices.map(
+    (choice, at): PromptOption => ({
+      key: String(choice.number),
+      label: choice.label,
+      isReturnDefault: choice.marked,
+      // "Yes, and always allow …": for this conversation, or kept in settings.json.
+      isSessionWide: ask.kind === "command" && (at === 1 || at === 2),
+      opensComposer: false,
+      keys: [String(choice.number)],
+    }),
+  );
+  return {
+    kind: "agyAsk",
+    question,
+    options,
+    context,
+    // Every row between the rule and the question as read: blank rows and spaces are part of the question.
+    fingerprint: {
+      rules: fingerprintRules,
+      paneID,
+      question,
+      body: [raw[title]!, ...raw.slice(rule + 1, questionRow)],
+      options: choices.flatMap((choice) => choice.drawn),
+      words: agyAskWords(ask.kind, raw, title, rule, questionRow, choices, cells(trimWhitespace(rows[rule]!))),
+    },
+    ...(run === undefined ? {} : { run }),
+  };
+}
+
+/** A diff row's start in agy's file questions: its line number, then its mark. */
+const agyDiffStart = /^ +\d+ +[+-]/u;
+
+/**
+ * The words of agy's three permission questions: the frame's width is its rule's (a full row of `─`), and agy's own
+ * padding may keep its rows a cell or two short of it (a row that reaches the rule says it does not). The command's rows are three cells in and may hold line
+ * breaks; a file question's subject row and each diff line (a row that starts with its number and mark, and the
+ * rows under it) are one line each; the rows are cut at the edge or wrapped as Ink wraps ("either"). The choices
+ * wrap at blanks five cells in ("words").
+ */
+function agyAskWords(kind: AgyAskKind, raw: readonly string[], title: number, rule: number, questionRow: number, choices: readonly AgyChoice[], width: number): FingerprintWords {
+  const rows = raw.slice(rule + 1, questionRow).map(dropTrailingBlanks);
+  // The edge: the rule's, or up to two cells short of it (agy's own padding, not seen live), and never short of a row.
+  const frame: WrapFrame = { style: "either", low: Math.max(width - 2, widest(rows)), high: width };
+  const body: WrapSection[] = [{ rows: [dropTrailingBlanks(raw[title]!)], next: 0, lines: false }];
+  if (kind === "command") {
+    const at = rows.findIndex((row) => trimWhitespace(row) !== "");
+    body.push({ rows: [rows[at]!], next: 0, lines: false }, { rows: rows.slice(at + 1), next: 3, lines: true });
+  } else {
+    let current: string[] | null = null;
+    for (const row of rows) {
+      if (trimWhitespace(row) === "") {
+        current = null;
+      } else if (current === null || agyDiffStart.test(row)) {
+        current = [row];
+        body.push({ rows: current, next: 0, lines: false });
+      } else {
+        current.push(row);
+      }
+    }
+  }
+  const options = choices.map((choice): WrapSection => ({ rows: choice.drawn.map(dropTrailingBlanks), next: 5, lines: false }));
+  const choiceRows = options.flatMap((section) => section.rows);
+  return {
+    ...questionWords([{ rows: [raw[questionRow]!], next: 0, lines: false }], frame),
+    body: partText(body, frame),
+    options: partText(options, { style: "words", low: Math.max(width - 2, widest(choiceRows)), high: width }),
+  };
+}
+
+/** Which of agy's permission questions a match is ("command", "create", "edit"); null for any other match. */
+export function agyAskKind(match: Pick<PromptMatch, "kind" | "question">): AgyAskKind | null {
+  if (match.kind !== "agyAsk") return null;
+  return agyAsks.find((ask) => ask.question === match.question)?.kind ?? null;
+}
+
+/** Antigravity CLI's question at the screen's end: its folder trust question, else a permission question; null for none. */
+export function agyQuestion(text: string, paneID: string): PromptMatch | null {
+  return agyTrust(text, paneID) ?? agyAsk(text, paneID);
+}
+
+/**
+ * Some part of an agy question at the screen's end: one of its footers among the last rows with words. Counts the
+ * screen as prompt-like on an agy pane (quiet.ts), so a question partly drawn keeps its mark.
+ */
+export function agyTrace(text: string): boolean {
+  const rows = drawnRows(text)
+    .map((row) => normalisedLower(collapse(trimWhitespace(row))))
+    .filter((row) => row !== "");
+  return rows.slice(-3).some((row) => row === agyTrustFooter || row === agyCommandFooter || row === agyFileFooter);
 }

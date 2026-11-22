@@ -3,7 +3,9 @@
 // the starred models per machine and agent, and New agent's last Model and
 // Effort per machine and agent. Each value is checked when read (an id of the
 // agent's pattern, a level of the effort pattern), bounded, and a storage that
-// fails keeps nothing.
+// fails keeps nothing. Antigravity CLI with nothing remembered starts on
+// Gemini 4 Neon, High (agyPreselect; New agent keeps it only while the
+// machine's list names it); its Default is remembered as a choice of its own.
 
 import { effortPattern, isModelId, type CatalogAgent } from "./model-catalog";
 import type { StartChoice } from "./model-choices";
@@ -66,9 +68,20 @@ export function toggleFavourite(storage: PrefsStorage | null, hostId: string, ag
 
 const noChoice: StartChoice = { model: null, effort: null };
 
-/** New agent's last Model and Effort for the machine and agent (the agent's default for each at first). */
+/**
+ * Antigravity CLI's pick when nothing is remembered for the machine: Gemini 4 Neon with High (`--model
+ * gemini-4-neon-high`), not the CLI's own default (Gemini 3.8 Flash, low). New agent drops it, as any remembered model,
+ * when the machine's list (read or built-in) does not name it.
+ */
+export const agyPreselect: StartChoice = { model: "gemini-4-neon-high", effort: "high" };
+
+/**
+ * New agent's last Model and Effort for the machine and agent (the agent's default for each at first; Antigravity
+ * CLI's agyPreselect).
+ */
 export function lastStartChoice(storage: PrefsStorage | null, hostId: string, agent: CatalogAgent): StartChoice {
   const saved = readMap(storage, startChoicesKey)[entryKey(hostId, agent)];
+  if (saved === undefined && agent === "agy") return agyPreselect;
   if (typeof saved !== "object" || saved === null) return noChoice;
   const record = saved as Record<string, unknown>;
   const model = isModelId(agent, record["model"]) ? record["model"] : null;
@@ -80,6 +93,7 @@ export function rememberStartChoice(storage: PrefsStorage | null, hostId: string
   const map = readMap(storage, startChoicesKey);
   const key = entryKey(hostId, agent);
   delete map[key];
-  if (choice.model !== null || choice.effort !== null) map[key] = { model: choice.model, effort: choice.effort };
+  // Both defaults take the entry out, but Antigravity CLI's Default is kept (nothing remembered is its preselect).
+  if (choice.model !== null || choice.effort !== null || agent === "agy") map[key] = { model: choice.model, effort: choice.effort };
   writeMap(storage, startChoicesKey, map);
 }

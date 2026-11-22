@@ -607,7 +607,10 @@ export class ComposerDrafts {
     for (const key of Array.from(this.waits.keys())) this.left(key);
   }
 
-  /** It went: the box keeps what was typed since the press; its chips go. */
+  /**
+   * It went (its keys and Return, for Claude Code too: the check after it answers on its bubble, never here): the
+   * box keeps what was typed since the press; its chips go.
+   */
   succeeded(ticket: SendTicket): void {
     const draft = this.get(ticket.key);
     const sent = new Set(ticket.chips);

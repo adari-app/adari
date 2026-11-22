@@ -12,8 +12,15 @@
 // `-c model_reasoning_effort=<level>` (Codex reads the value as TOML and takes
 // a word that is not TOML as itself); Grok `-m <id>` and
 // `--reasoning-effort <level>`; Cursor Agent `--model <id>` (its effort is part
-// of the id); OpenCode `-m provider/model`. Nothing is passed that is not in
-// the catalog and of the agent's strict id pattern.
+// of the id); OpenCode `-m provider/model`; Antigravity CLI `--model <id>`
+// (its level is part of the id: never its `--effort`). Nothing is passed that
+// is not in the catalog and of the agent's strict id pattern.
+//
+// Antigravity CLI's list names one row per model and level ("Gemini 4 Neon
+// (High)", gemini-4-neon-high): rows whose labels share the words before a
+// last bracket that is a level are one model with those levels (agyFamilies);
+// the pickers list the models and the Effort rows their levels, and the start
+// and a live pick name the row of that model and level.
 
 import { claudeLevels, cursorLevels, effortPattern, grokLevels, isModelId, type CatalogAgent, type CatalogModel } from "./model-catalog";
 
@@ -28,9 +35,123 @@ const codexUnread: readonly string[] = ["low", "medium", "high", "xhigh"];
 
 const none: EffortChoices = { levels: [], defaultLevel: null };
 
-/** The rows a picker lists for `agent` (Claude Code's `default` is the "Agent's default" row, not a model row). */
+/**
+ * The rows a picker lists for `agent` (Claude Code's `default` is the "Agent's default" row, not a model row;
+ * Antigravity CLI's are its models, agyFamilyRows, each one row whatever its levels).
+ */
 export function listedModels(agent: CatalogAgent, models: readonly CatalogModel[]): readonly CatalogModel[] {
+  if (agent === "agy") return agyFamilyRows(models);
   return agent === "claude" ? models.filter((model) => model.id !== "default") : models;
+}
+
+// MARK: - Antigravity CLI's models and levels
+
+/** Antigravity CLI's levels in the order its Effort rows list them (its `--effort` help's words). */
+export const agyLevels: readonly string[] = ["low", "medium", "high", "xhigh", "max"];
+
+/**
+ * A label's model and level: "Gemini 4 Neon (High)" → "Gemini 4 Neon", "high"; a label whose last bracket is not at its
+ * end, or holds no level word ("Orchestrator (Neon)", "Foo (High) Beta"), is a model with no level, its whole label.
+ */
+export function agyLabelParts(label: string): { readonly name: string; readonly level: string | null } {
+  const text = label.trim();
+  // The bracket's word trimmed before it is tested ("Family ( hIgH )" is Family at high).
+  const match = /^(.*\S)\s*\(\s*([A-Za-z]+)\s*\)$/u.exec(text);
+  const level = match?.[2]!.toLowerCase();
+  if (match === null || level === undefined || !agyLevels.includes(level)) return { name: text, level: null };
+  return { name: match[1]!.trim(), level };
+}
+
+/** One Antigravity CLI model as its pickers list it. */
+export interface AgyFamily {
+  /** Its name ("Gemini 4 Neon"). */
+  readonly name: string;
+  /** Its first row's id in the CLI's order (the picker row's id; with no level picked, the start's). */
+  readonly id: string;
+  /** Its levels in agyLevels' order, each with its row's id; empty: a model with no level. */
+  readonly levels: readonly { readonly level: string; readonly id: string }[];
+  /** The level of its first row in the CLI's order (the CLI's first for it), or null. */
+  readonly firstLevel: string | null;
+}
+
+/**
+ * Antigravity CLI's list as its models, in the CLI's order (Gemini 4 Neon first): rows sharing a name with a level are
+ * one model (the first row of each level kept); a row with no level is a model of its own, never merged with
+ * another (two labels that differ only after a bracket stay two).
+ */
+export function agyFamilies(models: readonly CatalogModel[]): AgyFamily[] {
+  const byKey = new Map<string, { name: string; id: string; levels: Map<string, string>; firstLevel: string | null }>();
+  for (const model of models) {
+    const { name, level } = agyLabelParts(model.label);
+    if (name === "") continue;
+    const key = level === null ? `${name}\u{0}${model.id}` : name;
+    const entry = byKey.get(key);
+    if (entry === undefined) byKey.set(key, { name, id: model.id, levels: new Map(level === null ? [] : [[level, model.id]]), firstLevel: level });
+    else if (level !== null && !entry.levels.has(level)) entry.levels.set(level, model.id);
+  }
+  return Array.from(byKey.values()).map((entry) => ({
+    name: entry.name,
+    id: entry.id,
+    levels: agyLevels.filter((level) => entry.levels.has(level)).map((level) => ({ level, id: entry.levels.get(level)! })),
+    firstLevel: entry.firstLevel,
+  }));
+}
+
+/** The model a row id of Antigravity CLI's list belongs to (its own row or one of its levels'), or null. */
+export function agyFamilyOf(models: readonly CatalogModel[], id: string): AgyFamily | null {
+  return agyFamilies(models).find((family) => family.id === id || family.levels.some((one) => one.id === id)) ?? null;
+}
+
+/** Antigravity CLI's models as picker rows: the model's name, its first row's id, its levels, the CLI's first level marked. */
+export function agyFamilyRows(models: readonly CatalogModel[]): CatalogModel[] {
+  return agyFamilies(models).map((family) => ({
+    id: family.id,
+    label: family.name,
+    group: null,
+    efforts: family.levels.map((one) => one.level),
+    defaultEffort: family.firstLevel,
+    isDefault: false,
+  }));
+}
+
+/** The row id for a model (any of its rows' ids) at `level` (null: its first row), or null when it has no such level. */
+export function agyRowId(models: readonly CatalogModel[], id: string, level: string | null): string | null {
+  const family = agyFamilyOf(models, id);
+  if (family === null) return null;
+  if (level === null) return family.id;
+  return family.levels.find((one) => one.level === level)?.id ?? null;
+}
+
+/** The model and level a row id of the list names (the last row of a running pane names them so), or null. */
+export function agyRowOf(models: readonly CatalogModel[], id: string): { readonly name: string; readonly level: string | null } | null {
+  const family = agyFamilyOf(models, id);
+  if (family === null) return null;
+  return { name: family.name, level: family.levels.find((one) => one.id === id)?.level ?? null };
+}
+
+/**
+ * The row id of the list a running pane's last row names ("Gemini 4 Hydrogen", "low": gemini-4-hydrogen-low): its
+ * model by name (case aside) and, for a model with levels, its level; null when the list has no such row.
+ */
+export function agyRowNamed(models: readonly CatalogModel[], name: string, level: string | null): string | null {
+  const said = name.trim().toLowerCase();
+  const family = agyFamilies(models).find((one) => one.name.toLowerCase() === said && (one.levels.length === 0) === (level === null));
+  if (family === undefined) return null;
+  return level === null ? family.id : (family.levels.find((one) => one.level === level)?.id ?? null);
+}
+
+/**
+ * The row id of the list a running pane's last row names: by model name and level (agyRowNamed), or else by the row's
+ * whole label, the level read as its bracket ("Orchestrator · neon" or "Orchestrator (Neon)" for the row
+ * "Orchestrator (Neon)"); case aside. Null when no row, or more than one, is named so (the chips then show the row's
+ * words with no tick, and a pick is not confirmed by it).
+ */
+export function agyRowSaid(models: readonly CatalogModel[], name: string, level: string | null): string | null {
+  const byName = agyRowNamed(models, name, level);
+  if (byName !== null) return byName;
+  const said = (level === null ? name.trim() : `${name.trim()} (${level})`).toLowerCase();
+  const rows = models.filter((model) => model.label.trim().toLowerCase() === said);
+  return rows.length === 1 ? rows[0]!.id : null;
 }
 
 /** The agent's default model as the catalog names it (Claude Code's `default` entry, Grok's `*`, Cursor's Auto), or null. */
@@ -84,8 +205,12 @@ export function effortChoices(agent: CatalogAgent, models: readonly CatalogModel
       return { levels: grokLevels, defaultLevel: null };
     case "cursor":
       return { levels: cursorLevels, defaultLevel: null };
+    case "agy": {
+      // The model's own levels (none for one with no level, or no model named); the CLI's first for it marked.
+      const family = modelId === null ? null : agyFamilyOf(models, modelId);
+      return family === null ? none : { levels: family.levels.map((one) => one.level), defaultLevel: family.firstLevel };
+    }
     case "opencode":
-    case "agy":
       return none;
   }
 }
@@ -345,6 +470,7 @@ export function withRunningModel(agent: CatalogAgent, models: readonly CatalogMo
  */
 export function startChipLabel(agent: CatalogAgent, models: readonly CatalogModel[], id: string): string {
   if (agent === "codex") return id;
+  if (agent === "agy") return agyFamilyOf(models, id)?.name ?? id;
   const label = models.find((model) => model.id === id)?.label ?? id;
   return agent === "cursor" ? cursorBaseLabel(label) : label;
 }
@@ -365,14 +491,17 @@ export interface StartFlag {
 
 export type StartFlags = { readonly ok: true; readonly flags: readonly StartFlag[] } | { readonly ok: false; readonly reason: string };
 
-/** The agents New agent offers an Effort row for (Cursor's effort is part of its model id; OpenCode's start has none). */
+/**
+ * The agents New agent offers an Effort row for (Cursor's effort is part of its model id; OpenCode's start has none;
+ * Antigravity CLI's for a model with levels, its level part of the id it starts with).
+ */
 export function startTakesEffort(agent: CatalogAgent): boolean {
-  return agent === "claude" || agent === "codex" || agent === "grok";
+  return agent === "claude" || agent === "codex" || agent === "grok" || agent === "agy";
 }
 
-/** The agents New agent offers a Model row for (Antigravity CLI: none to read). */
-export function startTakesModel(agent: CatalogAgent): boolean {
-  return agent !== "agy";
+/** The agents New agent offers a Model row for (Antigravity CLI's only once its list was read: NewAgentDialog). */
+export function startTakesModel(_agent: CatalogAgent): boolean {
+  return true;
 }
 
 /**
@@ -381,6 +510,7 @@ export function startTakesModel(agent: CatalogAgent): boolean {
  */
 export function startFlags(agent: CatalogAgent, choice: StartChoice, models: readonly CatalogModel[]): StartFlags {
   const refuse = (reason: string): StartFlags => ({ ok: false, reason });
+  if (agent === "agy") return agyStartFlags(choice, models);
   const model = choice.model === "default" && agent === "claude" ? null : choice.model;
   if (model !== null) {
     if (!startTakesModel(agent) || !isModelId(agent, model)) return refuse("That model is not one this agent names.");
@@ -411,10 +541,25 @@ export function startFlags(agent: CatalogAgent, choice: StartChoice, models: rea
     case "opencode":
       if (model !== null) flags.push({ flag: "-m", value: model });
       break;
-    case "agy":
-      break;
   }
   return { ok: true, flags };
+}
+
+/**
+ * Antigravity CLI's start flags: nothing picked, none (plain `agy`); a model (its first row's id, as the picker lists
+ * it) with a level of its own, or none (its first row), as `--model <that row's id>`, the row in the machine's list and
+ * of the agent's pattern. A level with no model, or one the model does not have, is refused. Never `--effort`.
+ */
+function agyStartFlags(choice: StartChoice, models: readonly CatalogModel[]): StartFlags {
+  const refuse = (reason: string): StartFlags => ({ ok: false, reason });
+  if (choice.model === null) return choice.effort === null ? { ok: true, flags: [] } : refuse("That effort is not one this agent takes at start.");
+  if (!isModelId("agy", choice.model)) return refuse("That model is not one this agent names.");
+  if (!listedModels("agy", models).some((one) => one.id === choice.model)) return refuse("That model is not in the agent's list on this machine.");
+  if (choice.effort !== null && !effortPattern.test(choice.effort)) return refuse("That effort is not one this agent takes at start.");
+  const id = agyRowId(models, choice.model, choice.effort);
+  if (id === null) return refuse("That model does not take that effort.");
+  if (!isModelId("agy", id) || !models.some((one) => one.id === id)) return refuse("That model is not in the agent's list on this machine.");
+  return { ok: true, flags: [{ flag: "--model", value: id }] };
 }
 
 /** A word Herdr's agent.start may carry as it is: plain characters, `~` only after a `/` (never expanded by a shell). */
@@ -440,12 +585,13 @@ export function typedFlags(flags: readonly StartFlag[]): string {
 }
 
 /** Each agent's start flags and what their value is (a model, a level, Codex's effort setting). */
-const startFlagKinds: Readonly<Record<Exclude<CatalogAgent, "agy">, Readonly<Record<string, "model" | "effort" | "codex-effort">>>> = {
+const startFlagKinds: Readonly<Record<CatalogAgent, Readonly<Record<string, "model" | "effort" | "codex-effort">>>> = {
   claude: { "--model": "model", "--effort": "effort" },
   codex: { "-m": "model", "-c": "codex-effort" },
   grok: { "-m": "model", "--reasoning-effort": "effort" },
   cursor: { "--model": "model" },
   opencode: { "-m": "model" },
+  agy: { "--model": "model" },
 };
 
 /**
@@ -477,7 +623,7 @@ export function coreStartWords(kind: string, fixed: readonly string[], args: rea
   return out;
 }
 
-const isCatalogAgentKind = (kind: string): kind is Exclude<CatalogAgent, "agy"> => Object.hasOwn(startFlagKinds, kind);
+const isCatalogAgentKind = (kind: string): kind is CatalogAgent => Object.hasOwn(startFlagKinds, kind);
 
 // MARK: - live picks
 
@@ -489,8 +635,10 @@ const isCatalogAgentKind = (kind: string): kind is Exclude<CatalogAgent, "agy"> 
  * `/model <family name>` and switches at once to the first family the words match, keeping that family's remembered
  * variant. A Cursor pick names a catalog id; main types its family's name (never a family whose name is inside
  * another's). OpenCode's is its own sequence in main (IPC.openCodePick), never a typed `/model`.
+ * Antigravity CLI 1.5.14 takes `/model <id>` (an id `agy models` lists, its level part of it: "Model set to Gemini 3.8
+ * Flash (Low)", and its last row names the model and level), only into its empty, idle box.
  */
-export const modelPickAgents = ["claude", "codex", "grok", "cursor"] as const;
+export const modelPickAgents = ["claude", "codex", "grok", "cursor", "agy"] as const;
 export type ModelPickAgent = (typeof modelPickAgents)[number];
 
 /**
@@ -553,6 +701,9 @@ export function modelPickCommand(pick: ModelPick, models: readonly CatalogModel[
       if (!choices.levels.includes(level)) return refuse("that model does not take that effort.");
       return { ok: true, command: `/model ${pick.model} --reasoning=${level}` };
     }
+    case "agy":
+      // The row's id as `agy models` lists it (checked above): its level is part of it.
+      return pick.effort === null ? { ok: true, command: `/model ${pick.model}` } : refuse("that model's effort is not set with its model here.");
   }
 }
 
@@ -564,6 +715,13 @@ export function modelPickCommand(pick: ModelPick, models: readonly CatalogModel[
  * (IPC.openCodePick): none here.
  */
 export function liveModelPick(agent: CatalogAgent, models: readonly CatalogModel[], modelId: string, effortNow: string | null): ModelPick | null {
+  if (agent === "agy") {
+    // The model's row at the level it runs now when it has that level, else its first row (T3 Code's rule).
+    const level = fallbackEffort(effortChoices("agy", models, modelId), effortNow);
+    const id = agyRowId(models, modelId, level);
+    const pick: ModelPick | null = id === null ? null : { agent, model: id, effort: null };
+    return pick !== null && modelPickCommand(pick, models).ok ? pick : null;
+  }
   if (agent !== "claude" && agent !== "codex" && agent !== "grok" && agent !== "cursor") return null;
   const effort = agent === "codex" ? fallbackEffort(effortChoices("codex", models, modelId), effortNow) : null;
   const pick: ModelPick = { agent, model: modelId, effort };
@@ -602,8 +760,11 @@ export function liveModelConfirmed(agent: CatalogAgent, models: readonly Catalog
       const family = cursorFamilyOf(models, modelId);
       return family !== null && running.label !== null && sameCursorFamily(running.label, family.name);
     }
+    case "agy": {
+      // Its last row names the picked row (agyRowSaid: the id the chips read from it).
+      return agyFamilyOf(models, modelId) !== null && running.id === modelId;
+    }
     case "opencode":
-    case "agy":
       return false;
   }
 }

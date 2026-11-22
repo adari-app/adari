@@ -161,7 +161,8 @@ describe("New agent's start flags", () => {
     expect(refusal("claude", claude, "claude-haiku-4-5-20251001", "low")).toBe("That model does not take that effort.");
     expect(refusal("cursor", cursor, "auto", "high")).toBe("That effort is not one this agent takes at start.");
     expect(refusal("opencode", opencode, null, "high")).toBe("That effort is not one this agent takes at start.");
-    expect(refusal("agy", [], "x", null)).toBe("That model is not one this agent names.");
+    expect(refusal("agy", [], "x", null)).toBe("That model is not in the agent's list on this machine.");
+    expect(refusal("agy", [], "x; touch y", null)).toBe("That model is not one this agent names.");
     expect(refusal("grok", grok, null, "HIGH")).toBe("That effort is not one this agent takes at start.");
   });
 

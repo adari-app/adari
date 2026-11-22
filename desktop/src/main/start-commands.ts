@@ -43,6 +43,24 @@ export function startCommandsOf(source: StartCommandsSource): Promise<AgentStart
 }
 
 /**
+ * The machine's file read now, never the cached read (Update's Run compares the command its question
+ * showed with this). A read that came back (a file, or none) becomes the cached one too, unless a save is running
+ * there (its own result is kept then), so the window and the next question show what the file holds.
+ */
+export async function freshStartCommandsOf(source: StartCommandsSource): Promise<AgentStartCommands> {
+  const read = source.readStartCommandsFile;
+  if (read === undefined) return absentStartCommands;
+  let fresh: AgentStartCommands;
+  try {
+    fresh = parseStartCommands(await read.call(source));
+  } catch (error) {
+    return startCommandsWith({ type: "unreadable", reason: error instanceof Error ? error.message : String(error) });
+  }
+  if ((fresh.status.type === "read" || fresh.status.type === "absent") && !saves.has(source)) loads.set(source, Promise.resolve(fresh));
+  return fresh;
+}
+
+/**
  * Saves `kind`'s start command on the machine `source` reaches (after any save still running there),
  * and keeps what was saved as its start commands. Rejects with the reason when it did not save (nothing kept then).
  * `ready` runs when its turn comes, right before the write; it throws (the reason) when the machine may no

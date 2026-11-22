@@ -1,6 +1,8 @@
 // Settings › Notifications (SettingsPage.tsx NotificationsSection): a section in the list between Appearance and
 // Updates; three switches, all on by default, read from and changed in the main process; Send a test notification
-// and what it said; the line that macOS decides. The menu bar switch is the Mac's only.
+// and what it said; the line that macOS decides. The menu bar switch is the Mac's only. On the Mac the line that macOS
+// decides is a row with Open Notification Settings (it asks main, with nothing the page could make an address of), and
+// the line that macOS is not showing Adari's notifications shows only after one failed, gone after one shows.
 
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -12,7 +14,7 @@ vi.mock("react", async (importOriginal) => {
 });
 vi.mock("electron", () => ({ ipcMain: { handle: () => undefined, on: () => undefined } }));
 
-import { defaultNotifySettings, notifyTexts, testSentText, type NotifySettings } from "../src/shared/needs-notify";
+import { defaultNotifySettings, notifyTexts, testSentText, type NotifyDelivery, type NotifySettings } from "../src/shared/needs-notify";
 import { settingsSections } from "../src/shared/settings";
 import { elements, HookHost } from "./support/fake-hooks";
 import { appInfo, flush, loadSettings, mountSettings, settingsBridge } from "./support/settings-page";
@@ -25,18 +27,22 @@ afterEach(() => {
   for (const host of hosts.splice(0)) host.unmount();
 });
 
-function bridge(start: NotifySettings = defaultNotifySettings) {
+function bridge(start: NotifySettings = defaultNotifySettings, answers: { delivery?: NotifyDelivery | null; test?: string } = {}) {
   const calls: unknown[][] = [];
   let kept = start;
+  const state = { delivery: answers.delivery ?? null, test: answers.test ?? testSentText };
   return {
     calls,
+    state,
+    notifyDelivery: () => (calls.push(["notifyDelivery"]), Promise.resolve(state.delivery)),
+    openNotificationSettings: (...args: unknown[]) => void calls.push(["openNotificationSettings", ...args]),
     notifySettings: () => (calls.push(["notifySettings"]), Promise.resolve(kept)),
     setNotifySettings: (change: Partial<NotifySettings>) => {
       calls.push(["setNotifySettings", change]);
       kept = { ...kept, ...change };
       return Promise.resolve(kept);
     },
-    testNotification: () => (calls.push(["testNotification"]), Promise.resolve(testSentText)),
+    testNotification: () => (calls.push(["testNotification"]), Promise.resolve(state.test)),
   };
 }
 
@@ -104,5 +110,87 @@ describe("Settings › Notifications", () => {
     expect(view.switches()).toHaveLength(2);
     expect(view.words()).toContain(notifyTexts.otherLine);
     expect(view.words()).not.toContain(notifyTexts.macLine);
+  });
+
+  it("on the Mac: Open Notification Settings beside macOS's line, always; a click asks main with no argument", async () => {
+    const fake = bridge();
+    const view = mount(fake);
+    await flush();
+    view.host.render();
+    const button = view.find((props) => props["children"] === notifyTexts.openSettings)!;
+    expect(button).toBeDefined();
+    expect(button.props["data-notify-open-settings"]).toBe("");
+    expect(button.props["disabled"]).toBe(false);
+    const system = view.find((props) => props["data-notify-system"] === "")!;
+    expect(JSON.stringify(system)).toContain(notifyTexts.macLine);
+    expect(JSON.stringify(system)).toContain(notifyTexts.openSettings);
+    (button.props["onClick"] as (event: unknown) => void)({ target: "x-apple.systempreferences:com.apple.preference.security" });
+    expect(fake.calls.filter((call) => call[0] === "openNotificationSettings")).toEqual([["openNotificationSettings"]]);
+    // Nothing known: no off line, and the words are the section's own.
+    expect(view.words()).not.toContain(notifyTexts.offLine);
+    expect(notifyTexts.offLine).not.toContain(String.fromCharCode(0x2014));
+    expect(notifyTexts.openSettings).not.toContain(String.fromCharCode(0x2014));
+  });
+
+  it("off the Mac: no Open Notification Settings, no off line, the delivery not read", async () => {
+    const fake = bridge(defaultNotifySettings, { delivery: { outcome: "failed", at: 1 } });
+    const view = mount(fake, false);
+    await flush();
+    view.host.render();
+    expect(view.find((props) => props["children"] === notifyTexts.openSettings)).toBeUndefined();
+    expect(view.words()).not.toContain(notifyTexts.offLine);
+    expect(fake.calls).not.toContainEqual(["notifyDelivery"]);
+  });
+
+  it("the off line shows only after a notification failed, in the section's warning style, and goes after one shows", async () => {
+    const fake = bridge(defaultNotifySettings, { delivery: { outcome: "shown", at: 1 } });
+    const view = mount(fake);
+    await flush();
+    view.host.render();
+    expect(view.words()).not.toContain(notifyTexts.offLine);
+    // A notification failed since; the section opens again.
+    view.host.unmount();
+    fake.state.delivery = { outcome: "failed", at: 2 };
+    const again = mount(fake);
+    await flush();
+    again.host.render();
+    const off = again.find((props) => props["data-notify-off"] === "")!;
+    expect(off.props["className"]).toBe("set-bad");
+    expect(off.props["children"]).toBe(notifyTexts.offLine);
+    expect(again.words().split(notifyTexts.offLine)).toHaveLength(2);
+    // One shows (a test that showed): the line goes.
+    fake.state.delivery = { outcome: "shown", at: 3 };
+    const button = again.find((props) => props["children"] === notifyTexts.test)!;
+    (button.props["onClick"] as () => void)();
+    await flush();
+    again.host.render();
+    expect(again.words()).toContain(testSentText);
+    expect(again.words()).not.toContain(notifyTexts.offLine);
+  });
+
+  it("a failed test says the off line in place of Sent., once, with Open Notification Settings in the section", async () => {
+    const fake = bridge(defaultNotifySettings, { test: notifyTexts.offLine });
+    const view = mount(fake);
+    await flush();
+    view.host.render();
+    fake.state.delivery = { outcome: "failed", at: 5 };
+    const button = view.find((props) => props["children"] === notifyTexts.test)!;
+    (button.props["onClick"] as () => void)();
+    await flush();
+    view.host.render();
+    expect(view.words()).not.toContain(testSentText);
+    expect(view.words().split(notifyTexts.offLine)).toHaveLength(2);
+    const test = view.find((props) => props["data-notify-test"] === "")!;
+    expect(JSON.stringify(test)).toContain(notifyTexts.offLine);
+    expect(view.find((props) => props["children"] === notifyTexts.openSettings)).toBeDefined();
+    expect(fake.calls.filter((call) => call[0] === "testNotification")).toHaveLength(1);
+  });
+
+  it("an odd answer from main is no failure", async () => {
+    const fake = bridge(defaultNotifySettings, { delivery: { outcome: "failed", at: 1, extra: true } as unknown as NotifyDelivery });
+    const view = mount(fake);
+    await flush();
+    view.host.render();
+    expect(view.words()).not.toContain(notifyTexts.offLine);
   });
 });

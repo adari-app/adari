@@ -230,6 +230,31 @@ export function testNotification(sound: boolean): NotificationContent {
 export const testSentText = "Sent. If nothing showed, look in System Settings › Notifications › Adari.";
 export const testUnsupportedText = "This system cannot show notifications.";
 
+/**
+ * What became of the last notification Adari sent, as the system answered it (kept in the main process, in memory
+ * only): shown, or failed (on the Mac, macOS refused it: Adari is not allowed to notify, or the build is not signed).
+ * Electron's Notification cannot read macOS's permission; its `failed` event is the one signal there is. The error's
+ * own words stay in the main process's log, never on screen.
+ */
+export interface NotifyDelivery {
+  readonly outcome: "shown" | "failed";
+  /** When the system answered (ms since the epoch). */
+  readonly at: number;
+}
+
+/** A notification's answer from the system ("unknown": a system that does not say, as off the Mac). */
+export type NotifyOutcome = "shown" | "failed" | "unknown";
+
+/** The page's check of the main process's answer (anything else: nothing known). */
+export function isNotifyDelivery(value: unknown): value is NotifyDelivery {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) return false;
+  const record = value as Record<string, unknown>;
+  return Object.keys(record).length === 2 && (record["outcome"] === "shown" || record["outcome"] === "failed") && typeof record["at"] === "number" && Number.isFinite(record["at"]);
+}
+
+/** macOS's Notifications pane in System Settings: the one address Open Notification Settings opens (from the main process). */
+export const macNotificationSettingsUrl = "x-apple.systempreferences:com.apple.Notifications-Settings.extension";
+
 /** The menu bar's first line. */
 export function needsCountLine(total: number): string {
   if (total === 0) return "No agent needs you";
@@ -322,5 +347,8 @@ export const notifyTexts = {
   test: "Send a test notification",
   testFailed: "Not sent: Adari could not reach its notifications.",
   macLine: "macOS decides whether notifications show, in System Settings › Notifications › Adari.",
+  /** The last notification failed: macOS did not show it. Also the test's answer when it failed. */
+  offLine: "macOS is not showing Adari’s notifications. Allow them in System Settings › Notifications › Adari.",
+  openSettings: "Open Notification Settings",
   otherLine: "Your system decides whether notifications show, in its notification settings.",
 } as const;

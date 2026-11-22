@@ -231,7 +231,10 @@ describe("the bounds", () => {
     expect(isModelId("opencode", "openrouter/~anthropic/claude-fable-latest")).toBe(true);
     expect(isModelId("opencode", "nope")).toBe(false);
     expect(isModelId("opencode", "a/b;c")).toBe(false);
-    expect(isModelId("agy", "anything")).toBe(false);
+    expect(isModelId("agy", "gemini-4-neon-high")).toBe(true);
+    expect(isModelId("agy", "gemini 4")).toBe(false);
+    expect(isModelId("agy", "--effort")).toBe(false);
+    expect(isModelId("agy", "a;b")).toBe(false);
   });
 });
 
@@ -262,8 +265,9 @@ describe("the command that lists each agent's models", () => {
     expect(JSON.parse(claudeInitializeLine)).toEqual({ type: "control_request", request_id: "adari-models", request: { subtype: "initialize" } });
   });
 
-  it("Antigravity CLI: none (its picker says so)", () => {
-    expect(listCommand("agy", "agy")).toBeNull();
+  it("Antigravity CLI: `agy models`, argv only; its picker's line stays for a machine with no list", () => {
+    expect(listCommand("agy", "agy")).toEqual({ program: "agy", args: ["models"], stdin: null, timeoutMs: 20_000 });
+    expect(listCommand("agy", null)).toEqual({ program: "agy", args: ["models"], stdin: null, timeoutMs: 20_000 });
     expect(builtInCatalog("agy")).toEqual({ agent: "agy", models: [], readAt: null, error: null, loading: false, none: antigravityNoList });
     expect(antigravityNoList).toBe("Antigravity CLI's models are in its own picker.");
   });

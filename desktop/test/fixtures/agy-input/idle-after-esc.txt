@@ -1,0 +1,36 @@
+demo % agy --model gemini-4-hydrogen-low
+
+      ▄▀▀▄        Antigravity CLI 1.5.13
+     ▀▀▀▀▀▀       a fixture account
+    ▀▀▀▀▀▀▀▀      Gemini 4 Hydrogen (Low)
+   ▄▀▀    ▀▀▄     /tmp/demo/work
+  ▄▀▀      ▀▀▄
+
+────────────────────────────────────────────────────────────
+> say hi in three words
+
+  Hello there, friend!
+
+────────────────────────────────────────────────────────────
+> count slowly from 1 to 60, one number per line, with a short sentence after each
+
+
+  1. Starting off at the very beginning.
+  2. Taking a second step forward.
+  3. Three is a steady, balanced number.
+  4. Four corners form a solid square.
+  5. Five fingers on a single hand.
+  6. Six sides on a standard die.
+  7. Seven days make up a full week.
+  8. Eight legs belong to a busy spider.
+  9. Nine lives are said to belong to a cat.
+  10. Ten marks the first major milestone.
+  11. Eleven players take the field in soccer.
+  12. Twelve months complete a calendar year.
+  13. Thirteen is just past
+
+  ⎿  Interrupted · What should Antigravity CLI do instead?
+───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+>
+───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+? for shortcuts                                                                          auto · Gemini 4 Hydrogen · low

@@ -15,6 +15,7 @@ import { PendingBackstop, PendingMessages } from "../src/shared/chat/pending";
 import type { ChatTimeline } from "../src/shared/chat/model";
 import type { AgentInfo, TopologyPaneInfo } from "../src/main/herdr/wire";
 import { FakeClaudeQueue, queueLine, queueScreen, userLine } from "./support/claude-queue-screens";
+import { blankLineMessages } from "./support/blank-lines";
 
 const registered = vi.hoisted(() => ({ handles: new Map<string, (...args: unknown[]) => unknown>() }));
 vi.mock("electron", () => ({
@@ -443,4 +444,21 @@ describe("ownership is the popAll content, not the wrapped rows", () => {
     // Other text is left alone and the send goes as before; no clearing key went.
     expect(m.claude.keysSent()).toEqual([]);
   });
+});
+
+// MARK: - a queued message with blank lines, its pull proved by the record
+
+describe("a queued message with blank lines, taken back on the record's word", () => {
+  for (const [shape, text] of blankLineMessages) {
+    it(`${shape}: the popAll proves it, every drawn row is cleared, and no row is left for a Send to join`, async () => {
+      const claude = new FakeClaudeQueue({ queued: [text] });
+      const rows: unknown[] = [];
+      const result = await takeBackQueued(siteOf(claude), { ...forTexts(claude, [text]), row: (state) => void rows.push(state) });
+      expect(result).toEqual({ type: "taken", texts: [text], note: takeBackTexts.taken });
+      expect(claude.state.input).toBe("");
+      expect(rows.at(-1) ?? null).toBeNull();
+      claude.turnEnds();
+      expect(claude.sent).toEqual([]);
+    });
+  }
 });

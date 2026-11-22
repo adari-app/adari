@@ -6,8 +6,11 @@
 // (IntegrationInfo: target, label, command, available, state, one of
 // not_installed, current, outdated) and `integration.install { target }`
 // (IntegrationInstallResult { messages }). Adari reads the list (main:
-// src/main/integrations.ts) and shows an Install or Update button; nothing is
-// installed without that click, and Adari never writes a hook file itself.
+// src/main/integrations.ts) and shows an Install or Update button. Herdr
+// installs one only on that click, or when Adari's New agent starts an agent
+// of a shown kind whose integration the list says is missing or old (with the
+// Settings switch on, autoInstallTexts): then the install goes first, bounded,
+// and the agent starts either way. Adari never writes a hook file itself.
 //
 // Only the kinds whose session Chat reads from Herdr are shown: the targets
 // whose `herdr:<target>` session the locator turns into a transcript
@@ -128,6 +131,8 @@ export interface HostIntegrations {
    * never the first-message one. Absent: none.
    */
   readonly hookReviewed?: Readonly<Record<string, readonly string[]>>;
+  /** Settings' Update all runs on this read now (its button waits); absent: none. */
+  readonly updatingAll?: true;
 }
 
 /** What an Install click is for: the machine's entry and connection as the window showed them. */
@@ -141,6 +146,30 @@ export interface IntegrationBinding {
 export type IntegrationInstallReply =
   | { readonly sent: true; readonly outcome: IntegrationOutcome }
   | { readonly sent: false; readonly note: string };
+
+/**
+ * Settings' Update all on one machine: each target it asked, in order, with what came of it (sent: Herdr was asked;
+ * refused: nothing went, with why). `note`: why nothing was asked at all (the machine changed), else null.
+ */
+export interface IntegrationUpdateAllReply {
+  readonly results: readonly { readonly target: string; readonly reply: IntegrationInstallReply }[];
+  readonly note: string | null;
+}
+
+/**
+ * The targets Update all updates on a machine, in Settings' order: the rows Settings shows (Herdr finds the agent
+ * there: `available`) that Herdr lists as out of date. A missing one is never among them: it keeps its own Install.
+ */
+export function updateAllTargets(items: readonly IntegrationItem[]): string[] {
+  return items.filter((item) => item.available && item.state === "outdated").map((item) => item.target);
+}
+
+/** Update all's button ("Update all (3)") and its line. No em dash. */
+export const updateAllTexts = {
+  button: (count: number): string => `Update all (${count})`,
+  title: (count: number): string =>
+    count === 1 ? "Update the one out-of-date integration" : `Update the ${count} out-of-date integrations, one after the other`,
+} as const;
 
 const isCount = (value: unknown): value is number => typeof value === "number" && Number.isSafeInteger(value) && value >= 0;
 
@@ -229,6 +258,31 @@ export const integrationTexts = {
   notListed: (machine: string): string => `Not installed: Herdr on ${machine} does not list this integration as missing now. Nothing was sent.`,
   unavailable: "Not installed: this build cannot ask Herdr to install it.",
 } as const;
+
+/**
+ * New agent's install in front of its start (Settings' switch, on by default) and Chat's line for a machine whose
+ * list was not read. No Herdr code in any, no em dash.
+ */
+export const autoInstallTexts = {
+  /** Settings › Machines' switch and the line under it. */
+  title: "Install Herdr's integrations when I start an agent",
+  help: "When New agent starts an agent whose Herdr integration is missing or out of date on that machine, Herdr adds a small hook file to the agent's settings there first, so Chat can show its conversation.",
+  /** New agent's one line (its notice), before what the start itself says. */
+  installed: (name: string, machine: string): string => `Installed Herdr's ${name} integration on ${machine}.`,
+  updated: (name: string, machine: string): string => `Updated Herdr's ${name} integration on ${machine}.`,
+  /** The install had not ended within the bound (autoInstallWaitMs); the agent started without waiting. */
+  stalled: (name: string, action: IntegrationAction, seconds: number): string =>
+    `${action === "update" ? "Not updated" : "Not installed"} yet: Herdr had not finished ${action === "update" ? "updating" : "installing"} its ${name} integration after ${seconds} seconds, so New agent did not wait for it.`,
+  /** Chat's no-session state when the machine's list was not read on this connection (rule 6), and its button. */
+  unread: (machine: string): string => `Adari could not read Herdr's integrations on ${machine}, so it cannot tell whether this agent's integration is installed.`,
+  retry: "Retry",
+} as const;
+
+/** The switch as kept (a missing or unreadable file: on). */
+export function decodeAutoInstall(value: unknown): boolean {
+  const kept = typeof value === "object" && value !== null && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
+  return kept["autoInstall"] !== false;
+}
 
 /** The item for a shown target on a machine, or null when Herdr did not list it (or the machine has no list). */
 export function integrationItem(integrations: HostIntegrations | undefined, target: string | null): IntegrationItem | null {

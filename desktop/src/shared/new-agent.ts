@@ -6,7 +6,7 @@
 // agents.json names, and a shell) with what each will run, and the kind you
 // last picked.
 
-import type { SessionTopology } from "../main/herdr/wire";
+import type { SessionTopology, TabInfo, TopologyPaneInfo } from "../main/herdr/wire";
 import { agentKinds, knownAgentName } from "./agent-names";
 import { isCoreID } from "./core-ids";
 import type { PaneBinding } from "./pane-binding";
@@ -203,3 +203,107 @@ export interface NewAgentSplitTarget {
 
 /** New agent's Where: a new tab, or a split of the focused pane right or down. */
 export type NewAgentWhereChoice = "tab" | "right" | "down";
+
+// What main tells the page that asked while its New agent runs (IPC
+// newAgentProgress, under the id the page gave: isStartId). `step`: a line naming the step in front of the pane that
+// runs now, each time that changes (the dialog shows it once that step ran about a second; null: none runs). `pane`:
+// the pane exists, with Herdr's answer for it (the new tab, null for a split, and the pane), so the window shows it
+// before any snapshot lists it; the rest of the start carries on behind it, and the answer comes later as before.
+// The page says when the pane is on screen (IPC newAgentShown, from the window that asked and for that pane), the
+// record's `shown`. `closed`: the start failed and closed the pane it told, told before its answer.
+
+export type NewAgentProgress =
+  | { readonly startId: string; readonly type: "step"; readonly words: string | null }
+  | {
+      readonly startId: string;
+      readonly type: "pane";
+      readonly paneId: string;
+      readonly tabId: string;
+      readonly tab: TabInfo | null;
+      readonly pane: TopologyPaneInfo;
+    }
+  | { readonly startId: string; readonly type: "closed"; readonly paneId: string };
+
+/** A page's id for one New agent: 8 to 64 letters, digits and dashes (a UUID). */
+export function isStartId(value: unknown): value is string {
+  return typeof value === "string" && /^[A-Za-z0-9-]{8,64}$/.test(value);
+}
+
+/** How long a step runs before the dialog names it. */
+export const progressAfterMs = 1_000;
+
+/** The lines New agent's dialog shows while a step before the pane runs. */
+export const newAgentProgressTexts = {
+  models: (machine: string) => `Checking the model list on ${machine}…`,
+  commands: (machine: string) => `Reading the start commands on ${machine}…`,
+  integration: (action: "install" | "update", name: string, machine: string) =>
+    `${action === "update" ? "Updating" : "Installing"} Herdr's ${name} integration on ${machine}…`,
+  list: (machine: string) => `Reading the agent list on ${machine}…`,
+  pane: (place: "tab" | "pane", machine: string) => `Making the new ${place} on ${machine}…`,
+} as const;
+
+/** A fresh id for one New agent's progress (a UUID where the page has one). */
+export function newStartId(): string {
+  const made = globalThis.crypto?.randomUUID?.();
+  return made !== undefined && isStartId(made) ? made : `na-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+/**
+ * How long a New agent's pane made and not listed yet is shown from Herdr's own answer, in main and in the page, at
+ * most: longer than the wait for the agent (firstAgentTimeoutMs, 90 s)
+ * and the refresh after it, which lists it when no events did.
+ */
+export const madePaneKeptMs = 120_000;
+
+/**
+ * A New agent's pane as Herdr's creation answered it, shown before a snapshot lists it (its machine's connection
+ * then). `at`: when the page heard it (ms since 1970); `heard`: how many machine lists the page had then (a list sent
+ * after it carries main's own memory of it, madePanes).
+ */
+export interface MadePane {
+  readonly hostId: string;
+  readonly connection: number;
+  readonly tab: TabInfo | null;
+  readonly pane: TopologyPaneInfo;
+  readonly at: number;
+  readonly heard: number;
+}
+
+/**
+ * The machines with each made pane a snapshot does not list yet added to their topology from Herdr's own answer (and
+ * its new tab), so the window has its row at once; nothing is asked of the machine. `kept`: the made panes still
+ * shown. One goes when a snapshot lists it, its machine is on another connection or gone, madePaneKeptMs passed since
+ * `at`, or a list main sent after the page heard it (`lists`, the page's count now, above `heard`) no longer carries
+ * it in madePanes (main let it go: a later snapshot did not list it, or its connection changed).
+ */
+export function withMadePanes<
+  H extends { readonly id: string; readonly connection?: number; readonly topology: SessionTopology | null; readonly madePanes?: readonly string[] },
+>(hosts: readonly H[], made: readonly MadePane[], nowMs: number, lists: number): { readonly hosts: H[]; readonly kept: MadePane[] } {
+  const kept: MadePane[] = [];
+  const next = hosts.map((host) => {
+    const topology = host.topology;
+    const mine = made.filter(
+      (entry) =>
+        entry.hostId === host.id &&
+        (host.connection === undefined || host.connection === entry.connection) &&
+        nowMs - entry.at < madePaneKeptMs &&
+        (lists <= entry.heard || (host.madePanes ?? []).includes(entry.pane.paneID)),
+    );
+    if (topology === null || mine.length === 0) return host;
+    let panes = topology.panes;
+    let tabs = topology.tabs;
+    for (const entry of mine) {
+      if (panes.some((pane) => pane.paneID === entry.pane.paneID)) continue;
+      if (!topology.workspaces.some((workspace) => workspace.workspaceID === entry.pane.workspaceID)) continue;
+      const tab = entry.tab;
+      if (!tabs.some((candidate) => candidate.tabID === entry.pane.tabID)) {
+        if (tab === null || tab.tabID !== entry.pane.tabID) continue;
+        tabs = [...tabs, tab];
+      }
+      panes = [...panes, entry.pane];
+      kept.push(entry);
+    }
+    return panes === topology.panes ? host : { ...host, topology: { ...topology, panes, tabs } };
+  });
+  return { hosts: next, kept };
+}

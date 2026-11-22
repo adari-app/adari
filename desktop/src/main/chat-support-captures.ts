@@ -67,7 +67,7 @@ export function chatSupportCaptureSteps(ids: { macMini: string; buildBox: string
     },
     {
       name: "192-new-agent-list",
-      what: "New agent on build-box's research: Antigravity CLI in the first list where Gemini CLI was (Claude Code, Codex, Pi, OpenCode, Cursor Agent, GitHub Copilot, Amp, Antigravity CLI, Grok Build); Early beside Pi, GitHub Copilot and Antigravity CLI (early until its live test), nothing beside the supported kinds or Amp",
+      what: "New agent on build-box's research: Antigravity CLI in the first list where Gemini CLI was (Claude Code, Codex, Pi, OpenCode, Cursor Agent, GitHub Copilot, Amp, Antigravity CLI, Grok Build); Early beside Pi and GitHub Copilot, nothing beside the supported kinds (Antigravity CLI among them) or Amp",
       commands: [{ type: "open-new-agent", hostId: ids.buildBox, workspaceId }],
       settleMs: 900,
       measure: listMeasure,

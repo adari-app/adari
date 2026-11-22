@@ -1,0 +1,12 @@
+  >_ OpenAI Codex (v0.171.0)
+     ~/work
+
+
+› Implement the plan.
+
+• Working (1s • esc to interrupt)
+
+
+› Ask Codex to do anything
+
+  gpt-6.1-sol medium · ~/work

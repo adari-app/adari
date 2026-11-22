@@ -10,7 +10,7 @@
 // Herdr's mark.
 
 import type { HostView } from "../ipc-contract";
-import { cleanRow, grokTrace, isBorder, matchPrompt, normalisedLower, readRows, sectionHeaders } from "./matcher";
+import { agyKind, agyQuestion, agyTrace, cleanRow, codexPlan, codexQuestion, codexQuestionTrace, grokTrace, isBorder, matchPrompt, normalisedLower, readRows, sectionHeaders } from "./matcher";
 import { paneBlocked, promptEpisode, type PanePrompt } from "./view";
 
 /** The least time between the two quiet reads. */
@@ -40,13 +40,17 @@ const footerWords = ["esc to cancel", "enter to confirm", "enter to select", "pr
  * header; on a Grok pane, any part of Grok 1.0.70's approval frame, its
  * `1/<n>:select` footer, title row or option rows).
  *
- * `agentKind` is the pane's agent. Only a Grok pane counts Grok's frame rows,
+ * `agentKind` is the pane's agent. Only a Grok pane counts Grok's frame rows (and only an agy pane agy's questions),
  * so a partly drawn frame keeps its mark. On any other pane (Claude, Codex,
  * Cursor, none) a stale or quoted `┃ ›` row counts for nothing.
  */
 export function promptLike(text: string, agentKind: string | null = null): boolean {
   if (matchPrompt(text, "").type === "matched") return true;
   if (agentKind?.toLowerCase() === "grok" && grokTrace(text)) return true;
+  // On an agy pane, its own questions (the trust question has no digit, no "?" on its last row) or one of their footers.
+  if (agentKind?.toLowerCase() === agyKind && (agyQuestion(text, "") !== null || agyTrace(text))) return true;
+  // On a Codex pane, its own question (whole, or any part of it: the notes row open, its confirmation) and its plan question.
+  if (agentKind?.toLowerCase() === "codex" && (codexQuestion(text, "") !== null || codexPlan(text, "") !== null || codexQuestionTrace(text))) return true;
   const rows = readRows(text)
     .map(cleanRow)
     .filter((row) => row !== "" && !isBorder(row));

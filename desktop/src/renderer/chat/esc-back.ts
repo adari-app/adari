@@ -10,9 +10,10 @@
 // - A tap on a "Not sent" bubble puts its text back the same way.
 // - When the pane last showed working (Herdr's status, by the page's
 //   clock), so Esc still goes within 2 s after (escGoes).
-// - A send with pictures that went
-//   unconfirmed is already back in our box (its text, its picture chips kept);
-//   an Esc's take-back of the same send then adds no second copy.
+// - A send with pictures Adari could not confirm comes back to our box only on
+//   its bubble's Put back (the person's own act; never by itself after the keys
+//   went). Once put back (its text, its picture chips), an Esc's take-back of the
+//   same send adds no second copy.
 
 import { joinedMessage } from "../../shared/attachments";
 import { claudeBoxTexts, imagePaths, putBack } from "../../shared/claude-screen";
@@ -27,8 +28,8 @@ export interface BoxDrafts {
 
 /**
  * The composer already
- * holds `line`, a send of its pane's that came back to it (an unconfirmed Send's text, put back first, its picture
- * chips kept). `line` whole as the composer would send it: its text first (`text` up to one of its newlines, or all
+ * holds `line`, a send of its pane's that came back to it (a Send Adari could not confirm, put back first by its
+ * bubble's Put back, its picture chips kept). `line` whole as the composer would send it: its text first (`text` up to one of its newlines, or all
  * of it: putBack's order, what was typed since after it), then its paths (joinedMessage), each one of the
  * composer's uploaded chips; chips added since stay out of it. A line with no image path is never taken as
  * already here: text you typed again may match it.
@@ -73,8 +74,8 @@ export function putBackInBox(drafts: BoxDrafts, landing: (key: string, at: numbe
  * came back to the box. One send comes back once: an answer for
  * a send whose text already came back (an earlier answer, or a tap on its
  * "Not sent" bubble) changes nothing, and touches no older message.
- * A send the composer already holds (`holdsSent`: an unconfirmed Send with
- * pictures put it back, your typing maybe after it) is not put back a second time; its bubble, the claim main
+ * A send the composer already holds (`holdsSent`: a Send with pictures put
+ * back by its bubble's Put back, your typing maybe after it) is not put back a second time; its bubble, the claim main
  * made and the note go as for any other.
  */
 export function takeBackAfterStop(

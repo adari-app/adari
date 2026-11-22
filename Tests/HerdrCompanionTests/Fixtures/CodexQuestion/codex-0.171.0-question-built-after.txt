@@ -1,0 +1,39 @@
+
+  >_ OpenAI Codex (v0.171.0)
+     ~/work
+
+• Model changed to gpt-6.1-sol medium for Plan mode.
+
+
+› Plan a tiny note file. Before you plan anything, ask me two multiple-choice questions with your question tool: which
+  of three names the file should have, and which of two formats. Read nothing and run nothing.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+• Questions 1/1 answered
+  • Which name should the tiny note file have?
+    answer: quick-note
+
+• Working (3s • esc to interrupt)
+
+
+› Ask Codex to do anything
+
+  gpt-6.1-sol medium · ~/work · Plan mode (⇧tab to cycle)

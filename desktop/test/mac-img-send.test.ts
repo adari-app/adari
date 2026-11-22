@@ -11,7 +11,8 @@
 // chip is lost. One Return goes only once the box shows exactly our text with
 // a new chip for every picture, Claude idle, the run the one we sent to (and
 // known), checked right before the key; Sent only on positive evidence; any
-// other box is unconfirmed, the composer keeping the text and the pictures.
+// other box is unconfirmed. Under the send rules the composer empties at the
+// Return either way (rule 2) and the bubble carries the outcome (rules 3, 5).
 //
 // They use sendBound and the composer's drafts. Fakes only: no SSH, no Herdr,
 // no socket; the pane's clock is virtual.
@@ -19,7 +20,7 @@
 import { describe, expect, it } from "vitest";
 
 import { type ClaudeBoxSite } from "../src/main/herdr/claude-box";
-import { guardTexts, sendBound, takerName, type SendSite } from "../src/main/herdr/send";
+import { SendChecks, sendBound, sendWithReceipt, type SendSite } from "../src/main/herdr/send";
 import { ComposerDrafts, draftKey, sendDraft } from "../src/renderer/components/composer-drafts";
 import { pendingMessages, sendWithPending } from "../src/renderer/chat/chat-state";
 import { claudeScreen } from "./support/claude-screens";
@@ -43,8 +44,7 @@ const otherCaption = "[Image #18] [Image #19] [Image #20]a changed caption";
 /** An earlier message's box: the same caption, three earlier chips. */
 const earlier = `[Image #1] [Image #2] [Image #3]${caption}`;
 
-const claudeBinding = { terminalID: "t1", isAgent: true, kind: "claude", session: "s1" };
-const unconfirmed = guardTexts.returnUnconfirmed(takerName("claude"));
+const claudeBinding: { terminalID: string; isAgent: boolean; kind: string; session: string | null } = { terminalID: "t1", isAgent: true, kind: "claude", session: "s1" };
 
 /** What Claude's box shows at a read: its text, the working line, queued messages (or a raw screen). */
 type Box = { readonly draft: string; readonly working?: boolean; readonly queued?: readonly string[] } | { readonly raw: string };
@@ -60,6 +60,8 @@ const pathsIn = (text: string): string[] => text.split(/\s+/).filter((word) => w
  */
 class ClaudePane {
   clock = 0;
+  /** The session its agent names (null: none, where the screen is the proof). */
+  session: string | null = "s1";
   promptAt: number | null = null;
   submitted = false;
   reads = 0;
@@ -151,7 +153,7 @@ class ClaudePane {
         agent: this.kind,
         agentStatus: this.status,
         terminalID: this.terminalID,
-        agentSession: { source: `herdr:${this.kind}`, agent: this.kind, kind: "id", value: "s1" },
+        ...(this.session === null ? {} : { agentSession: { source: `herdr:${this.kind}`, agent: this.kind, kind: "id", value: this.session } }),
         ...(this.epoch === null ? {} : { turnEpoch: this.epoch }),
       }) as never,
     run: () => ({ connection: this.connection, arrival: this.arrival }),
@@ -218,20 +220,37 @@ function intake(shows: readonly (number | null)[], options: { asTyped?: boolean;
   return pane;
 }
 
-const outcome = (sending: Promise<void>): Promise<string> =>
+/**
+ * The send's answer: its note when refused before the write (rule 4 of the send rules), else the check's
+ * outcome ("sent" when taken or when no check follows; "unknown" or "stillInBox" otherwise: rules 3 and 5, the
+ * composer is never given a note for them).
+ */
+const outcome = (sending: Promise<void>, checked: () => string | null): Promise<string> =>
   sending.then(
-    () => "sent",
+    () => (checked() === null || checked() === "taken" ? "sent" : checked()!),
     (error: Error) => error.message,
   );
 
-const send = (pane: ClaudePane, text = sent, binding = claudeBinding): Promise<string> => outcome(sendBound(pane.site, "w1:p1", text, binding));
+const send = (pane: ClaudePane, text = sent, binding = claudeBinding): Promise<string> => {
+  let found: string | null = null;
+  return outcome(sendBound({ ...pane.site, checked: (check) => void (found = check) }, "w1:p1", text, binding), () => found);
+};
+
+/**
+ * The same Send to a pane whose agent names no session: there the screen is the proof (with a session
+ * named only Claude Code's record proves a send, and with no reader nothing does, so these screen cases name none).
+ */
+const sendUnnamed = (pane: ClaudePane, text = sent): Promise<string> => {
+  pane.session = null;
+  return send(pane, text, { ...claudeBinding, session: null });
+};
 
 // MARK: - Three pictures
 
 describe("three pictures, Claude idle: one Return once every picture is in, then Sent", () => {
   it("chips first, the box empty while they go in: one Return after the third new chip, Sent", async () => {
     const pane = intake([500, 1_000, 1_500]);
-    expect(await send(pane)).toBe("sent");
+    expect(await sendUnnamed(pane)).toBe("sent");
     expect(pane.prompts).toEqual([sent]);
     expect(pane.keyLog).toEqual([["Enter"]]);
     expect(pane.returns[0]).toBeGreaterThanOrEqual(1_500);
@@ -240,7 +259,7 @@ describe("three pictures, Claude idle: one Return once every picture is in, then
 
   it("taken in slowly, the message as typed first: one Return only once the last chip shows, Sent", async () => {
     const pane = intake([750, 1_500, 2_250], { asTyped: true });
-    expect(await send(pane)).toBe("sent");
+    expect(await sendUnnamed(pane)).toBe("sent");
     expect(pane.keyLog).toEqual([["Enter"]]);
     expect(pane.returns[0]).toBeGreaterThanOrEqual(2_250);
     expect(pane.submitted).toBe(true);
@@ -248,7 +267,7 @@ describe("three pictures, Claude idle: one Return once every picture is in, then
 
   it("a first picture slower than a 3 s wait: the wait is sized for the pictures, one Return after the last chip", async () => {
     const pane = intake([3_250, 3_750, 4_250], { asTyped: true });
-    expect(await send(pane)).toBe("sent");
+    expect(await sendUnnamed(pane)).toBe("sent");
     expect(pane.keyLog).toEqual([["Enter"]]);
     expect(pane.returns[0]).toBeGreaterThanOrEqual(4_250);
     expect(pane.submitted).toBe(true);
@@ -257,7 +276,7 @@ describe("three pictures, Claude idle: one Return once every picture is in, then
   it("chips in place, two pictures: no Return while the second is still going in", async () => {
     const text = `${caption} ${pictures[0]} ${pictures[1]}`;
     const pane = intake([250, 2_000], { asTyped: true, layout: "inPlace", text });
-    expect(await send(pane, text)).toBe("sent");
+    expect(await sendUnnamed(pane, text)).toBe("sent");
     expect(pane.keyLog).toEqual([["Enter"]]);
     expect(pane.returns[0]).toBeGreaterThanOrEqual(2_000);
   });
@@ -269,7 +288,7 @@ describe("three pictures, Claude idle: one Return once every picture is in, then
       return { draft: `[Image #4] [Image #5] [Image #6]${caption}` };
     });
     pane.takes = () => true;
-    expect(await send(pane)).toBe("sent");
+    expect(await sendUnnamed(pane)).toBe("sent");
     expect(pane.keyLog).toEqual([["Enter"]]);
     expect(pane.readsAfterPrompt).toBe(6);
   });
@@ -280,7 +299,8 @@ describe("three pictures, Claude idle: one Return once every picture is in, then
 describe("a box that is not exactly ours: no key, unconfirmed", () => {
   it("an earlier chip set with the same caption and count: never the Return, read to the end", async () => {
     const pane = new ClaudePane(() => ({ draft: earlier }));
-    expect(await send(pane)).toBe(unconfirmed);
+    // Rule 5: still in Claude's box, the bubble says so (no note, nothing put back).
+    expect(await send(pane)).toBe("stillInBox");
     expect(pane.keyLog).toEqual([]);
     expect(pane.readsAfterPrompt).toBe(36);
     expect(pane.failed).toBe(1);
@@ -288,50 +308,58 @@ describe("a box that is not exactly ours: no key, unconfirmed", () => {
 
   it("a picture missing from the first read (two chips for three): no key, unconfirmed", async () => {
     const pane = new ClaudePane((p) => ({ draft: p.promptAt === null ? "" : twoChips }));
-    expect(await send(pane)).toBe(unconfirmed);
+    // Rule 3: unknown, the bubble waits for the record (no note, nothing put back).
+    expect(await send(pane)).toBe("unknown");
     expect(pane.keyLog).toEqual([]);
   });
 
   it("seen as typed, then a picture missing: no key, unconfirmed", async () => {
     const pane = new ClaudePane((p) => ({ draft: p.promptAt === null ? "" : p.readsAfterPrompt <= 1 ? sent : twoChips }));
-    expect(await send(pane)).toBe(unconfirmed);
+    // Rule 5: still in Claude's box, the bubble says so (no note, nothing put back).
+    expect(await send(pane)).toBe("stillInBox");
     expect(pane.keyLog).toEqual([]);
   });
 
   it("seen as typed, then every chip with a changed caption: no key, unconfirmed", async () => {
     const pane = new ClaudePane((p) => ({ draft: p.promptAt === null ? "" : p.readsAfterPrompt <= 1 ? sent : otherCaption }));
-    expect(await send(pane)).toBe(unconfirmed);
+    // Rule 5: still in Claude's box, the bubble says so (no note, nothing put back).
+    expect(await send(pane)).toBe("stillInBox");
     expect(pane.keyLog).toEqual([]);
   });
 
   it("the user's typing alone in the box, Claude idle throughout: no key, unconfirmed", async () => {
     const pane = new ClaudePane((p) => ({ draft: p.promptAt === null ? "" : "run the tests again" }));
-    expect(await send(pane)).toBe(unconfirmed);
+    // Rule 3: unknown, the bubble waits for the record (no note, nothing put back).
+    expect(await send(pane)).toBe("unknown");
     expect(pane.keyLog).toEqual([]);
   });
 
   it("the user's typing joined to ours: no key, unconfirmed", async () => {
     const pane = new ClaudePane((p) => ({ draft: p.promptAt === null ? "" : `[Image #18] [Image #19] [Image #20]run the tests again${caption}` }));
-    expect(await send(pane)).toBe(unconfirmed);
+    // Rule 5: still in Claude's box, the bubble says so (no note, nothing put back).
+    expect(await send(pane)).toBe("stillInBox");
     expect(pane.keyLog).toEqual([]);
   });
 
   it("the third picture never goes in: no Return, unconfirmed", async () => {
     const pane = intake([500, 1_000, null], { asTyped: true });
-    expect(await send(pane)).toBe(unconfirmed);
+    // Rule 5: still in Claude's box, the bubble says so (no note, nothing put back).
+    expect(await send(pane)).toBe("stillInBox");
     expect(pane.keyLog).toEqual([]);
     expect(pane.submitted).toBe(false);
   });
 
   it("an edit after the Return (the chips with another caption): one Return, never a second, unconfirmed", async () => {
     const pane = new ClaudePane((p) => ({ draft: p.promptAt === null ? "" : p.returns.length === 0 ? threePicturesBox : otherCaption }));
-    expect(await send(pane)).toBe(unconfirmed);
+    // Rule 5: still in Claude's box, the bubble says so (no note, nothing put back).
+    expect(await send(pane)).toBe("stillInBox");
     expect(pane.keyLog).toEqual([["Enter"]]);
   });
 
   it("the Return lost (the box still ours after it): one Return, never a second, unconfirmed", async () => {
     const pane = new ClaudePane((p) => ({ draft: p.promptAt === null ? "" : threePicturesBox }));
-    expect(await send(pane)).toBe(unconfirmed);
+    // Rule 5: still in Claude's box, the bubble says so (no note, nothing put back).
+    expect(await send(pane)).toBe("stillInBox");
     expect(pane.keyLog).toEqual([["Enter"]]);
     expect(pane.recorded).toEqual([sent]);
   });
@@ -343,35 +371,40 @@ describe("the Return goes only to the run the prompt went to, checked right befo
   it("Terminal input during the wait: no key, unconfirmed", async () => {
     const pane = intake([500, 1_000, 1_500]);
     pane.onRead = { 2: (p) => void (p.inputs += 1) };
-    expect(await send(pane)).toBe(unconfirmed);
+    // Rule 3: unknown, the bubble waits for the record (no note, nothing put back).
+    expect(await send(pane)).toBe("unknown");
     expect(pane.keyLog).toEqual([]);
   });
 
   it("an Esc during the wait (a box mark): no key, unconfirmed", async () => {
     const pane = intake([500, 1_000, 1_500]);
     pane.onRead = { 3: (p) => void (p.marks += 1) };
-    expect(await send(pane)).toBe(unconfirmed);
+    // Rule 5: still in Claude's box, the bubble says so (no note, nothing put back).
+    expect(await send(pane)).toBe("stillInBox");
     expect(pane.keyLog).toEqual([]);
   });
 
   it("a new run behind the pane during the wait (turn_epoch): no key, unconfirmed", async () => {
     const pane = intake([500, 1_000, 1_500]);
     pane.onRead = { 2: (p) => void (p.epoch = 8) };
-    expect(await send(pane)).toBe(unconfirmed);
+    // Rule 3: unknown, the bubble waits for the record (no note, nothing put back).
+    expect(await send(pane)).toBe("unknown");
     expect(pane.keyLog).toEqual([]);
   });
 
   it("another agent in the pane during the wait (its arrival): no key, unconfirmed", async () => {
     const pane = intake([500, 1_000, 1_500]);
     pane.onRead = { 4: (p) => void (p.arrival = 2) };
-    expect(await send(pane)).toBe(unconfirmed);
+    // Rule 5: still in Claude's box, the bubble says so (no note, nothing put back).
+    expect(await send(pane)).toBe("stillInBox");
     expect(pane.keyLog).toEqual([]);
   });
 
   it("no run id for the pane (no turn_epoch): the settled box gets no key, unconfirmed", async () => {
     const pane = intake([500, 1_000, 1_500]);
     pane.epoch = null;
-    expect(await send(pane)).toBe(unconfirmed);
+    // Rule 5: still in Claude's box, the bubble says so (no note, nothing put back).
+    expect(await send(pane)).toBe("stillInBox");
     expect(pane.keyLog).toEqual([]);
     expect(pane.submitted).toBe(false);
   });
@@ -380,14 +413,16 @@ describe("the Return goes only to the run the prompt went to, checked right befo
     const pane = intake([500, 1_000, 1_500]);
     // Fresh check 0 is the Send's own before its write; 1 is the one right before the Return.
     pane.onFresh = { 1: (p) => void (p.epoch = 8) };
-    expect(await send(pane)).toBe(unconfirmed);
+    // Rule 5: still in Claude's box, the bubble says so (no note, nothing put back).
+    expect(await send(pane)).toBe("stillInBox");
     expect(pane.keyLog).toEqual([]);
   });
 
   it("Terminal input landing during that last check: no key, unconfirmed", async () => {
     const pane = intake([500, 1_000, 1_500]);
     pane.onFresh = { 1: (p) => void (p.inputs += 1) };
-    expect(await send(pane)).toBe(unconfirmed);
+    // Rule 5: still in Claude's box, the bubble says so (no note, nothing put back).
+    expect(await send(pane)).toBe("stillInBox");
     expect(pane.keyLog).toEqual([]);
   });
 });
@@ -397,34 +432,36 @@ describe("the Return goes only to the run the prompt went to, checked right befo
 describe("Sent only on positive evidence", () => {
   it("Claude going from idle to working with the box empty: Sent, no key", async () => {
     const pane = new ClaudePane((p) => (p.promptAt === null ? { draft: "" } : { draft: "", working: true }));
-    expect(await send(pane)).toBe("sent");
+    expect(await sendUnnamed(pane)).toBe("sent");
     expect(pane.keyLog).toEqual([]);
   });
 
   it("this prompt's queued hint (not there before the write), Claude working before: Sent, no key", async () => {
     const pane = new ClaudePane((p) => (p.promptAt === null ? { draft: "", working: true } : { draft: "", working: true, queued: [threePicturesBox] }));
     pane.status = "working";
-    expect(await send(pane)).toBe("sent");
+    expect(await sendUnnamed(pane)).toBe("sent");
     expect(pane.keyLog).toEqual([]);
   });
 
   it("a queued hint already there before the write is not this prompt's: unconfirmed, no key", async () => {
     const pane = new ClaudePane(() => ({ draft: "", working: true, queued: ["an earlier one"] }));
     pane.status = "working";
-    expect(await send(pane)).toBe(unconfirmed);
+    // Rule 3: unknown, the bubble waits for the record (no note, nothing put back).
+    expect(await send(pane)).toBe("unknown");
     expect(pane.keyLog).toEqual([]);
   });
 
   it("Claude working before, only that turn's working line after: unconfirmed, no key", async () => {
     const pane = new ClaudePane(() => ({ draft: "", working: true }));
     pane.status = "working";
-    expect(await send(pane)).toBe(unconfirmed);
+    // Rule 3: unknown, the bubble waits for the record (no note, nothing put back).
+    expect(await send(pane)).toBe("unknown");
     expect(pane.keyLog).toEqual([]);
   });
 
   it("the box emptied by the one Return: Sent", async () => {
     const pane = new ClaudePane((p) => ({ draft: p.promptAt === null || p.returns.length > 0 ? "" : threePicturesBox }));
-    expect(await send(pane)).toBe("sent");
+    expect(await sendUnnamed(pane)).toBe("sent");
     expect(pane.keyLog).toEqual([["Enter"]]);
   });
 });
@@ -435,7 +472,8 @@ describe("the wait ends on the clock, so Sending… ends", () => {
   it("slow reads (2 s each) and a box that never settles: no read past 12 s, no Return, unconfirmed", async () => {
     const pane = intake([500, 1_000, null], { asTyped: true });
     pane.readCost = 2_000;
-    expect(await send(pane)).toBe(unconfirmed);
+    // Rule 5: still in Claude's box, the bubble says so (no note, nothing put back).
+    expect(await send(pane)).toBe("stillInBox");
     expect(pane.keyLog).toEqual([]);
     // Reads start 0.25, 2.5, 4.75, 7, 9.25 and 11.5 s after the prompt; the next wait would start past 12 s.
     expect(pane.readsAfterPrompt).toBe(6);
@@ -445,14 +483,15 @@ describe("the wait ends on the clock, so Sending… ends", () => {
   it("slow reads still get the Return once every picture is in, then Sent", async () => {
     const pane = intake([500, 1_000, 2_000]);
     pane.readCost = 1_000;
-    expect(await send(pane)).toBe("sent");
+    expect(await sendUnnamed(pane)).toBe("sent");
     expect(pane.keyLog).toEqual([["Enter"]]);
   });
 
   it("the first wait crossing the bound: no read after it, no key, unconfirmed", async () => {
     const pane = intake([500, 1_000, 1_500]);
     pane.waitExtra = { 0: 12_100 };
-    expect(await send(pane)).toBe(unconfirmed);
+    // Rule 3: unknown, the bubble waits for the record (no note, nothing put back).
+    expect(await send(pane)).toBe("unknown");
     expect(pane.readsAfterPrompt).toBe(0);
     expect(pane.keyLog).toEqual([]);
   });
@@ -460,7 +499,8 @@ describe("the wait ends on the clock, so Sending… ends", () => {
   it("a later wait crossing the bound: no read after it", async () => {
     const pane = new ClaudePane((p) => ({ draft: p.promptAt === null ? "" : sent }));
     pane.costOf = (read) => (read >= 1 && read <= 2 ? 5_700 : 0);
-    expect(await send(pane)).toBe(unconfirmed);
+    // Rule 5: still in Claude's box, the bubble says so (no note, nothing put back).
+    expect(await send(pane)).toBe("stillInBox");
     expect(pane.readsAfterPrompt).toBe(2);
     expect(pane.keyLog).toEqual([]);
   });
@@ -469,7 +509,8 @@ describe("the wait ends on the clock, so Sending… ends", () => {
     const text = `${caption} ${pictures[0]}`;
     const pane = new ClaudePane((p) => ({ draft: p.promptAt === null ? "" : `[Image #1]${caption}` }));
     pane.costOf = (read) => (read === 0 ? 0 : 2_200);
-    expect(await send(pane, text)).toBe(unconfirmed);
+    // Rule 5: still in Claude's box, the bubble says so (no note, nothing put back).
+    expect(await send(pane, text)).toBe("stillInBox");
     expect(pane.keyLog).toEqual([["Enter"]]);
     expect(pane.readsAfterPrompt).toBe(3);
   });
@@ -520,12 +561,19 @@ describe("text-only sends and other agents are as before", () => {
 
 const restoredPictures = pictures.map((path, index) => ({ path, name: `Picture ${index + 1}`, image: true }));
 
-/** Sends the pane's draft through sendBound (the composer's own path), and waits for the result to land. */
+const checks = new SendChecks();
+
+/**
+ * Sends the pane's draft through sendBound (the composer's own path) as the IPC answers it (the receipt at the
+ * Return, then the check by its id), and waits for the result to land (the fake's bound is instant).
+ */
 async function sendFromComposer(pane: ClaudePane, drafts: ComposerDrafts, host: string): Promise<void> {
   let going: Promise<void> | null = null;
+  const bridge = (_hh: string, pp: string, tt: string) => sendWithReceipt(checks, (follow) => sendBound({ ...pane.site, ...follow }, pp, tt, claudeBinding));
+  const follow = { check: (id: string) => checks.take(id), wait: async () => undefined };
   const started = sendDraft(
     drafts,
-    (h, p, t) => (going = sendWithPending((_hh, pp, tt) => sendBound(pane.site, pp, tt, claudeBinding), h, p, t, true)),
+    (h, p, t) => (going = sendWithPending(bridge, h, p, t, true, null, Date.now, false, follow)),
     host,
     "w1:p1",
     null,
@@ -552,37 +600,43 @@ describe("the composer: its pictures go only when the send is Sent", () => {
     expect(drafts.get(key("sent-mini")).error ?? null).toBeNull();
   });
 
-  it("a picture missing: unconfirmed, the text and all three pictures kept with the note, the bubble taken back", async () => {
+  it("a picture missing: unconfirmed, the composer empty from the Return, the bubble cannot confirm it", async () => {
     const drafts = new ComposerDrafts();
     drafts.restore(key("missing-mini"), caption, restoredPictures, []);
     const pane = new ClaudePane((p) => ({ draft: p.promptAt === null ? "" : twoChips }));
     await sendFromComposer(pane, drafts, "missing-mini");
     expect(pane.keyLog).toEqual([]);
-    expect(drafts.get(key("missing-mini")).text).toBe(caption);
-    expect(drafts.get(key("missing-mini")).chips.map((chip) => (chip.state.kind === "uploaded" ? chip.state.path : null))).toEqual(pictures);
-    expect(drafts.get(key("missing-mini")).error).toBe(unconfirmed);
+    // Rule 2: the text and the pictures left at the Return; rule 5: nothing put back, no note.
+    expect(drafts.get(key("missing-mini")).text).toBe("");
+    expect(drafts.get(key("missing-mini")).chips.map((chip) => (chip.state.kind === "uploaded" ? chip.state.path : null))).toEqual([]);
+    expect(drafts.get(key("missing-mini")).error ?? null).toBeNull();
     expect(drafts.get(key("missing-mini")).sending).toBe(false);
-    expect(pendingMessages.forPane(key("missing-mini"))).toEqual([]);
+    // Rule 3: the bubble stays; after the bound it says Adari could not confirm it (with its two actions).
+    expect(pendingMessages.forPane(key("missing-mini")).map((bubble) => bubble.state)).toEqual(["unconfirmed"]);
   });
 
-  it("an edit after the Return: one Return, then the text and the pictures kept", async () => {
+  it("an edit after the Return: one Return, the composer empty from the Return, the bubble says it is still in the box", async () => {
     const drafts = new ComposerDrafts();
     drafts.restore(key("edit-mini"), caption, restoredPictures, []);
     const pane = new ClaudePane((p) => ({ draft: p.promptAt === null ? "" : p.returns.length === 0 ? threePicturesBox : otherCaption }));
     await sendFromComposer(pane, drafts, "edit-mini");
     expect(pane.keyLog).toEqual([["Enter"]]);
-    expect(drafts.get(key("edit-mini")).text).toBe(caption);
-    expect(drafts.get(key("edit-mini")).chips).toHaveLength(3);
-    expect(drafts.get(key("edit-mini")).error).toBe(unconfirmed);
+    // Rules 2 and 5: emptied at the Return, nothing put back, no note.
+    expect(drafts.get(key("edit-mini")).text).toBe("");
+    expect(drafts.get(key("edit-mini")).chips).toHaveLength(0);
+    expect(drafts.get(key("edit-mini")).error ?? null).toBeNull();
+    expect(pendingMessages.forPane(key("edit-mini")).map((bubble) => bubble.state)).toEqual(["inBox"]);
   });
 
-  it("the user's typing alone in Claude's box: the text and the pictures kept", async () => {
+  it("the user's typing alone in Claude's box: the composer empty from the Return, the bubble cannot confirm it", async () => {
     const drafts = new ComposerDrafts();
     drafts.restore(key("typing-mini"), caption, restoredPictures, []);
     const pane = new ClaudePane((p) => ({ draft: p.promptAt === null ? "" : "run the tests again" }));
     await sendFromComposer(pane, drafts, "typing-mini");
     expect(pane.keyLog).toEqual([]);
-    expect(drafts.get(key("typing-mini")).text).toBe(caption);
-    expect(drafts.get(key("typing-mini")).chips).toHaveLength(3);
+    // Rules 2 and 3: emptied at the Return, nothing put back; after the bound the bubble says it.
+    expect(drafts.get(key("typing-mini")).text).toBe("");
+    expect(drafts.get(key("typing-mini")).chips).toHaveLength(0);
+    expect(pendingMessages.forPane(key("typing-mini")).map((bubble) => bubble.state)).toEqual(["unconfirmed"]);
   });
 });

@@ -19,14 +19,21 @@ import { handoffStore } from "../handoff/handoff-state";
 
 /**
  * Your sends to the pane that may wait in Claude's queue, oldest first: bubbles Herdr took (`sent`: not one still
- * going, nor one the backstop turned Not sent) to the terminal shown (or one not known).
+ * going, nor one the backstop turned Not sent), and a picture message past its Return whose check still runs
+ * (`checking`), to the terminal shown (or one not known). Whether one is queued is the take-back's own proof (Claude
+ * Code's record of the pull), never this list.
  */
 export function queuedSends(pending: readonly PendingMessage[], terminalID: string): PendingMessage[] {
   return pending.filter((item) => {
-    if (item.state !== "sent" || item.text.trim() === "") return false;
+    if (!mayBeQueued(item) || item.text.trim() === "") return false;
     const sentTo = item.scope?.terminalID ?? "";
     return sentTo === "" || terminalID === "" || sentTo === terminalID;
   });
+}
+
+/** Herdr took it and nothing settled it: sent, or past its Return with its check still running. */
+function mayBeQueued(item: PendingMessage): boolean {
+  return item.state === "sent" || (item.state === "sending" && item.checking === true);
 }
 
 /** The last part of a path ("shot.png"). */
@@ -148,7 +155,7 @@ export class TakeBacks {
                   // empty: the texts always come back here, so your words are never nowhere. Their bubbles still
                   // waiting go; a message the transcript already shows (the same words sent before) is never hidden.
                   const takenIds = ids.slice(Math.max(0, ids.length - result.texts.length));
-                  const waiting = new Set(deps.pending.forPane(key).filter((item) => item.state === "sent").map((item) => item.id));
+                  const waiting = new Set(deps.pending.forPane(key).filter(mayBeQueued).map((item) => item.id));
                   result.texts.forEach((text, index) => {
                     const id = takenIds[index - (result.texts.length - takenIds.length)];
                     if (id !== undefined && waiting.has(id)) deps.pending.takeBack(key, text);
